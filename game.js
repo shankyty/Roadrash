@@ -284,7 +284,7 @@ const store = {
 // ------------------------------------------------------------------ audio
 // iOS: play as media so the silent switch doesn't mute the game (Safari 17+)
 try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) { /* older iOS */ }
-const VOL_DEFAULTS = { master: 1, race: 1, voices: 1, music: 0.8, city: 0.8 };
+const VOL_DEFAULTS = { master: 1, race: 0.35, voices: 0.7, music: 0.4, city: 0.7 };
 const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
 // Auto-rickshaw engine: single-cylinder two-stroke. Each firing is a pop that rings an exhaust
 // resonance and a tinny body rattle; off-throttle it misfires ("ring-ding-ding").
