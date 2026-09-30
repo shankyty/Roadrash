@@ -1,5 +1,32 @@
 # Changelog
 
+## v2.4.0: City music, hawkers and street sounds 🎶
+
+### Music for every city
+Every city now has its own light background track. All of them are original compositions, synthesised live in the game over a soft tanpura drone:
+- **Mumbai:** a filmi dholak groove with a harmonium tune.
+- **Hyderabad:** qawwali-style tabla, hand claps and harmonium.
+- **Delhi:** Punjabi bhangra with a swinging dhol beat and a tumbi riff.
+- **Chennai:** a fast kuthu beat with a nadaswaram-style reed tune.
+
+The music is louder on menus and softer while racing. Press **N** to turn it on or off.
+
+### Hawkers shout at you
+Chai stalls and shops call out as you drive past, in local street lingo:
+- **Mumbai:** *"Vada pav! Garam garam!"*, *"Bhel puri le lo!"*
+- **Hyderabad:** *"Irani chai, aao miyan!"*, *"Haleem garam hai!"*
+- **Delhi:** *"Chole bhature, aa jao!"*, *"Golgappe bhaiya!"*
+- **Chennai:** *"Kaapi! Kaapi!"*, *"Sundal, sundal!"*, *"Elaneer!"*
+
+### Real street sounds
+Each city plays a real field recording of its streets and markets: a market near CST in Mumbai, hawkers and traffic in New Delhi, and a busy Chennai street. The bustle gets louder where the road is lined with shops and stalls. The Sea Link stays quiet, out over the sea.
+
+### More dogs chasing you
+Roadside dogs now chase more often and sprint alongside your auto for longer before they tire. Sometimes two of them flank you, one on each side.
+
+### Credits
+Chennai street ambience by Nielsvdb ([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)). Mumbai, Delhi and Hyderabad ambience are CC0 recordings from Freesound.
+
 ## v2.3.0: Stray dogs 🐕
 
 - **Indian street dogs** now share the road: tan, black, and white with brown patches, with pointy ears and a curly tail.

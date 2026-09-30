@@ -37,9 +37,9 @@ One hand drives and the other swings the lathi. Press **Tab** on the title or pa
 | --- | --- | --- |
 | Gas / brake / steer | ↑ ↓ ← → (right hand) | W S A D (left hand) |
 | Swing lathi left / right | **A** / **D** (left hand) | **←** / **→** (right hand) |
-| Horn (cows and traffic move aside) | Space, W or S | Space, ↑ or ↓ |
+| Horn (cows, dogs and traffic move aside) | Space, W or S | Space, ↑ or ↓ |
 
-**Esc** or **P** during a race opens the menu: **Resume**, **Restart race** or **Quit to main menu**. Use ↑/↓ and Enter to choose, or click an option. On the results screen, **Enter** continues and **Esc** returns to the main menu. **M** mutes.
+**Esc** or **P** during a race opens the menu: **Resume**, **Restart race** or **Quit to main menu**. Use ↑/↓ and Enter to choose, or click an option. On the results screen, **Enter** continues and **Esc** returns to the main menu. **M** mutes all sound, and **N** turns the music on or off.
 
 In the Mac app's **Game** menu: Pause/Resume (⌘P), Restart Race (⌘R), Quit to Main Menu (⇧⌘M), Reload Game (⇧⌘R). **⌃⌘F** toggles full screen.
 
@@ -52,11 +52,14 @@ In the Mac app's **Game** menu: Pause/Resume (⌘P), Restart Race (⌘R), Quit t
   - **Chennai**: Marina Beach Road, with the Kapaleeshwarar gopuram, the lighthouse and Chennai Central behind.
 - Pick any unlocked race on the title screen with ← →.
 - Drivers who take a lathi hit shout back in their city's street slang: Bambaiya, Dakhni, Dilli or Tamil.
+- Hawkers at chai stalls and shops call out as you pass, in local lingo: *"Vada pav! Garam garam!"*, *"Irani chai, aao miyan!"*, *"Chole bhature, aa jao!"*, *"Kaapi! Kaapi!"*.
+- Each city has its own background music, all original and generated live in the browser: filmi dholak (Mumbai), qawwali (Hyderabad), bhangra (Delhi) and kuthu with a nadaswaram-style reed (Chennai). Press **N** to turn it on or off.
+- Real street and market recordings play in the background of each city, louder where the road is lined with shops.
 - The engine is a real Bajaj auto-rickshaw recording: a kick-start at race start, then idle and rev loops that pitch up with your speed.
 - Finish in the top 3 to qualify for the next race. Prize money and a ₹100 bonus for each rival you knock out go into your wallet, which is saved between sessions.
 - Rival autos catch up, ride alongside you and hit you with their own lathis. If your health runs out, you're knocked out for a few seconds.
 - Watch out for cows, buses, trucks and cars. Crashing into roadside objects wrecks you.
-- Stray dogs sleep in the middle of the road, trot across it, and chase your auto barking *"BHOW BHOW!"*. They always leap clear and never get hurt, but swerving around one costs you speed. Honk to wake them and send them off the road.
+- Stray dogs sleep in the middle of the road, trot across it, and chase your auto barking *"BHOW BHOW!"*. Roadside dogs often sprint alongside your auto for a while, sometimes in pairs. They always leap clear and never get hurt, but swerving around one costs you speed. Honk to wake them and send them off the road.
 - Autos only have three wheels, so taking a sharp turn at full speed makes you lean. If you stay in the red, you tip over.
 - Clear all 4 races to become **Auto King of India**. Each new tour after that is harder.
 
@@ -81,4 +84,10 @@ The app is only ad-hoc signed, not notarized. On another Mac, the first launch n
 
 ## Credits
 
+- Street ambience (trimmed, loudness-normalised loops in `web/ambience-*.js`):
+  - Mumbai: ["Mumbai - Market"](https://freesound.org/s/453005/) by Lenguaverde, CC0.
+  - Delhi: ["India Streets NewDelhi City"](https://freesound.org/s/263636/) by Alcappuccino, CC0.
+  - Chennai: ["Chennai (India) Traffic Ambience 01"](https://freesound.org/s/465712/) by **Nielsvdb**, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+  - Hyderabad: ["Street Ambience India"](https://freesound.org/s/509181/) by guidofm (recorded in Pune), CC0.
+- Music: original compositions, synthesised in real time by the game.
 - Engine sound: ["Auto Rickshaw - Start, Idle, Revving"](https://freesound.org/s/261051/) by **kalhan** (recorded at an NID sound-design workshop), licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). It was trimmed into a start clip plus idle and rev loops, level-adjusted and resampled (`web/sounds.js`).
