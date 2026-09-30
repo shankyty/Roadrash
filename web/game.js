@@ -172,7 +172,7 @@ function deviceSummary() {
 //   error/<kind>/<problem>/<OS-browser>
 // with the details needed to reproduce them in the title (version, game state, OS/browser versions,
 // screen, audio state, stack). Nothing personal is sent. Also logged to the console.
-const GAME_VERSION = '2.7.0';
+const GAME_VERSION = '2.7.1';
 const safe = (f, fallback = '?') => { try { const v = f(); return v === undefined ? fallback : v; } catch (e) { return fallback; } };
 function envDetails() {
   const ua = navigator.userAgent || '';
@@ -563,8 +563,8 @@ const Ambience = {
     this.decode(this.city);
     const buf = this.bufs[this.city];
     const quiet = theme.ambience === false; // e.g. out on the Sea Link
-    const base = paused ? 0.15 : state === 'title' || state === 'champion' ? 0.35 : 0.55;
-    this.bus.gain.setTargetAtTime(quiet ? 0 : base * (0.55 + 0.45 * this.shopsNearby()), a.currentTime, 0.8);
+    const base = paused ? 0.2 : state === 'title' || state === 'champion' ? 0.5 : 0.8;
+    this.bus.gain.setTargetAtTime(quiet ? 0 : base * (0.7 + 0.3 * this.shopsNearby()), a.currentTime, 0.8);
     if (!buf) return;
     if (!this.next || this.next < a.currentTime) this.next = a.currentTime + 0.05;
     if (this.next - a.currentTime > this.XF + 0.5) return;

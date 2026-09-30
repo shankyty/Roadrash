@@ -1,5 +1,10 @@
 # Changelog
 
+## v2.7.1: Louder city noise
+
+- The street and market sounds were hard to hear under the engine, horns and voices. Each city's recording is now mastered about 7 dB louder (to -16 LUFS, with a limiter), and it plays at a higher level during races, never dropping below 70% of that between shops. Overall the city noise is roughly 12 dB louder in a race.
+- The **City noise** slider in the sound mixer still controls it.
+
 ## v2.7.0: Speech bubbles talk, traffic and animals make noise 🗣️🐄🐕
 
 ### Voices
