@@ -52,10 +52,11 @@ In the Mac app's **Game** menu: Pause/Resume (⌘P), Restart Race (⌘R), Quit t
   - **Chennai**: Marina Beach Road, with the Kapaleeshwarar gopuram, the lighthouse and Chennai Central behind.
 - Pick any unlocked race on the title screen with ← →.
 - Drivers who take a lathi hit shout back in their city's street slang: Bambaiya, Dakhni, Dilli or Tamil.
-- The engine is a synthesised two-stroke: *phut-phut* at idle, a buzz when revved, and a misfiring burble off the gas.
+- The engine is a real Bajaj auto-rickshaw recording: a kick-start at race start, then idle and rev loops that pitch up with your speed.
 - Finish in the top 3 to qualify for the next race. Prize money and a ₹100 bonus for each rival you knock out go into your wallet, which is saved between sessions.
 - Rival autos catch up, ride alongside you and hit you with their own lathis. If your health runs out, you're knocked out for a few seconds.
 - Watch out for cows, buses, trucks and cars. Crashing into roadside objects wrecks you.
+- Stray dogs sleep in the middle of the road, trot across it, and chase your auto barking *"BHOW BHOW!"*. They always leap clear and never get hurt, but swerving around one costs you speed. Honk to wake them and send them off the road.
 - Autos only have three wheels, so taking a sharp turn at full speed makes you lean. If you stay in the red, you tip over.
 - Clear all 4 races to become **Auto King of India**. Each new tour after that is harder.
 

@@ -1,5 +1,15 @@
 # Changelog
 
+## v2.3.0: Stray dogs 🐕
+
+- **Indian street dogs** now share the road: tan, black, and white with brown patches, with pointy ears and a curly tail.
+  - **Sleeping** dogs lie curled up in the middle of the road.
+  - **Trotting** dogs cross the road.
+  - **Chasers** sit by the roadside and run alongside your front wheel barking *"BHOW BHOW!"*, until you outrun them.
+- Dogs always leap clear with a *"KAI KAI!"* yelp and **never get hurt**, but swerving around one costs you speed. Your lathi can't touch them.
+- The **horn** wakes sleeping dogs and sends them trotting off the road.
+- There are no dogs on the Bandra-Worli Sea Link.
+
 ## v2.2.0: Real auto-rickshaw engine sound
 
 - The engine is now a **real recording of a Bajaj auto-rickshaw**. You hear the starter lever and the engine catching at the start of every race.
