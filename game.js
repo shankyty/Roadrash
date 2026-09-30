@@ -1,8 +1,11 @@
 'use strict';
 // Road Rash: Rickshaw Rumble — a pseudo-3D combat racer where you drive an auto-rickshaw.
 (() => {
-const canvas = document.getElementById('game');
+const canvas = document.getElementById('game');            // UI layer (HUD, bubbles, menus); also the whole game in 2D mode
 const ctx = canvas.getContext('2d');
+const bgCanvas = document.getElementById('bg'), glCanvas = document.getElementById('gl'); // sky + 3D world layers
+const bgCtx = bgCanvas ? bgCanvas.getContext('2d') : null;
+let use3D = false, playerScr = null; // playerScr: where the 3D auto is on screen (for exhaust, dust, your bubble)
 const W = 960, H = 540;
 
 // ------------------------------------------------------------------ constants
@@ -172,7 +175,7 @@ function deviceSummary() {
 //   error/<kind>/<problem>/<OS-browser>
 // with the details needed to reproduce them in the title (version, game state, OS/browser versions,
 // screen, audio state, stack). Nothing personal is sent. Also logged to the console.
-const GAME_VERSION = '2.7.3';
+const GAME_VERSION = '2.8.0';
 const safe = (f, fallback = '?') => { try { const v = f(); return v === undefined ? fallback : v; } catch (e) { return fallback; } };
 function envDetails() {
   const ua = navigator.userAgent || '';
@@ -1072,6 +1075,7 @@ function makeBuilding(r, color) {
   g.fillStyle = signC; g.fillRect(24, sy - 32, 272, 34);
   g.fillStyle = isLight(signC) ? '#b71c1c' : '#fff'; g.font = 'bold 20px Arial Black, Arial'; g.textAlign = 'center'; g.textBaseline = 'middle';
   g.fillText(pick(SHOPS, r), 160, sy - 14);
+  c.bh = bh; c.wallColor = shade(color, -0.12);
   return c;
 }
 
@@ -1498,6 +1502,7 @@ function makeDogSleep(coat) {
 }
 
 // ------------------------------------------------------------------ sprites registry
+const CAR_COLORS = ['#e9e9ea', '#b71c1c', '#1f4e9c', '#9e9e9e'];
 const SP = {};
 function buildSharedSprites() {
   SP.player = makeTuk('#1e9e4a', '#ffd21f', '#151515', 'DL 1R 4207');
@@ -1507,7 +1512,7 @@ function buildSharedSprites() {
     const side = [makeDogSide(coat, 0), makeDogSide(coat, 1)];
     return { right: side, left: side.map(flipped), rear: [makeDogRear(coat, 0), makeDogRear(coat, 1)], sleep: makeDogSleep(coat) };
   });
-  SP.cars = [makeCar('#e9e9ea'), makeCar('#b71c1c'), makeCar('#1f4e9c'), makeCar('#9e9e9e')];
+  SP.cars = CAR_COLORS.map(makeCar);
   SP.bus = makeBus(); SP.truck = makeTruck();
   SP.palm = makePalm(); SP.palmF = flipped(SP.palm);
   const r = mulberry32(7); SP.trees = [makeTree(r), makeTree(r), makeTree(r)];
@@ -1534,7 +1539,7 @@ function resetPlayer() {
 function lastY() { return segments.length ? segments[segments.length - 1].p2.world.y : 0; }
 function addSegment(curve, y) {
   const n = segments.length;
-  segments.push({ index: n, curve, sprites: [], cars: [], dark: Math.floor(n / RUMBLE_LEN) % 2 === 1,
+  segments.push({ index: n, curve, sprites: [], solids: [], cars: [], dark: Math.floor(n / RUMBLE_LEN) % 2 === 1,
     p1: { world: { x: 0, y: lastY(), z: n * SEG_LEN }, camera: {}, screen: {} },
     p2: { world: { x: 0, y, z: (n + 1) * SEG_LEN }, camera: {}, screen: {} } });
 }
@@ -1568,26 +1573,38 @@ function buildTrack(tr) {
   startZ = PLAYER_Z + 3 * 520 + 400;
   const fs = Math.floor(startZ / SEG_LEN);
   segments[fs].finish = true; segments[fs + 1].finish = 2;
-  segments[fs].sprites.push({ img: SP.arch, offset: 0, nw: 2.6, center: true });
+  segments[fs].sprites.push({ img: SP.arch, offset: 0, nw: 2.6, center: true, kind: 'arch' });
 
   // scenery
+  // buildings and temples stand in a row along each side and never overlap (they're solid 3D boxes);
+  // trees, palms, hoardings and chai stalls go in front of them, nearer the road
+  const busyUntil = { '-1': 0, '1': 0 };
   for (let n = 30; n < segments.length; n++) {
     const seg = segments[n];
-    if (n % 18 === 0) { const side = (n / 18) % 2 ? 1 : -1; seg.sprites.push({ img: side < 0 ? SP.lampL : SP.lampR, offset: side * 1.12, nw: 0.13, solid: true }); }
-    if (n % 150 === 0) seg.sprites.push({ img: SP.milestone, offset: pick([-1, 1], R) * 1.1, nw: 0.08, solid: true });
+    if (n % 18 === 0) { const side = (n / 18) % 2 ? 1 : -1; seg.sprites.push({ img: side < 0 ? SP.lampL : SP.lampR, offset: side * 1.12, nw: 0.13, solid: true, kind: 'lamp' }); }
+    if (n % 150 === 0) seg.sprites.push({ img: SP.milestone, offset: pick([-1, 1], R) * 1.1, nw: 0.08, solid: true, kind: 'milestone' });
     if (R() < (tr.themeDef.density ?? 0.4)) {
-      const kind = weightedPick(tr.themeDef.scenery, R), side = R() < 0.5 ? -1 : 1;
+      const side = R() < 0.5 ? -1 : 1;
+      let kind = weightedPick(tr.themeDef.scenery, R);
+      if ((kind === 'building' || kind === 'temple') && n < busyUntil[side]) kind = tr.themeDef.scenery.palm ? 'palm' : 'tree';
       let s;
-      if (kind === 'palm') s = { img: side < 0 ? SP.palm : SP.palmF, offset: side * rand(1.3, 2.6), nw: 0.45, solid: true };
-      else if (kind === 'tree') s = { img: pick(SP.trees, R), offset: side * rand(1.4, 2.8), nw: 0.8, solid: true };
-      else if (kind === 'building') s = { img: pick(themeSprites.buildings, R), offset: side * rand(1.7, 2.6), nw: 1.1, solid: true };
-      else if (kind === 'billboard') s = { img: pick(themeSprites.billboards, R), offset: side * rand(1.25, 1.6), nw: 0.95, solid: true };
-      else if (kind === 'temple') s = { img: SP.temple, offset: side * rand(1.8, 2.6), nw: 1.1, solid: true };
-      else s = { img: SP.chai, offset: side * rand(1.2, 1.5), nw: 0.6, solid: true };
+      if (kind === 'palm') s = { img: side < 0 ? SP.palm : SP.palmF, offset: side * rand(1.25, 1.5), nw: 0.45, solid: true };
+      else if (kind === 'tree') s = { img: pick(SP.trees, R), offset: side * rand(1.25, 1.4), nw: 0.8, solid: true };
+      else if (kind === 'building') { s = { img: pick(themeSprites.buildings, R), offset: side * rand(2.05, 2.35), nw: 1.1, solid: true, len: 1200 + Math.floor(R() * 400) }; busyUntil[side] = n + Math.ceil(s.len / SEG_LEN) + 1; }
+      else if (kind === 'billboard') s = { img: pick(themeSprites.billboards, R), offset: side * rand(1.2, 1.4), nw: 0.95, solid: true };
+      else if (kind === 'temple') { s = { img: SP.temple, offset: side * rand(2.1, 2.4), nw: 1.1, solid: true }; busyUntil[side] = n + 12; }
+      else s = { img: SP.chai, offset: side * rand(1.2, 1.35), nw: 0.6, solid: true };
       s.kind = kind;
       seg.sprites.push(s);
     }
   }
+  // solid things block every segment they span (a building is several segments long)
+  segments.forEach((seg, n) => {
+    for (const s of seg.sprites) if (s.solid) {
+      const span = s.kind === 'building' ? Math.ceil(s.len / SEG_LEN) : 1;
+      for (let k = 0; k < span; k++) segments[(n + k) % segments.length].solids.push(s);
+    }
+  });
 }
 
 function loadTrack(idx) {
@@ -1602,6 +1619,7 @@ function loadTrack(idx) {
   const sky = SKYLINES[theme.city];
   bgLayers = { far: sky.far(theme, track.seed), near: sky.near(theme, track.seed + 5) };
   buildTrack(track);
+  if (use3D) World3D.setTrack({ segments, trackLength, theme, SP, themeSprites, CAR_COLORS, DOG_COATS, MAX_SPEED });
 }
 
 function findSegment(z) { return segments[Math.floor(((z % trackLength) + trackLength) % trackLength / SEG_LEN) % segments.length]; }
@@ -1629,7 +1647,7 @@ function setupRace() {
   for (let i = 0; i < slots.length; i++) {
     if (i === playerSlot) continue;
     const c = RIVAL_COLORS[ri % RIVAL_COLORS.length];
-    rivals.push({ name: names[ri], color: c.body, img: SP.rivals[ri % SP.rivals.length], nw: TUK_NW, voicePitch: rand(0.7, 1.35),
+    rivals.push({ name: names[ri], color: c.body, palette: c, img: SP.rivals[ri % SP.rivals.length], nw: TUK_NW, voicePitch: rand(0.7, 1.35),
       x: slots[i].x, dist: rowZ(slots[i].row) + shiftZ, speed: 0,
       top: MAX_SPEED * clamp(track.skill * diff - 0.06 + Math.random() * 0.08, 0.7, 1.02),
       health: 100, ko: 0, koBy: null, rot: 0, atk: null, cd: rand(1, 3), aggr: rand(0.6, 1.2), laneX: pick([-0.6, 0, 0.6]),
@@ -1731,6 +1749,7 @@ function runCommand(cmd) {
 window.rrrCommand = runCommand;
 function onPress(code) {
   if (code === 'KeyM') { Sfx.toggleMute(); return; }
+  if (code === 'KeyC' && use3D) { const m = World3D.setCamera(World3D.camera === 'heli' ? 'chase' : 'heli'); store.set('camera', m); msg(m === 'heli' ? 'HELI CAM' : 'CHASE CAM', '#fff', 1); return; }
   if (code === 'KeyN') { Music.toggle(); msg(Music.on ? 'MUSIC ON' : 'MUSIC OFF', '#fff', 1); return; }
   if (mixer) {
     const k = { ArrowUp: -1, KeyW: -1, T_up: -1, ArrowDown: 1, KeyS: 1, T_down: 1 }[code];
@@ -1934,7 +1953,7 @@ function updatePlayer(dt, controlled) {
     if (acc) player.speed += ACCEL * dt; else if (brk) player.speed += BRAKE * dt; else player.speed += DECEL * dt;
     if (Math.abs(player.x) > 1) {
       if (player.speed > OFFROAD_LIMIT) player.speed += OFFROAD_DECEL * dt;
-      if (Math.random() < sp * 0.8) particles.push({ x: W / 2 + rand(-100, 100), y: H - 30, vx: rand(-60, 60), vy: rand(-80, -20), t: 0.6, size: rand(6, 12), color: 'rgba(160,120,70,.6)' });
+      if (Math.random() < sp * 0.8) particles.push({ x: (playerScr ? playerScr.x : W / 2) + rand(-100, 100), y: playerScr ? playerScr.y - 6 : H - 30, vx: rand(-60, 60), vy: rand(-80, -20), t: 0.6, size: rand(6, 12), color: 'rgba(160,120,70,.6)' });
     }
     // three wheels are tippy: lateral load from curves + steering
     const lat = sp * sp * (seg.curve / 6 * 0.85 + player.steer * 0.38);
@@ -1957,7 +1976,7 @@ function updatePlayer(dt, controlled) {
   nearOffset = (nearOffset + 0.0022 * seg.curve * segDelta + 1) % 1;
   // exhaust
   player.puff -= dt;
-  if (player.puff <= 0 && player.crash <= 0) { player.puff = 0.07 + (1 - sp) * 0.08; particles.push({ x: W / 2 + 75, y: H - 50, vx: rand(10, 40), vy: rand(-50, -20), t: 0.7, size: rand(4, 8), color: 'rgba(200,200,200,.35)', grow: 16 }); }
+  if (player.puff <= 0 && player.crash <= 0) { player.puff = 0.07 + (1 - sp) * 0.08; particles.push({ x: playerScr ? playerScr.x + (playerScr.y - playerScr.top) * 0.3 : W / 2 + 75, y: playerScr ? playerScr.y - 18 : H - 50, vx: rand(10, 40), vy: rand(-50, -20), t: 0.7, size: rand(4, 8), color: 'rgba(200,200,200,.35)', grow: 16 }); }
 }
 
 function updateRivals(dt) {
@@ -2078,8 +2097,7 @@ function checkCollisions() {
   if (player.crash > 0) return;
   const pw = TUK_NW, seg = findSegment(player.dist);
   if (Math.abs(player.x) > 1) {
-    for (const s of seg.sprites) {
-      if (!s.solid) continue;
+    for (const s of seg.solids) {
       const cx = s.offset + Math.sign(s.offset) * s.nw / 2;
       if (overlap(player.x, pw * 0.7, cx, s.nw * 0.55)) {
         crashPlayer('WRECKED!', 25, -Math.sign(s.offset)); player.speed = 0;
@@ -2210,11 +2228,11 @@ function drawSegment(seg, n) {
   if (fog < 1) { ctx.globalAlpha = 1 - fog; ctx.fillStyle = theme.fog; ctx.fillRect(0, y2, W, y1 - y2 + 1); ctx.globalAlpha = 1; }
 }
 
-function drawBackground() {
-  const g = ctx.createLinearGradient(0, 0, 0, H * 0.55);
+function drawBackground(ctx, hz) {
+  const g = ctx.createLinearGradient(0, 0, 0, hz * 1.1);
   g.addColorStop(0, theme.sky[0]); g.addColorStop(0.6, theme.sky[1]); g.addColorStop(1, theme.sky[2]);
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-  const sx = W * (0.72 - skyOffset * 0.5), sy = H * (theme.night ? 0.16 : 0.27);
+  const sx = W * (0.72 - skyOffset * 0.5), sy = hz * (theme.night ? 0.32 : 0.54);
   if (theme.night) {
     const r = mulberry32(5);
     for (let i = 0; i < 90; i++) { ctx.globalAlpha = 0.3 + r() * 0.7; ctx.fillStyle = '#fff'; ctx.fillRect(((r() - skyOffset * 0.3) % 1 + 1) % 1 * W, r() * H * 0.4, 1.5, 1.5); }
@@ -2234,9 +2252,9 @@ function drawBackground() {
     for (let x = x0; x < W; x += lw) ctx.drawImage(img, x, bottom - img.height);
     if (x0 > 0) ctx.drawImage(img, x0 - lw, bottom - img.height);
   };
-  layer(bgLayers.far, farOffset, H / 2 + 30);
-  layer(bgLayers.near, nearOffset, H / 2 + 50);
-  ctx.fillStyle = theme.fog; ctx.fillRect(0, H / 2 + 50, W, H / 2);
+  layer(bgLayers.far, farOffset, hz + 30);
+  layer(bgLayers.near, nearOffset, hz + 50);
+  ctx.fillStyle = theme.fog; ctx.fillRect(0, hz + 50, W, H);
 }
 
 function drawSprite(img, destX, destY, destW, destH, clipY) {
@@ -2283,9 +2301,53 @@ function drawTuk(img, x, y, w, h, rot, atk, hurt) {
 function render() {
   frameNo++;
   ctx.save();
-  if (shake > 0) ctx.translate(rand(-1, 1) * shake * 14, rand(-1, 1) * shake * 10);
-  drawBackground();
+  if (use3D && !render3D()) disable3D();
+  if (!use3D) {
+    if (shake > 0) ctx.translate(rand(-1, 1) * shake * 14, rand(-1, 1) * shake * 10);
+    drawBackground(ctx, H / 2);
+    renderWorld2D();
+  }
+  // particles
+  for (const p of particles) {
+    ctx.globalAlpha = clamp(p.t * 1.5, 0, 1); ctx.fillStyle = p.color;
+    const sz = p.size + (p.grow ? (0.7 - p.t) * p.grow : 0);
+    ctx.beginPath(); ctx.arc(p.x, p.y, sz, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
 
+  guardDraw('ui', drawPopups);
+  guardDraw('ui', drawBubbles);
+  guardDraw('ui', () => {
+    if (state === 'title') drawTitle();
+    else if (state === 'champion') drawChampion();
+    else { drawHUD(); if (state === 'countdown') drawCountdown(); if (state === 'results') drawResults(); }
+  });
+  guardDraw('ui', () => { if (paused) drawPaused(); else drawMessages(); });
+  guardDraw('ui', () => { if (mixer) drawMixer(); else drawSoundHint(); });
+}
+
+// 3D mode: sky on its own canvas, the world in WebGL, and this canvas cleared for the UI on top
+function render3D() {
+  try {
+    drawBackground(bgCtx, World3D.horizonY());
+    const info = World3D.frame({ player, rivals, traffic, frameNo, shake, t: performance.now() / 1000 });
+    playerScr = info ? info.player : null;
+    ctx.clearRect(0, 0, W, H);
+    return true;
+  } catch (err) {
+    reportError('renderer', '3D frame failed, switching to 2D', err);
+    return false;
+  }
+}
+function disable3D() {
+  use3D = false; playerScr = null;
+  if (bgCanvas) bgCanvas.style.display = 'none';
+  if (glCanvas) glCanvas.style.display = 'none';
+}
+
+// the original pseudo-3D renderer (used when WebGL isn't available)
+function renderWorld2D() {
   const baseSeg = findSegment(position);
   const basePct = pctRemaining(position, SEG_LEN);
   const playerSeg = findSegment(position + PLAYER_Z);
@@ -2341,25 +2403,6 @@ function render() {
     if (seg === playerSeg) drawPlayer(playerSeg, playerPct);
   }
   for (const s of touched) s.cars.length = 0;
-
-  // particles
-  for (const p of particles) {
-    ctx.globalAlpha = clamp(p.t * 1.5, 0, 1); ctx.fillStyle = p.color;
-    const sz = p.size + (p.grow ? (0.7 - p.t) * p.grow : 0);
-    ctx.beginPath(); ctx.arc(p.x, p.y, sz, 0, Math.PI * 2); ctx.fill();
-  }
-  ctx.globalAlpha = 1;
-  ctx.restore();
-
-  guardDraw('ui', drawPopups);
-  guardDraw('ui', drawBubbles);
-  guardDraw('ui', () => {
-    if (state === 'title') drawTitle();
-    else if (state === 'champion') drawChampion();
-    else { drawHUD(); if (state === 'countdown') drawCountdown(); if (state === 'results') drawResults(); }
-  });
-  guardDraw('ui', () => { if (paused) drawPaused(); else drawMessages(); });
-  guardDraw('ui', () => { if (mixer) drawMixer(); else drawSoundHint(); });
 }
 
 function drawPlayer(seg, pct) {
@@ -2445,7 +2488,7 @@ function drawHUD() {
 function drawBubbles() {
   for (const b of bubbles) {
     let x, y;
-    if (b.who.isPlayer) { x = W / 2 + 60; y = H - 270; }
+    if (b.who.isPlayer) { x = (playerScr ? playerScr.x : W / 2) + 60; y = playerScr ? playerScr.top - 6 : H - 270; }
     else { const s = b.who.scr; if (!s || s.frame !== frameNo || s.w < 30) continue; x = s.x; y = s.y - 6; }
     ctx.save(); ctx.globalAlpha = clamp(b.t * 3, 0, 1);
     ctx.font = `14px ${FONT}`;
@@ -2506,7 +2549,7 @@ function drawControls(top) {
   text('LEFT HAND', W / 2 - 150, top + 2 + 150, 10, '#aaa'); text('RIGHT HAND', W / 2 + 150, top + 2 + 150, 10, '#aaa');
   if (arrowsDrive) { fight(W / 2 - 150); drive(W / 2 + 150); } else { drive(W / 2 - 150); fight(W / 2 + 150); }
   ctx.strokeStyle = 'rgba(255,255,255,.15)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(W / 2, top + 14); ctx.lineTo(W / 2, top + 160); ctx.stroke();
-  text(`TAB: switch hands  ·  P pause  ·  V sound mixer  ·  M mute  ·  N music`, W / 2, top + 168, 11, '#ffcc80', 'center', 'system-ui, sans-serif');
+  text(`TAB: switch hands  ·  C camera  ·  P pause  ·  V sound mixer  ·  M mute  ·  N music`, W / 2, top + 168, 11, '#ffcc80', 'center', 'system-ui, sans-serif');
 }
 function drawTitle() {
   ctx.fillStyle = 'rgba(10,5,20,.45)'; ctx.fillRect(0, 0, W, H);
@@ -2627,11 +2670,15 @@ const PORTRAIT_PANEL = 220;
 function fit() {
   const portrait = matchMedia('(orientation: portrait) and (pointer: coarse)').matches;
   const s = Math.min(innerWidth / W, (innerHeight - (portrait ? PORTRAIT_PANEL : 0)) / H);
-  canvas.style.width = `${Math.floor(W * s)}px`; canvas.style.height = `${Math.floor(H * s)}px`;
+  for (const c of [canvas, bgCanvas, glCanvas]) if (c) { c.style.width = `${Math.floor(W * s)}px`; c.style.height = `${Math.floor(H * s)}px`; }
+  for (const c of [bgCanvas, glCanvas]) if (c) { c.style.left = `${canvas.offsetLeft}px`; c.style.top = `${canvas.offsetTop}px`; }
 }
 addEventListener('resize', fit);
 
 buildSharedSprites();
+use3D = !/[?&]2d\b/.test(location.search) && !!(window.World3D && glCanvas && bgCtx &&
+  guard('renderer', () => World3D.init(glCanvas, { W, H, ROAD_W, SEG_LEN, maxPixelRatio: 1.75 })));
+if (!use3D) disable3D(); else World3D.setCamera(store.get('camera', 'heli'));
 attractSetup();
 fit();
 let last = performance.now(), acc = 0;
@@ -2649,5 +2696,5 @@ function step(now) {
 requestAnimationFrame(frame);
 // expose for debugging
 window.__rrr = { get state() { return state; }, player, get rivals() { return rivals; }, get results() { return results; }, setupRace,
-  step(n) { for (let i = 0; i < n; i++) update(STEP); render(); }, keys, Sfx, Music, Ambience, VehicleAudio, VoiceClips, Animals, SKYLINES, THEMES, SP, get traffic() { return traffic; }, get bubbles() { return bubbles; }, setLevel(l) { level = l; attractSetup(); } };
+  step(n) { for (let i = 0; i < n; i++) update(STEP); render(); }, keys, Sfx, Music, Ambience, VehicleAudio, VoiceClips, Animals, SKYLINES, THEMES, SP, get traffic() { return traffic; }, get segments() { return segments; }, get bubbles() { return bubbles; }, setLevel(l) { level = l; attractSetup(); } };
 })();

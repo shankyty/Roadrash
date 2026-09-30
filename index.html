@@ -28,7 +28,9 @@
   html, body { margin: 0; height: 100%; background: var(--bg); overflow: hidden; }
   body { display: flex; align-items: center; justify-content: center; font-family: system-ui, sans-serif; }
   #wrap { position: relative; }
-  canvas { display: block; image-rendering: auto; box-shadow: 0 0 60px rgba(255, 150, 60, .25); border-radius: 6px; }
+  canvas { display: block; image-rendering: auto; border-radius: 6px; }
+  #game { position: relative; box-shadow: 0 0 60px rgba(255, 150, 60, .25); }
+  #bg, #gl { position: absolute; left: 0; top: 0; }
   #touch { position: absolute; inset: 0; display: none; pointer-events: none; }
   #touch.on { display: block; }
   .tbtn {
@@ -60,6 +62,8 @@
 </head>
 <body>
 <div id="wrap">
+  <canvas id="bg" width="960" height="540"></canvas>
+  <canvas id="gl" width="960" height="540"></canvas>
   <canvas id="game" width="960" height="540"></canvas>
   <div id="touch">
     <div class="tbtn" data-key="T_left"  style="left:12px;bottom:84px">◀</div>
@@ -79,6 +83,8 @@
 <script src="voices.js"></script>
 <script src="animals.js"></script>
 <script src="horns.js"></script>
+<script src="lib/three.min.js"></script>
+<script src="world3d.js"></script>
 <script src="game.js"></script>
 </body>
 </html>
