@@ -12,9 +12,14 @@ fi
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources/web"
 
-echo "▸ compiling"
-swiftc -O -target "$(uname -m)-apple-macos12.0" -framework Cocoa -framework WebKit \
-  macos/main.swift -o "$APP/Contents/MacOS/RoadRash"
+echo "▸ compiling (universal: arm64 + x86_64)"
+OBJ="$(mktemp -d)"
+for arch in arm64 x86_64; do
+  swiftc -O -target "$arch-apple-macos13.0" -framework Cocoa -framework WebKit \
+    macos/main.swift -o "$OBJ/RoadRash-$arch"
+done
+lipo -create "$OBJ/RoadRash-arm64" "$OBJ/RoadRash-x86_64" -output "$APP/Contents/MacOS/RoadRash"
+rm -rf "$OBJ"
 
 echo "▸ bundling resources"
 cp macos/Info.plist "$APP/Contents/Info.plist"

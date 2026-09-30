@@ -2,6 +2,15 @@
 
 Road Rash-style combat racing through Mumbai. Instead of a motorbike you drive an auto-rickshaw.
 
+## Install with Homebrew
+
+```bash
+brew tap shankyty/roadrash https://github.com/shankyty/Roadrash
+brew install --cask roadrash
+```
+
+This works on Apple Silicon and Intel Macs running macOS 13 or later. You can also download `RoadRash.dmg` from [Releases](https://github.com/shankyty/Roadrash/releases).
+
 ## Build & run the Mac app
 
 ```bash
@@ -46,3 +55,9 @@ To iterate on the game in a browser: `python3 -m http.server 8765 --directory we
 
 This creates `build/RoadRash.dmg`. Open it and drag **Road Rash** into **Applications**.
 The app is only ad-hoc signed, not notarized. On another Mac, the first launch needs right-click → **Open**, or System Settings → Privacy & Security → **Open Anyway**.
+
+## Releasing a new version
+
+1. Bump `CFBundleShortVersionString` in `macos/Info.plist`, then run `./make-dmg.sh`.
+2. Create the release: `gh release create vX.Y.Z build/RoadRash.dmg`.
+3. In `Casks/roadrash.rb`, update `version` and `sha256` (from `shasum -a 256 build/RoadRash.dmg`), then push.
