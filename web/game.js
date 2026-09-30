@@ -176,7 +176,7 @@ function deviceSummary() {
 //   error/<kind>/<problem>/<OS-browser>
 // with the details needed to reproduce them in the title (version, game state, OS/browser versions,
 // screen, audio state, stack). Nothing personal is sent. Also logged to the console.
-const GAME_VERSION = '2.8.2';
+const GAME_VERSION = '2.8.3';
 const safe = (f, fallback = '?') => { try { const v = f(); return v === undefined ? fallback : v; } catch (e) { return fallback; } };
 function envDetails() {
   const ua = navigator.userAgent || '';
@@ -1640,7 +1640,7 @@ function setupRace() {
   for (let i = 0; i < nR + 1; i++) slots.push({ row: Math.floor(i / 2), x: i % 2 ? 0.42 : -0.42 });
   const rows = Math.ceil((nR + 1) / 2);
   const playerSlot = Math.min(nR, Math.floor((nR + 1) / 2) + ((nR + 1) % 2 ? 0 : 1));
-  const rowZ = row => PLAYER_Z + (rows - 1 - row) * 520;
+  const rowZ = row => PLAYER_Z + (rows - 1 - row) * (use3D ? TUK_LEN + 350 : 520); // 3D autos need a real gap between rows
   const shiftZ = PLAYER_Z - rowZ(slots[playerSlot].row);
   player.x = slots[playerSlot].x;
   const names = [...RIVAL_NAMES].sort(() => Math.random() - 0.5);
@@ -1659,7 +1659,7 @@ function setupRace() {
   traffic = [];
   const tr = mulberry32(track.seed + 99 + round);
   const addTraffic = (type) => {
-    const z = startZ + 4000 + tr() * (trackLength - 9000);
+    const z = startZ + 7000 + tr() * (trackLength - 13000); // clear of the starting grid (front and back)
     const lane = pick([-0.66, 0, 0.66], tr);
     if (type === 'cow') traffic.push({ type, z, x: rand(-1.2, 1.2), speed: 0, vx: pick([-1, 1], tr) * rand(0.05, 0.12), nw: 0.42, len: 380, pause: 0, scared: 0, label: 'HOLY COW' });
     else {
@@ -1910,6 +1910,7 @@ function update(dt) {
     guard('player-physics', () => updatePlayer(dt, state === 'race'));
     guard('rivals-combat', () => updateRivals(dt));
     guard('traffic', () => updateTraffic(dt));
+    guard('rivals-combat', separateRivals);
     if (state === 'race') guard('player-physics', checkCollisions);
     guard('hawkers', () => updateHawkers(dt));
     guard('race-rules', () => {
@@ -1975,9 +1976,9 @@ function updatePlayer(dt, controlled) {
   skyOffset = (skyOffset + 0.0006 * seg.curve * segDelta + 1) % 1;
   farOffset = (farOffset + 0.0012 * seg.curve * segDelta + 1) % 1;
   nearOffset = (nearOffset + 0.0022 * seg.curve * segDelta + 1) % 1;
-  // exhaust
+  // exhaust (2D only: in 3D the smoke is in the world, see world3d.js)
   player.puff -= dt;
-  if (player.puff <= 0 && player.crash <= 0) { player.puff = 0.07 + (1 - sp) * 0.08; particles.push({ x: playerScr ? playerScr.x + (playerScr.y - playerScr.top) * 0.3 : W / 2 + 75, y: playerScr ? playerScr.y - 18 : H - 50, vx: rand(10, 40), vy: rand(-50, -20), t: 0.7, size: rand(4, 8), color: 'rgba(200,200,200,.35)', grow: 16 }); }
+  if (!use3D && player.puff <= 0 && player.crash <= 0) { player.puff = 0.07 + (1 - sp) * 0.08; particles.push({ x: playerScr ? playerScr.x + (playerScr.y - playerScr.top) * 0.3 : W / 2 + 75, y: playerScr ? playerScr.y - 18 : H - 50, vx: rand(10, 40), vy: rand(-50, -20), t: 0.7, size: rand(4, 8), color: 'rgba(200,200,200,.35)', grow: 16 }); }
 }
 
 function updateRivals(dt) {
@@ -2078,6 +2079,7 @@ function updateDog(c, dt) {
   else { c.img = (c.x > 0 ? c.look.left : c.look.right)[0]; c.nw = 0.2; }
 }
 function updateTraffic(dt) {
+  const obs = trafficObstacles();
   for (const c of traffic) {
     if (c.type === 'dog') { updateDog(c, dt); continue; }
     if (c.type === 'cow') {
@@ -2086,11 +2088,64 @@ function updateTraffic(dt) {
       else { c.x += c.vx * dt; if (Math.random() < dt * 0.1 && c.scared <= 0) c.pause = rand(1, 4); }
       if (Math.abs(c.x) > 1.4) { c.vx = -Math.sign(c.x) * rand(0.05, 0.12); c.x = Math.sign(c.x) * 1.4; }
       c.img = c.vx > 0 ? SP.cowR : SP.cowL;
-    } else {
-      c.laneT -= dt; if (c.laneT <= 0) { c.laneT = rand(5, 14); c.tx = pick([-0.66, 0, 0.66]); }
-      c.x += clamp(c.tx - c.x, -0.35 * dt, 0.35 * dt);
-      c.z = (c.z + c.speed * dt) % trackLength;
-    }
+    } else driveTraffic(c, obs, dt);
+  }
+}
+
+// Traffic is solid and drives by the rules (India keeps left): buses and trucks stay in the left lane,
+// cars on the left or in the middle. They keep a safe gap that grows with speed, brake for whatever is ahead
+// (you, rival autos, other traffic, cows), change lane only to overtake (pulling out to the right) and move
+// back to the left once past, always indicating first and never into a lane with something alongside.
+const TRAFFIC_LANES = [-0.66, 0, 0.66];
+function trafficObstacles() {
+  const obs = [{ z: player.dist, x: player.x, speed: player.speed, nw: TUK_NW, len: TUK_LEN, who: player }];
+  for (const r of rivals) obs.push({ z: r.dist, x: r.x, speed: r.ko > 0 ? 0 : r.speed, nw: TUK_NW, len: TUK_LEN, who: r });
+  for (const c of traffic) if (c.type !== 'dog') obs.push({ z: c.z, x: c.x, speed: c.speed, nw: c.nw, len: c.type === 'cow' ? 900 : c.len, who: c });
+  return obs;
+}
+function driveTraffic(c, obs, dt) {
+  if (c.cruise == null) {
+    c.cruise = c.speed; c.stuck = 0; c.signal = 0; c.signalT = 0; c.checkT = rand(1, 3);
+    c.home = c.type === 'car' ? pick([-0.66, 0]) : -0.66; c.x = c.tx = c.home;
+  }
+  const reachOf = o => use3D ? (c.len + o.len) / 2 : 250;
+  const hits = (x, o) => Math.abs(o.x - x) < (c.nw + o.nw) / 2 + 0.03;
+  const laneFree = (x, ahead, behind) => !obs.some(o => {
+    if (o.who === c || !hits(x, o)) return false;
+    const dz = wrapDelta(o.z - c.z), r = reachOf(o);
+    return dz > -r - behind && dz < r + ahead;
+  });
+  // following: nearest thing ahead in this lane, keep a gap of about a third of a second plus a bit
+  let ahead = null, gap = Infinity;
+  for (const o of obs) {
+    if (o.who === c || !hits(c.x, o)) continue;
+    const dz = wrapDelta(o.z - c.z), g = dz - reachOf(o);
+    if (dz > 0 && g < 3000 && g < gap) { gap = g; ahead = o; }
+  }
+  const safe = 250 + c.speed * 0.35;
+  let target = c.cruise;
+  if (ahead) target = Math.min(c.cruise, Math.max(0, ahead.speed + (gap - safe) * 1.6));
+  c.speed += clamp(target - c.speed, -9000 * dt, 2500 * dt);
+  c.z = (c.z + c.speed * dt) % trackLength;
+  if (ahead && gap < 0) { c.z = ((ahead.z - reachOf(ahead)) % trackLength + trackLength) % trackLength; c.speed = Math.min(c.speed, ahead.speed); }
+  // lane changes: indicate, then move once the lane is still clear
+  if (c.signalT > 0) {
+    c.signalT -= dt;
+    if (c.signalT <= 0) { const l = c.x + c.signal * 0.66; if (laneFree(l, 600, 500)) c.tx = l; else c.signal = 0; }
+  } else if (Math.abs(c.tx - c.x) < 0.01) {
+    c.signal = 0;
+    if (ahead && gap < safe + 400 && c.speed < c.cruise * 0.8) c.stuck += dt; else c.stuck = 0;
+    c.checkT -= dt;
+    const right = c.x + 0.66, left = c.x - 0.66;
+    if (c.stuck > 0.8 && right <= 0.67 && laneFree(right, 900, 700)) { c.signal = 1; c.signalT = 0.8; c.stuck = 0; }            // overtake on the right
+    else if (c.checkT <= 0) { c.checkT = rand(1.5, 3); if (c.x > c.home + 0.3 && laneFree(left, 1400, 900)) { c.signal = -1; c.signalT = 0.8; } } // back to the left
+  }
+  // steer toward the chosen lane, but never slide into something alongside
+  const nx = c.x + clamp(c.tx - c.x, -0.4 * dt, 0.4 * dt);
+  if (nx !== c.x) {
+    const blocked = obs.some(o => o.who !== c && Math.abs(wrapDelta(o.z - c.z)) < reachOf(o) && hits(nx, o) && !hits(c.x, o));
+    if (blocked) { c.tx = TRAFFIC_LANES.reduce((b, l) => Math.abs(l - c.x) < Math.abs(b - c.x) ? l : b); } else c.x = nx;
+    if (Math.abs(c.tx - c.x) < 0.01) c.signal = 0;
   }
 }
 
@@ -2115,11 +2170,11 @@ function checkCollisions() {
   for (const c of traffic) {
     const dz = wrapDelta(c.z - player.dist);
     const reach = use3D ? (c.len || 0) / 2 + half : 230;
-    if (dz < (use3D ? -reach : -60) || dz > reach || !overlap(player.x, pw * 0.85, c.x, c.nw * 0.85)) continue;
+    if (dz < (use3D ? -reach : -60) || dz > reach || !overlap(player.x, use3D ? pw : pw * 0.85, c.x, use3D ? c.nw : c.nw * 0.85)) continue;
     // alongside (3D): the auto scrapes the vehicle's side and is shoved back out into its own line
     if (use3D && dz < reach - 260 && c.type !== 'dog') {
       const dir = player.x >= c.x ? 1 : -1;
-      player.x = c.x + dir * (pw + c.nw) * 0.85 / 2 + dir * 0.01;
+      player.x = c.x + dir * (pw + c.nw) / 2 + dir * 0.01;
       player.lean = dir * 0.5; player.speed *= 0.92; player.health -= 2; Sfx.bump(); shake = 0.12;
       if (c.type === 'cow') { Animals.mooFrom(c); c.vx = -dir * 0.8; c.scared = 2; }
       return;
@@ -2153,6 +2208,37 @@ function checkCollisions() {
       if (dz > 0 && player.speed > r.speed) { player.speed = r.speed * 0.95; player.dist -= reachR - dz; Sfx.bump(); }
       else if (dz < 0 && r.speed > player.speed) { r.speed = player.speed * 0.95; r.dist = player.dist - reachR; }
     } else { player.x += dir * ov * 0.5; r.x -= dir * ov * 0.5; }
+  }
+}
+
+// rivals are solid too: they can't drive into each other or into traffic. Nose to tail the one behind is
+// held back at the other's bumper; side by side they're pushed apart.
+function separateRivals() {
+  const reachR = use3D ? TUK_LEN : 200;
+  const push = (a, b, dz, reach, bw, both) => { // a is behind b by dz (>= 0); both: b can be moved sideways too
+    const dx = a.x - b.x, ov = (TUK_NW + bw) / 2 - Math.abs(dx), dir = dx >= 0 ? 1 : -1;
+    if (ov <= 0) return;
+    if (dz > reach - 260) { a.dist = Math.min(a.dist, b.dist - reach); a.speed = Math.min(a.speed, (b.speed || 0) * 0.98); }
+    else if (both) { a.x += dir * ov * 0.5; b.x -= dir * ov * 0.5; } else a.x += dir * ov;
+  };
+  for (let i = 0; i < rivals.length; i++) {
+    const a = rivals[i];
+    for (let j = i + 1; j < rivals.length; j++) {
+      const b = rivals[j], dz = b.dist - a.dist;
+      if (Math.abs(dz) >= reachR) continue;
+      if (dz >= 0) push(a, b, dz, reachR, TUK_NW, true); else push(b, a, -dz, reachR, TUK_NW, true);
+    }
+    if (a.ko > 0) continue;
+    // alongside you: the rival gives way sideways (nose to tail is handled in checkCollisions)
+    const pdz = player.dist - a.dist, pdx = a.x - player.x, pov = TUK_NW - Math.abs(pdx);
+    if (Math.abs(pdz) < reachR - 260 && pov > 0) a.x += (pdx >= 0 ? 1 : -1) * pov;
+    for (const c of traffic) {
+      if (c.type === 'dog' || c.type === 'cow') continue;
+      const reach = use3D ? (c.len || 0) / 2 + TUK_LEN / 2 : 200, dz = wrapDelta(c.z - a.dist), cw = use3D ? c.nw : c.nw * 0.85;
+      if (dz <= -reach || dz >= reach) continue;
+      if (dz > 0) push(a, { dist: a.dist + dz, x: c.x, speed: c.speed }, dz, reach, cw, false);
+      else { const dx = a.x - c.x, ov = (TUK_NW + cw) / 2 - Math.abs(dx); if (ov > 0) a.x += (dx >= 0 ? 1 : -1) * ov; }
+    }
   }
 }
 

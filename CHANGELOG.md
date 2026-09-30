@@ -1,5 +1,20 @@
 # Changelog
 
+## v2.8.3: Real exhaust smoke, solid traffic that follows the rules
+
+- **Exhaust smoke from the tail pipe:**
+  - The smoke now comes out of a tail pipe low at the back of your auto, and the auto hides the puffs behind it. It no longer floats up over the hood into the sky.
+  - Standing still, it's faint, almost white, and hangs by the pipe. At a steady speed it's whitish grey and trails behind on the road. Accelerating hard makes it thicker and a bit darker.
+- **Nothing drives through anything:**
+  - The starting grid is spaced for real autos, and no traffic spawns on it.
+  - Rival autos bump off each other and off traffic.
+  - Traffic brakes and stops behind whatever is in front of it, including you when you're stopped, instead of driving through.
+- **Traffic follows the rules (keep left):**
+  - Buses and trucks stay in the left lane; cars drive on the left or in the middle.
+  - Vehicles keep a safe gap that grows with speed.
+  - They only change lanes to overtake: they pull out to the right and come back left once the lane is clear.
+  - They always indicate first (blinking amber lights) and never move into a lane with something beside them.
+
 ## v2.8.2: Rounded models, real collisions, turning and hills
 
 - **The auto's back is right now:** the black canvas hood curves down over the back onto the body (green on yours) with a rear window showing the passengers. The flat yellow deck behind the hood is gone.
