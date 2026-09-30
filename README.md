@@ -39,7 +39,7 @@ One hand drives and the other swings the lathi. Press **Tab** on the title or pa
 | Swing lathi left / right | **A** / **D** (left hand) | **←** / **→** (right hand) |
 | Horn (cows, dogs and traffic move aside) | Space, W or S | Space, ↑ or ↓ |
 
-**Esc** or **P** during a race opens the menu: **Resume**, **Restart race** or **Quit to main menu**. Use ↑/↓ and Enter to choose, or click an option. On the results screen, **Enter** continues and **Esc** returns to the main menu. **V** opens the **sound mixer**, with separate volumes for all sound, race (engine, horn, fights), music and city noise; it's also in the pause menu, and there's a 🔊 button on phones. **M** mutes everything and **N** turns the music on or off.
+**Esc** or **P** during a race opens the menu: **Resume**, **Restart race** or **Quit to main menu**. Use ↑/↓ and Enter to choose, or click an option. On the results screen, **Enter** continues and **Esc** returns to the main menu. **V** opens the **sound mixer**, with separate volumes for all sound, race (engine, horn, fights), voices, music and city noise; it's also in the pause menu, and there's a 🔊 button on phones. **M** mutes everything and **N** turns the music on or off.
 
 In the Mac app's **Game** menu: Pause/Resume (⌘P), Restart Race (⌘R), Quit to Main Menu (⇧⌘M), Reload Game (⇧⌘R). **⌃⌘F** toggles full screen.
 
@@ -51,8 +51,8 @@ In the Mac app's **Game** menu: Pause/Resume (⌘P), Restart Race (⌘R), Quit t
   - **Delhi**: Ring Road, with India Gate, Qutub Minar, Red Fort, the Lotus Temple and Jama Masjid behind.
   - **Chennai**: Marina Beach Road, with the Kapaleeshwarar gopuram, the lighthouse and Chennai Central behind.
 - All 7 races are open from the start: pick any of them on the title screen with ← →.
-- Drivers who take a lathi hit shout back in their city's street slang: Bambaiya, Dakhni, Dilli or Tamil.
-- Hawkers at chai stalls and shops call out as you pass, in local lingo: *"Vada pav! Garam garam!"*, *"Irani chai, aao miyan!"*, *"Chole bhature, aa jao!"*, *"Kaapi! Kaapi!"*.
+- Drivers who take a lathi hit shout back in their city's street slang (Bambaiya, Dakhni, Dilli or Tamil), and the lines are **spoken aloud** by the device's Hindi or Tamil voice. Every rival has their own voice pitch.
+- Hawkers at chai stalls and shops call out as you pass, in local lingo and out loud: *"Vada pav! Garam garam!"*, *"Irani chai, aao miyan!"*, *"Chole bhature, aa jao!"*, *"Kaapi! Kaapi!"*.
 - Each city has its own background music, all original and generated live in the browser: filmi dholak (Mumbai), qawwali (Hyderabad), bhangra (Delhi) and kuthu with a nadaswaram-style reed (Chennai). Press **N** to turn it on or off.
 - Real street and market recordings play in the background of each city, louder where the road is lined with shops.
 - The engine is a real Bajaj auto-rickshaw recording: a kick-start at race start, then idle and rev loops that pitch up with your speed.
