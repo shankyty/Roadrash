@@ -1,5 +1,19 @@
 # Changelog
 
+## v2.8.2: Rounded models, real collisions, turning and hills
+
+- **The auto's back is right now:** the black canvas hood curves down over the back onto the body (green on yours) with a rear window showing the passengers. The flat yellow deck behind the hood is gone.
+- **No more boxy vehicles:**
+  - Autos, cars, buses and trucks have rounded edges and corners, and the truck has a bulging tarpaulin.
+  - The cow is built from curves (barrel body, hump, dewlap, rounded head and legs), and so is the dog.
+- **Collisions match what you see:**
+  - Hits happen when the bodies actually touch, bumper to bumper. Before, you could drive halfway into a bus.
+  - Scraping a vehicle's side shoves you back out.
+  - A building's front wall is solid.
+  - Rival autos also steer round the full length of traffic.
+- **Vehicles turn:** your auto, rivals and lane-changing traffic point where they're heading, and your front wheel steers.
+- **No sinking into hills:** vehicles tilt with the slope and never dip below the road.
+
 ## v2.8.1: A proper auto-rickshaw model
 
 - **Rebuilt the 3D auto-rickshaw** after real Bajaj/TVS autos (using Sketchfab models as references):
