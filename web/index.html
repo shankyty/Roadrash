@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Road Rash: Rickshaw Rumble</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bungee&display=swap" rel="stylesheet">
+<style>
+  :root { --bg: #120b1c; }
+  html, body { margin: 0; height: 100%; background: var(--bg); overflow: hidden; }
+  body { display: flex; align-items: center; justify-content: center; font-family: system-ui, sans-serif; }
+  #wrap { position: relative; }
+  canvas { display: block; image-rendering: auto; box-shadow: 0 0 60px rgba(255, 150, 60, .25); border-radius: 6px; }
+  #touch { position: absolute; inset: 0; display: none; pointer-events: none; }
+  #touch.on { display: block; }
+  .tbtn {
+    position: absolute; pointer-events: auto; width: 64px; height: 64px; border-radius: 50%;
+    background: rgba(0, 0, 0, .35); border: 2px solid rgba(255, 255, 255, .5); color: #fff;
+    font: 700 13px system-ui; display: flex; align-items: center; justify-content: center;
+    user-select: none; -webkit-user-select: none; touch-action: none;
+  }
+  .tbtn.down { background: rgba(255, 200, 0, .5); }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="game" width="960" height="540"></canvas>
+  <div id="touch">
+    <div class="tbtn" data-key="ArrowLeft"  style="left:12px;bottom:84px">◀</div>
+    <div class="tbtn" data-key="ArrowRight" style="left:88px;bottom:84px">▶</div>
+    <div class="tbtn" data-key="KeyZ"       style="left:12px;bottom:10px">HIT ◀</div>
+    <div class="tbtn" data-key="KeyX"       style="left:88px;bottom:10px">HIT ▶</div>
+    <div class="tbtn" data-key="ArrowUp"    style="right:12px;bottom:84px">GAS</div>
+    <div class="tbtn" data-key="ArrowDown"  style="right:88px;bottom:84px">BRAKE</div>
+    <div class="tbtn" data-key="KeyH"       style="right:12px;bottom:10px">HORN</div>
+    <div class="tbtn" data-key="Enter"      style="right:88px;bottom:10px">OK</div>
+  </div>
+</div>
+<script src="game.js"></script>
+</body>
+</html>
