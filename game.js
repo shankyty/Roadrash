@@ -46,6 +46,29 @@ const HAWKER_CALLS = {
   chennai: ['KAAPI! KAAPI!', 'SUNDAL, SUNDAL!', 'IDLI VADAI, VAANGA!', 'MURUKKU, SAAPDUNGA!', 'ELANEER, ELANEER!'],
 };
 // What a driver shouts after taking a lathi hit, in the local street slang of the race's city.
+// What the voices actually read: native script, so Hindi/Tamil voices pronounce the lines properly.
+const SPOKEN = {
+  // Mumbai
+  'ABE O HERO!': 'अबे ओ हीरो!', 'KYA RE, DIMAAG KHARAB?': 'क्या रे, दिमाग खराब?', 'AYE BHIDU, SAMBHAL KE!': 'ए भिड़ू, संभल के!',
+  'APUN KO MAARA?!': 'अपुन को मारा?!', 'CHAL NIKAL!': 'चल निकल!', 'WAAT LAGA DUNGA!': 'वाट लगा दूंगा!', 'GHANTA!': 'घंटा!',
+  'VADA PAV! GARAM GARAM!': 'वड़ा पाव! गरम गरम!', 'CUTTING CHAI, BOSS!': 'कटिंग चाय, बॉस!', 'BHEL PURI LE LO!': 'भेल पूरी ले लो!',
+  'PAV BHAJI, EKDUM FRESH!': 'पाव भाजी, एकदम फ्रेश!', 'NIMBU PAANI THANDA!': 'नींबू पानी ठंडा!',
+  // Hyderabad
+  'KYA RE MIYAN!': 'क्या रे मियाँ!', 'NAKKO RE!': 'नक्को रे!', 'HAU, AB DEKH!': 'हौ, अब देख!', 'EK DENGA NA!': 'एक देंगा ना!',
+  'KAIKU MAARA?!': 'कायकू मारा?!', 'CHUP BAITH!': 'चुप बैठ!', 'BAIGAN!': 'बैंगन!',
+  'IRANI CHAI, AAO MIYAN!': 'ईरानी चाय, आओ मियाँ!', 'HALEEM GARAM HAI!': 'हलीम गरम है!', 'BIRYANI KHAO NA!': 'बिरयानी खाओ ना!',
+  'OSMANIA BISCUIT LE LO!': 'उस्मानिया बिस्कुट ले लो!', 'MIRCHI BAJJI, HAU!': 'मिर्ची बज्जी, हौ!',
+  // Delhi
+  'OYE! JAANTA HAI MERA BAAP KAUN HAI?': 'ओए! जानता है मेरा बाप कौन है?', 'ABEY OYE!': 'अबे ओए!', 'KYA KAR RAHA HAI YAAR!': 'क्या कर रहा है यार!',
+  'TERI TOH...!': 'तेरी तो...!', 'BADTAMEEZ!': 'बदतमीज़!', 'OYE HOYE!': 'ओए होए!', 'BHAI SAHAB, DHANG SE!': 'भाई साहब, ढंग से!',
+  'CHOLE BHATURE, AA JAO!': 'छोले भटूरे, आ जाओ!', 'GOLGAPPE BHAIYA!': 'गोलगप्पे भैया!', 'RABDI JALEBI, GARMA GARAM!': 'रबड़ी जलेबी, गरमा गरम!',
+  'MOMOS, PAAJI!': 'मोमोज़, पाजी!', 'CHAI PEE LO, YAAR!': 'चाय पी लो, यार!',
+  // Chennai (Tamil)
+  'DEI!': 'டேய்!', 'ENNA DA?!': 'என்ன டா?!', 'PODA!': 'போடா!', 'AIYYO!': 'ஐயோ!', 'ENNA MACHAAN?!': 'என்ன மச்சான்?!',
+  'SUMMA IRU DA!': 'சும்மா இரு டா!', 'ITHU TOO MUCH DA!': 'இது டூ மச் டா!',
+  'KAAPI! KAAPI!': 'காபி! காபி!', 'SUNDAL, SUNDAL!': 'சுண்டல், சுண்டல்!', 'IDLI VADAI, VAANGA!': 'இட்லி வடை, வாங்க!',
+  'MURUKKU, SAAPDUNGA!': 'முறுக்கு, சாப்பிடுங்க!', 'ELANEER, ELANEER!': 'இளநீர், இளநீர்!',
+};
 const CURSES = {
   mumbai: ['ABE O HERO!', 'KYA RE, DIMAAG KHARAB?', 'AYE BHIDU, SAMBHAL KE!', 'APUN KO MAARA?!', 'CHAL NIKAL!', 'WAAT LAGA DUNGA!', 'GHANTA!'],
   hyderabad: ['KYA RE MIYAN!', 'NAKKO RE!', 'HAU, AB DEKH!', 'EK DENGA NA!', 'KAIKU MAARA?!', 'CHUP BAITH!', 'BAIGAN!'],
@@ -172,7 +195,7 @@ function deviceSummary() {
 //   error/<kind>/<problem>/<OS-browser>
 // with the details needed to reproduce them in the title (version, game state, OS/browser versions,
 // screen, audio state, stack). Nothing personal is sent. Also logged to the console.
-const GAME_VERSION = '2.6.1';
+const GAME_VERSION = '2.7.0';
 const safe = (f, fallback = '?') => { try { const v = f(); return v === undefined ? fallback : v; } catch (e) { return fallback; } };
 function envDetails() {
   const ua = navigator.userAgent || '';
@@ -204,6 +227,7 @@ const COMPONENTS = [
   ['ui', /^(draw(?:HUD|Title|Results|Paused|Mixer|Controls|Countdown|Champion|Bubbles|Popups|Messages|SoundHint)|text|panel|bar|keycap)$/],
   ['renderer', /^(render|drawSegment|drawBackground|drawSprite|drawTuk|drawLathi|drawPlayer|project|poly)$/],
   ['input', /^(onPress|keyDown|keyUp|runCommand|toggleLayout|openPause|openMixer)$/],
+  ['voices', /^(?:Object\.|Voice\.)?(sayLine|pickVoice|unlockVoice|loadVoices|stopVoices)$/],
   ['analytics', /^(trackEvent|deviceSummary|envDetails)$/],
   ['game-loop', /^(update|step|frame)$/],
 ];
@@ -260,7 +284,7 @@ const store = {
 // ------------------------------------------------------------------ audio
 // iOS: play as media so the silent switch doesn't mute the game (Safari 17+)
 try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) { /* older iOS */ }
-const VOL_DEFAULTS = { master: 1, race: 1, music: 0.8, city: 0.8 };
+const VOL_DEFAULTS = { master: 1, race: 1, voices: 1, music: 0.8, city: 0.8 };
 const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
 // Auto-rickshaw engine: single-cylinder two-stroke. Each firing is a pop that rings an exhaust
 // resonance and a tinny body rattle; off-throttle it misfires ("ring-ding-ding").
@@ -570,6 +594,56 @@ const Ambience = {
     this.next = t + d - this.XF;
   },
 };
+
+// ------------------------------------------------------------------ voices
+// Speech bubbles are read aloud with the device's own Hindi (hi-IN) or Tamil (ta-IN) voice.
+// Falls back to an Indian-English voice reading the romanised line, and reports if nothing can speak.
+const Voice = {
+  list: [], unlocked: false, lastAt: 0, noVoicesReported: false,
+  get ok() { return 'speechSynthesis' in window && typeof SpeechSynthesisUtterance !== 'undefined'; },
+  loadVoices() { try { this.list = speechSynthesis.getVoices() || []; } catch (e) { this.list = []; } },
+  pickVoice(lang) {
+    const want = lang.toLowerCase(), norm = v => v.lang.toLowerCase().replace('_', '-');
+    return this.list.find(v => norm(v) === want && v.localService) || this.list.find(v => norm(v) === want)
+      || this.list.find(v => norm(v).startsWith(want.slice(0, 2) + '-')) || null;
+  },
+  // iOS only lets speech start from inside a tap; speak a silent blank once
+  unlockVoice() {
+    if (this.unlocked || !this.ok) return;
+    this.unlocked = true;
+    try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); } catch (e) { reportError('voices', 'speech unlock failed', e); }
+  },
+  sayLine(line, { kind, pitch = 1, rate = 1.1 }) {
+    if (!this.ok || paused) return;
+    const vol = Sfx.muted ? 0 : Sfx.vol.master * Sfx.vol.voices;
+    if (vol < 0.02) return;
+    const now = performance.now();
+    if (kind === 'hawker' && (speechSynthesis.speaking || now - this.lastAt < 1200)) return; // hawkers never talk over anyone
+    if (kind === 'curse' && speechSynthesis.speaking) speechSynthesis.cancel(); // a fresh curse cuts in
+    if (!this.list.length) this.loadVoices();
+    const lang = theme.city === 'chennai' ? 'ta-IN' : 'hi-IN';
+    let voice = this.pickVoice(lang), text = SPOKEN[line] || line, useLang = lang;
+    if (!voice && this.list.length) {
+      voice = this.pickVoice('en-IN') || this.pickVoice('en-GB') || null; text = line.toLowerCase(); useLang = voice ? voice.lang : 'en-IN';
+      if (!this.missingReported) { this.missingReported = true; reportError('voices', `no ${lang} voice, using ${voice ? voice.name : 'default'}`); }
+    }
+    if (!this.list.length && !this.noVoicesReported) { this.noVoicesReported = true; reportError('voices', 'no speech voices listed (speaking with default)'); }
+    this.lastAt = now;
+    try {
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = useLang; if (voice) u.voice = voice;
+      u.volume = clamp(vol, 0, 1); u.pitch = clamp(pitch, 0.1, 2); u.rate = clamp(rate, 0.5, 2);
+      u.onerror = e => { if (!['interrupted', 'canceled'].includes(e.error)) reportError('voices', `speech error: ${e.error}`, null, `${useLang} ${voice ? voice.name : 'default voice'}`); };
+      speechSynthesis.speak(u);
+    } catch (e) { reportError('voices', 'speak() threw', e); }
+  },
+  stopVoices() { try { if (this.ok) speechSynthesis.cancel(); } catch (e) { /* ignore */ } },
+};
+if (Voice.ok) {
+  Voice.loadVoices();
+  try { speechSynthesis.addEventListener('voiceschanged', () => Voice.loadVoices()); } catch (e) { /* older Safari */ }
+}
+addEventListener('visibilitychange', () => { if (document.hidden) Voice.stopVoices(); });
 
 // ------------------------------------------------------------------ sprite painting
 function mk(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
@@ -1379,7 +1453,7 @@ function setupRace() {
   for (let i = 0; i < slots.length; i++) {
     if (i === playerSlot) continue;
     const c = RIVAL_COLORS[ri % RIVAL_COLORS.length];
-    rivals.push({ name: names[ri], color: c.body, img: SP.rivals[ri % SP.rivals.length], nw: TUK_NW,
+    rivals.push({ name: names[ri], color: c.body, img: SP.rivals[ri % SP.rivals.length], nw: TUK_NW, voicePitch: rand(0.7, 1.35), voiceRate: rand(1.05, 1.3),
       x: slots[i].x, dist: rowZ(slots[i].row) + shiftZ, speed: 0,
       top: MAX_SPEED * clamp(track.skill * diff - 0.06 + Math.random() * 0.08, 0.7, 1.02),
       health: 100, ko: 0, koBy: null, rot: 0, atk: null, cd: rand(1, 3), aggr: rand(0.6, 1.2), laneX: pick([-0.6, 0, 0.6]),
@@ -1445,6 +1519,7 @@ function keyUp(code) { keys[code] = false; }
 let unlockCheck = null;
 const unlockAudio = e => {
   Sfx.init();
+  Voice.unlockVoice();
   const a = Sfx.ctx; if (!a || a.state === 'running') return;
   const p = a.resume(); if (p && p.catch) p.catch(err => reportError('audio', 'resume() rejected', err));
   // the tap should have started audio; if it is still not running, sound is blocked on this device
@@ -1464,16 +1539,17 @@ addEventListener('blur', () => { for (const k in keys) keys[k] = false; if (stat
 
 const RACING_STATES = ['countdown', 'race', 'finished'];
 const PAUSE_MENU = [{ label: 'RESUME', cmd: 'resume' }, { label: 'RESTART RACE', cmd: 'restart' }, { label: 'SOUND MIXER', cmd: 'mixer' }, { label: 'QUIT TO MAIN MENU', cmd: 'menu' }];
-const MIXER = [['master', 'ALL SOUND'], ['race', 'RACE', 'engine, horn, fights'], ['music', 'MUSIC'], ['city', 'CITY NOISE', 'street & hawkers']];
+const MIXER = [['master', 'ALL SOUND'], ['race', 'RACE', 'engine, horn, fights'], ['voices', 'VOICES', 'curses & hawker shouts'], ['music', 'MUSIC'], ['city', 'CITY NOISE', 'street sounds']];
 let mixer = null;
 function openMixer() { mixer = { sel: 0 }; }
-function openPause() { paused = true; pauseSel = 0; }
+function openPause() { paused = true; pauseSel = 0; Voice.stopVoices(); }
 // Commands shared by the pause menu, mouse clicks and the macOS app menu (window.rrrCommand).
 function runCommand(cmd) {
   if (cmd === 'mixer') { openMixer(); return; }
   if (cmd === 'pause') { if (RACING_STATES.includes(state) && !paused) openPause(); else if (paused) paused = false; return; }
   paused = false;
   if (cmd === 'restart' && state !== 'title' && state !== 'champion') setupRace();
+  if (cmd === 'menu' || cmd === 'restart') Voice.stopVoices();
   if (cmd === 'menu') { state = 'title'; results = null; messages = []; attractSetup(); }
 }
 window.rrrCommand = runCommand;
@@ -1537,12 +1613,18 @@ function updateHawkers(dt) {
   const seen = [];
   for (let n = 3; n < 60; n++) for (const sp of segments[(findSegment(position).index + n) % segments.length].sprites)
     if (sp.scr && sp.scr.frame === frameNo && sp.scr.w > 60 && sp.scr.x > 40 && sp.scr.x < W - 40 && !bubbles.some(b => b.who === sp)) seen.push(sp);
-  if (seen.length) bubbles.push({ who: pick(seen), text: pick(HAWKER_CALLS[theme.city] || HAWKER_CALLS.mumbai), t: 2.2, hawker: true });
+  if (!seen.length) return;
+  const line = pick(HAWKER_CALLS[theme.city] || HAWKER_CALLS.mumbai);
+  bubbles.push({ who: pick(seen), text: line, t: 2.2, hawker: true });
+  Voice.sayLine(line, { kind: 'hawker', pitch: rand(1.1, 1.5), rate: 0.95 }); // sing-song street call
 }
 function curse(who) {
   bubbles = bubbles.filter(b => b.who !== who);
-  bubbles.push({ who, text: pick(CURSES[theme.city] || CURSES.mumbai), t: 1.7 });
+  const line = pick(CURSES[theme.city] || CURSES.mumbai);
+  bubbles.push({ who, text: line, t: 1.7 });
   setTimeout(() => Sfx.grunt(), 120);
+  // every rival has their own voice; your driver sounds the same all race
+  Voice.sayLine(line, { kind: 'curse', pitch: who.isPlayer ? 0.95 : who.voicePitch || 1, rate: who.isPlayer ? 1.15 : who.voiceRate || 1.15 });
 }
 function startAttack(who, side) { who.atk = { t: 0, side, dur: 0.34, done: false }; }
 
@@ -2306,9 +2388,9 @@ function drawPaused() {
   text('\u2191 \u2193 choose  \u00b7  ENTER select  \u00b7  ESC resume  \u00b7  TAB switch hands', W / 2, 286, 12, '#ffcc80', 'center', 'system-ui, sans-serif');
   drawControls(300);
 }
-const mixRow = i => ({ x: W / 2 - 250, y: 128 + i * 62, w: 500, h: 52 });
+const mixRow = i => ({ x: W / 2 - 250, y: 124 + i * 58, w: 500, h: 50 });
 const mixBar = i => { const r = mixRow(i); return { x: r.x + 220, y: r.y + 19, w: 200, h: 14 }; };
-const mixDone = { x: W / 2 - 80, y: 128 + MIXER.length * 62 + 8, w: 160, h: 40 };
+const mixDone = { x: W / 2 - 80, y: 124 + MIXER.length * 58 + 6, w: 160, h: 40 };
 const inRect = (x, y, r) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
 function drawMixer() {
   ctx.fillStyle = 'rgba(12,6,20,.9)'; ctx.fillRect(0, 0, W, H);
