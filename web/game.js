@@ -175,7 +175,7 @@ function deviceSummary() {
 //   error/<kind>/<problem>/<OS-browser>
 // with the details needed to reproduce them in the title (version, game state, OS/browser versions,
 // screen, audio state, stack). Nothing personal is sent. Also logged to the console.
-const GAME_VERSION = '2.8.0';
+const GAME_VERSION = '2.8.1';
 const safe = (f, fallback = '?') => { try { const v = f(); return v === undefined ? fallback : v; } catch (e) { return fallback; } };
 function envDetails() {
   const ua = navigator.userAgent || '';

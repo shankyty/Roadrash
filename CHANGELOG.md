@@ -1,5 +1,14 @@
 # Changelog
 
+## v2.8.1: A proper auto-rickshaw model
+
+- **Rebuilt the 3D auto-rickshaw** after real Bajaj/TVS autos (using Sketchfab models as references):
+  - **Front:** a narrow nose down to the single front wheel, a curved front mudguard, a round headlamp and indicators.
+  - **Windscreen:** big and slightly raked, framed in the upper colour, with side mirrors.
+  - **Canopy:** a boxy canvas roof with a visor and a softened top edge, solid canvas sides around the back seat, and an open doorway with the driver at the handlebar.
+  - **Back:** a wider rear tub over the back wheels, a blue bench seat with passengers, and the painted "HORN OK PLEASE", number plate and tail lights.
+  - **Paint:** two-tone like real autos (green and yellow for you, black and yellow Mumbai-style for some rivals).
+
 ## v2.8.0: Real 3D 🎥
 
 - **The world is now truly 3D** (Three.js / WebGL), so vehicles and buildings no longer look like flat cut-outs on bends:
