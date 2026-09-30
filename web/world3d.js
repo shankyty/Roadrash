@@ -24,7 +24,7 @@ window.World3D = (() => {
   let renderer, scene, camera, hemi, sun, ready = false;
   let road, roadPos, roadCol;
   let segments = [], trackLength = 1, theme = null, SP = null, TS = null, cfg = {};
-  const QUADS = 21; // per segment: grass x2, shoulder x2, rumble x2, road, lanes x2, finish cells x12
+  const QUADS = 30; // per segment: verge and road (7), centre line (2), lane lines (4), or finish cells (12) / zebra + stop line
   const P = [], TH = [], Y = [];     // per-frame centreline points, headings, heights (camera space)
   let camAbs = 0, camFrac = 0, baseIdx = 0;
 
@@ -36,10 +36,49 @@ window.World3D = (() => {
   const unitPlane = new T.PlaneGeometry(1, 1);
   const halfTube = new T.CylinderGeometry(0.5, 0.5, 1, 20, 1, true, Math.PI / 2, Math.PI); // top half of a tube (open ends)
   const blob = new T.CircleGeometry(0.5, 20);
+  // ---------------------------------------------------------------- night lighting
+  // At night the scene is dim moonlight; light falls only where it really does: a warm pool under each
+  // street lamp and a beam ahead of each vehicle's headlights. Every material gets these added per pixel
+  // (up to 16 lamps and 16 headlights nearest your auto, fed in each frame).
+  const NL = 16, v4s = () => Array.from({ length: NL }, () => new T.Vector4());
+  const nightU = { uNight: { value: 0 }, uLamps: { value: v4s() }, uHeadP: { value: v4s() }, uHeadD: { value: v4s() } };
+  const NIGHT_GLSL = `
+uniform float uNight; uniform vec4 uLamps[${NL}]; uniform vec4 uHeadP[${NL}]; uniform vec4 uHeadD[${NL}]; varying vec3 vNightPos;
+vec3 nightLight(vec3 p) {
+  vec3 L = vec3(0.0);
+  for (int i = 0; i < ${NL}; i++) {
+    vec4 l = uLamps[i]; if (l.w <= 0.0) continue;
+    vec2 d = p.xz - l.xz;
+    L += vec3(1.0, 0.72, 0.4) * l.w * exp(-dot(d, d) / 1.7e6) * step(p.y, l.y + 40.0);
+  }
+  for (int i = 0; i < ${NL}; i++) {
+    vec4 h = uHeadP[i]; if (h.w <= 0.0) continue;
+    vec3 v = p - h.xyz; float a = dot(v, uHeadD[i].xyz);
+    if (a < -80.0) continue;
+    float lat = length(v - uHeadD[i].xyz * a), wd = 120.0 + max(a, 0.0) * 0.42;
+    L += vec3(1.0, 0.94, 0.78) * h.w * (1.0 - smoothstep(0.0, uHeadD[i].w, a)) * exp(-lat * lat / (wd * wd));
+  }
+  return L * uNight;
+}
+`;
+  // unlit (basic) materials are dimmed to moonlight by hand; lit ones are dimmed by the scene lights
+  function nightify(mat, unlit = false) {
+    if (!mat || mat.userData.night) return mat;
+    mat.userData.night = true;
+    mat.onBeforeCompile = sh => {
+      Object.assign(sh.uniforms, nightU);
+      sh.vertexShader = 'varying vec3 vNightPos;\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\nvNightPos = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+      sh.fragmentShader = NIGHT_GLSL + sh.fragmentShader.replace('#include <output_fragment>',
+        (unlit ? 'outgoingLight *= mix(1.0, 0.26, uNight);\n' : '') + 'outgoingLight += diffuseColor.rgb * nightLight(vNightPos);\n#include <output_fragment>');
+    };
+    mat.customProgramCacheKey = () => unlit ? 'night-unlit' : 'night';
+    return mat;
+  }
+
   const matCache = new Map();
   const lambert = (color, extra = {}) => {
     const key = color + JSON.stringify(extra);
-    if (!matCache.has(key)) matCache.set(key, new T.MeshLambertMaterial({ color, ...extra }));
+    if (!matCache.has(key)) matCache.set(key, nightify(new T.MeshLambertMaterial({ color, ...extra })));
     return matCache.get(key);
   };
   const texCache = new Map();
@@ -49,10 +88,11 @@ window.World3D = (() => {
   };
   const spriteMat = canvas => {
     const key = canvas;
-    if (!matCache.has(key)) matCache.set(key, new T.MeshLambertMaterial({ map: tex(canvas), transparent: false, alphaTest: 0.5, side: T.DoubleSide }));
+    if (!matCache.has(key)) matCache.set(key, nightify(new T.MeshLambertMaterial({ map: tex(canvas), transparent: false, alphaTest: 0.5, side: T.DoubleSide })));
     return matCache.get(key);
   };
   const lampGlow = new T.MeshLambertMaterial({ color: '#fff6c0', emissive: '#fff2a0', emissiveIntensity: 0.3 });
+  const headGlow = new T.MeshLambertMaterial({ color: '#fffbe6', emissive: '#fff4c8', emissiveIntensity: 0.25 });
   const shadowMat = new T.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.32, depthWrite: false });
 
   const box = (w, h, l, color, x = 0, y = 0, z = 0, extra) => {
@@ -151,7 +191,7 @@ window.World3D = (() => {
     const guard = new T.Mesh(halfTube, lambert(body, { side: T.DoubleSide })); guard.rotation.order = 'YXZ'; guard.rotation.set(Math.PI / 2, Math.PI / 2, 0);
     guard.scale.set(290, 150, 290); guard.position.set(0, 118, -R + 70); g.add(guard);
     const lamp = cyl(46, 40, '#fff8d0', 0, 380, -R + 12); lamp.rotation.x = Math.PI / 2;
-    lamp.material = lambert('#fff8d0', { emissive: '#fff3b0', emissiveIntensity: 0.6 }); g.add(lamp);
+    lamp.material = headGlow; g.add(lamp); g.userData.headY = 380;
     for (const sx of [-1, 1]) { const ind = new T.Mesh(unitSphere, lambert('#ff9800')); ind.scale.setScalar(34); ind.position.set(sx * 90, 440, -R + 40); g.add(ind); }
     // windscreen (slightly raked) with a frame in the upper colour, and mirrors
     const ws = new T.Group(); ws.position.set(0, 575, -R + 205); ws.rotation.x = 0.16;
@@ -205,6 +245,10 @@ window.World3D = (() => {
       g.add(m); g.userData.ind[sx].push(m);
     }
   }
+  function headlamps(g, w, l, y) {
+    for (const sx of [-1, 1]) { const m = new T.Mesh(unitSphere, headGlow); m.scale.set(120, 80, 30); m.position.set(sx * (w / 2 - 130), y, -l / 2 - 4); g.add(m); }
+    g.userData.headY = y;
+  }
   function busModel(rearCanvas) {
     const g = new T.Group(), Wd = 1120, L = 3200;
     g.add(shadow(Wd, L));
@@ -217,7 +261,7 @@ window.World3D = (() => {
     for (let i = 0; i < 6; i++) g.add(rbox(300, 150, 360, bags[i % 5], (i % 2 ? 1 : -1) * 220, 1195, -L / 2 + 500 + i * 380, 50));
     for (const z of [-L / 2 + 520, L / 2 - 560]) for (const sx of [-1, 1]) g.add(wheel(190, 150, sx * (Wd / 2 - 70), 190, z));
     if (rearCanvas) g.add(rearPanel(rearCanvas, Wd * 0.9, L / 2 + 4, 0));
-    indicators(g, Wd, L, 330);
+    indicators(g, Wd, L, 330); headlamps(g, Wd, L, 330);
     g.userData.size = { w: Wd, h: 1300, l: L };
     return g;
   }
@@ -231,7 +275,7 @@ window.World3D = (() => {
     g.add(rbox(Wd * 0.98, 520, 1880, '#1565c0', 0, 1260, L / 2 - 950, 200));                 // tarpaulin, bulging over the load
     for (const z of [-L / 2 + 420, L / 2 - 700, L / 2 - 330]) for (const sx of [-1, 1]) g.add(wheel(195, 170, sx * (Wd / 2 - 80), 195, z));
     if (rearCanvas) g.add(rearPanel(rearCanvas, Wd * 0.9, L / 2 + 4, 0));
-    indicators(g, Wd, L, 330);
+    indicators(g, Wd, L, 330); headlamps(g, Wd, L, 420);
     g.userData.size = { w: Wd, h: 1500, l: L };
     return g;
   }
@@ -243,7 +287,7 @@ window.World3D = (() => {
     g.add(rbox(Wd * 0.8, 60, L * 0.44, color, 0, 610, 60, 28));                             // roof
     for (const z of [-L / 2 + 280, L / 2 - 300]) for (const sx of [-1, 1]) g.add(wheel(125, 110, sx * (Wd / 2 - 50), 125, z));
     if (rearCanvas) g.add(rearPanel(rearCanvas, Wd * 0.94, L / 2 + 3, 0));
-    indicators(g, Wd, L, 320);
+    indicators(g, Wd, L, 320); headlamps(g, Wd, L, 300);
     g.userData.size = { w: Wd, h: 700, l: L };
     return g;
   }
@@ -317,7 +361,7 @@ window.World3D = (() => {
     if (!buildingMats.has(key)) {
       const t = tex(img).clone(); t.needsUpdate = true;
       t.repeat.set(300 / img.width, bh / img.height); t.offset.set(10 / img.width, 0);
-      const facade = new T.MeshLambertMaterial({ map: t });
+      const facade = nightify(new T.MeshLambertMaterial({ map: t }));
       const wall = lambert(img.wallColor || '#b9a88f'), roof = lambert('#4a4540');
       buildingMats.set(key, { left: [facade, wall, roof, wall, wall, wall], right: [wall, facade, roof, wall, wall, wall] });
     }
@@ -356,11 +400,51 @@ window.World3D = (() => {
     g.add(box(140, 180, 60, '#f5f5f5', 0, 90, 0)); g.add(box(140, 90, 62, '#ffcc00', 0, 225, 0));
     g.userData.size = { w: 140, h: 270, l: 60 }; return g;
   }
-  function archModel(canvas) {
-    const g = new T.Group(), w = 2.6 * ROAD_W, h = w * canvas.height / canvas.width;
+  function archModel(canvas, s) {
+    const g = new T.Group(), w = (s.nw || 2.6) * ROAD_W, h = w * canvas.height / canvas.width;
     const face = new T.Mesh(unitPlane, spriteMat(canvas)); face.scale.set(w, h, 1); face.position.y = h / 2; g.add(face);
     for (const sx of [-1, 1]) g.add(box(260, h * 0.88, 260, '#b71c1c', sx * (w / 2 - 140), h * 0.44, 0));
     g.userData.size = { w, h, l: 260 }; return g;
+  }
+  // a road sign: the painted face on a real post, grey back
+  function signModel(s) {
+    const g = new T.Group();
+    g.add(cyl(18, 1500, '#8a8f96', 0, 750, 0));
+    const face = facePanel(crop(s.img, 0, 0, 120, 110), 460, 420, 0, 1500, 14); g.add(face);
+    const back = new T.Mesh(unitPlane, lambert('#9aa0a6')); back.scale.set(440, 400, 1); back.position.set(0, 1500, 10); back.rotation.y = Math.PI; g.add(back);
+    g.userData.size = { w: 460, h: 1720, l: 30 }; return g;
+  }
+  // traffic signal: a post at the kerb with a head, and a mast arm out over the lanes with a second head
+  const sigMat = { R: [lambert('#3a1010'), lambert('#ff2d2d', { emissive: '#ff1a1a', emissiveIntensity: 1.2 })],
+    A: [lambert('#3a2a08'), lambert('#ffb300', { emissive: '#ff9800', emissiveIntensity: 1.2 })],
+    G: [lambert('#0c2a12'), lambert('#2ee86a', { emissive: '#18d050', emissiveIntensity: 1.2 })] };
+  function signalHead(g, x, y, lamps) {
+    g.add(rbox(230, 620, 180, '#15171a', x, y, 0, 50));
+    [['R', 190], ['A', 0], ['G', -190]].forEach(([k, dy]) => { const m = new T.Mesh(unitSphere, sigMat[k][0]); m.scale.set(130, 130, 60); m.position.set(x, y + dy, 95); g.add(m); lamps[k].push(m); });
+  }
+  function signalModel(s) {
+    const g = new T.Group(), lamps = { R: [], A: [], G: [] }, arm = ((s.junction && s.junction.half) || 1.2) * ROAD_W * 0.6;
+    g.add(cyl(40, 2700, '#3b3f45', 0, 1350, 0));
+    const mast = cyl(26, arm, '#3b3f45', arm / 2, 2600, 0); mast.rotation.z = Math.PI / 2; g.add(mast);
+    signalHead(g, 0, 1500, lamps); signalHead(g, arm - 120, 2250, lamps);
+    g.userData.lamps = lamps; g.userData.size = { w: 300, h: 2700, l: 300 }; return g;
+  }
+  // the traffic cop on his little platform under a striped umbrella, waving traffic on
+  function copModel() {
+    const g = new T.Group();
+    g.add(cyl(260, 160, '#e0e0e0', 0, 80, 0)); g.add(cyl(265, 40, '#d32f2f', 0, 150, 0));
+    g.add(cyl(14, 1500, '#555', 180, 900, 0));
+    const umb = new T.Mesh(unitCone, lambert('#f5f5f5')); umb.scale.set(900, 260, 900); umb.position.set(180, 1700, 0); g.add(umb);
+    const umb2 = new T.Mesh(unitCone, lambert('#d32f2f')); umb2.scale.set(600, 180, 600); umb2.position.set(180, 1760, 0); g.add(umb2);
+    for (const sx of [-1, 1]) { const leg = new T.Mesh(capsule(34, 330), lambert('#6b5a34')); leg.position.set(sx * 50, 400, 0); g.add(leg); }
+    g.add(rbox(190, 300, 120, '#f4f4f4', 0, 740, 0, 45));
+    g.add(rbox(196, 30, 124, '#222', 0, 610, 0, 10));                                           // belt
+    const head = new T.Mesh(unitSphere, lambert('#8d5524')); head.scale.set(110, 125, 110); head.position.set(0, 980, 0); g.add(head);
+    g.add(cyl(70, 50, '#f4f4f4', 0, 1060, 0)); g.add(cyl(84, 12, '#f4f4f4', 0, 1036, -10));      // white cap
+    const arm = new T.Group(); arm.position.set(110, 850, 0);
+    const a = new T.Mesh(capsule(26, 240), lambert('#f4f4f4')); a.position.y = 140; arm.add(a); g.add(arm);
+    const arm2 = new T.Mesh(capsule(26, 240), lambert('#f4f4f4')); arm2.position.set(-115, 720, 0); g.add(arm2);
+    g.userData.wave = arm; g.userData.size = { w: 520, h: 1800, l: 520 }; return g;
   }
   function sceneryModel(s) {
     const side = s.offset < 0 ? -1 : 1;
@@ -370,7 +454,10 @@ window.World3D = (() => {
       case 'billboard': case 'chai': return boardModel(s.img, s.nw * ROAD_W, side);
       case 'lamp': return lampModel(side);
       case 'milestone': return milestoneModel();
-      case 'arch': return archModel(s.img);
+      case 'arch': return archModel(s.img, s);
+      case 'sign': return signModel(s);
+      case 'signal': return signalModel(s);
+      case 'cop': return copModel();
       default: return crossedModel(s.img, s.nw * ROAD_W);
     }
   }
@@ -395,7 +482,7 @@ window.World3D = (() => {
     roadCol = new Float32Array(DRAW * QUADS * 6 * 3);
     geo.setAttribute('position', new T.BufferAttribute(roadPos, 3).setUsage(T.DynamicDrawUsage));
     geo.setAttribute('color', new T.BufferAttribute(roadCol, 3).setUsage(T.DynamicDrawUsage));
-    road = new T.Mesh(geo, new T.MeshBasicMaterial({ vertexColors: true }));
+    road = new T.Mesh(geo, nightify(new T.MeshBasicMaterial({ vertexColors: true }), true));
     road.frustumCulled = false; scene.add(road);
     ready = true;
     return true;
@@ -421,12 +508,13 @@ window.World3D = (() => {
     colors = {
       light: { road: c(theme.light.road), grass: c(theme.light.grass), rumble: c(theme.light.rumble), lane: c(theme.light.lane), shoulder: c(theme.light.shoulder) },
       dark: { road: c(theme.dark.road), grass: c(theme.dark.grass), rumble: c(theme.dark.rumble), shoulder: c(theme.dark.shoulder) },
-      white: c('#f5f5f5'),
+      white: c('#f5f5f5'), yellow: c('#f2c200'),
     };
     scene.fog = new T.Fog(theme.fog, 20000, DRAW * SEG_LEN * 0.97);
     const night = !!theme.night;
     hemi.color.set(night ? '#5a6aa0' : theme.sky[2]); hemi.groundColor.set(night ? '#101020' : theme.light.grass);
-    hemi.intensity = night ? 0.55 : 0.95; sun.intensity = night ? 0.15 : 0.55;
+    hemi.intensity = night ? 0.3 : 0.95; sun.intensity = night ? 0.05 : 0.55;
+    nightU.uNight.value = night ? 1 : 0; headGlow.emissiveIntensity = night ? 1.6 : 0.25;
     lampGlow.emissiveIntensity = night ? 1.4 : 0.3;
   }
 
@@ -475,29 +563,49 @@ window.World3D = (() => {
     for (let k = 0; k < 6; k++) { c[(vi + k) * 3] = col.r; c[(vi + k) * 3 + 1] = col.g; c[(vi + k) * 3 + 2] = col.b; }
     vi += 6;
   }
-  function strip(n, o1, o2, yOff, col) {
-    const a = P[n], b = P[n + 1], t1 = TH[n], t2 = TH[n + 1], y1 = Y[n] + yOff, y2 = Y[n + 1] + yOff;
+  // a quad across the road between fractions f1..f2 of segment n (0 = its near end), from lateral a..b at the
+  // near end to c..d at the far end (so a strip can widen along a taper)
+  function stripT(n, f1, f2, a1, b1, a2, b2, yOff, col) {
+    const A = P[n], B = P[n + 1];
+    const lerp = (u, v, f) => u + (v - u) * f;
+    const px1 = lerp(A.x, B.x, f1), pz1 = lerp(A.z, B.z, f1), px2 = lerp(A.x, B.x, f2), pz2 = lerp(A.z, B.z, f2);
+    const t1 = lerp(TH[n], TH[n + 1], f1), t2 = lerp(TH[n], TH[n + 1], f2), y1 = lerp(Y[n], Y[n + 1], f1) + yOff, y2 = lerp(Y[n], Y[n + 1], f2) + yOff;
     const c1 = Math.cos(t1), s1 = Math.sin(t1), c2 = Math.cos(t2), s2 = Math.sin(t2);
-    quad(a.x + c1 * o1, y1, a.z + s1 * o1, a.x + c1 * o2, y1, a.z + s1 * o2,
-         b.x + c2 * o2, y2, b.z + s2 * o2, b.x + c2 * o1, y2, b.z + s2 * o1, col);
+    const o1 = lerp(a1, a2, f1), o2 = lerp(b1, b2, f1), o3 = lerp(a1, a2, f2), o4 = lerp(b1, b2, f2);
+    quad(px1 + c1 * o1, y1, pz1 + s1 * o1, px1 + c1 * o2, y1, pz1 + s1 * o2,
+         px2 + c2 * o4, y2, pz2 + s2 * o4, px2 + c2 * o3, y2, pz2 + s2 * o3, col);
   }
+  const strip = (n, o1, o2, yOff, col) => stripT(n, 0, 1, o1, o2, o1, o2, yOff, col);
   function buildRoad() {
     vi = 0;
-    const L = segments.length, R = ROAD_W, rw = R / 6, sw = R * 0.35, lw = R / 16;
+    const L = segments.length, U = ROAD_W, rw = U / 6, sw = U * 0.35, lw = U / 40, LW = (cfg.LANE_W || 0.6) * U;
     for (let n = 0; n < DRAW; n++) {
-      const seg = segments[(baseIdx + n) % L], col = seg.dark ? colors.dark : colors.light;
-      strip(n, -26000, -R - rw - sw, -6, col.grass); strip(n, R + rw + sw, 26000, -6, col.grass);
-      strip(n, -R - rw - sw, -R - rw, -3, col.shoulder); strip(n, R + rw, R + rw + sw, -3, col.shoulder);
-      strip(n, -R - rw, -R, 0, col.rumble); strip(n, R, R + rw, 0, col.rumble);
-      strip(n, -R, R, 0, col.road);
-      let used = 7;
-      if (seg.finish) {
-        const phase = seg.finish === 2 ? 1 : 0;
-        for (let k = 0; k < 12; k++) { if ((k + phase) % 2) continue; strip(n, -R + 2 * R * k / 12, -R + 2 * R * (k + 1) / 12, 3, colors.white); used++; }
-      } else if (col.lane) {
-        strip(n, -R / 3 - lw / 2, -R / 3 + lw / 2, 3, col.lane); strip(n, R / 3 - lw / 2, R / 3 + lw / 2, 3, col.lane); used += 2;
+      const seg = segments[(baseIdx + n) % L], col = seg.dark ? colors.dark : colors.light, start = vi;
+      const h1 = (seg.hw1 || 1) * U, h2 = (seg.hw2 || 1) * U;
+      if (seg.junction) {
+        // the cross road runs right through: road surface everywhere, its centre line, zebra crossings at the edges
+        strip(n, -26000, 26000, 0, col.road);
+        const j = seg.junction, k = (baseIdx + n) % L;
+        if (k === j.s0 + (j.s1 - j.s0 + 1) / 2) { stripT(n, 0, 0.12, -26000, -h1 - 300, -26000, -h1 - 300, 3, colors.yellow); stripT(n, 0, 0.12, h1 + 300, 26000, h1 + 300, 26000, 3, colors.yellow); }
+        if (k === j.s0 || k === j.s1) for (let x = -h1 + 60; x < h1 - 150; x += 300) stripT(n, 0.15, 0.85, x, x + 170, x, x + 170, 3, colors.white);
+      } else {
+        strip(n, -26000, -h1 - rw - sw, -6, col.grass); stripT(n, 0, 1, h1 + rw + sw, 26000, h2 + rw + sw, 26000, -6, col.grass);
+        stripT(n, 0, 1, -h1 - rw - sw, -h1 - rw, -h2 - rw - sw, -h2 - rw, -3, col.shoulder); stripT(n, 0, 1, h1 + rw, h1 + rw + sw, h2 + rw, h2 + rw + sw, -3, col.shoulder);
+        stripT(n, 0, 1, -h1 - rw, -h1, -h2 - rw, -h2, 0, col.rumble); stripT(n, 0, 1, h1, h1 + rw, h2, h2 + rw, 0, col.rumble);
+        stripT(n, 0, 1, -h1, h1, -h2, h2, 0, col.road);
+        if (seg.finish) {
+          const phase = seg.finish === 2 ? 1 : 0;
+          for (let q = 0; q < 12; q++) { if ((q + phase) % 2) continue; strip(n, -h1 + 2 * h1 * q / 12, -h1 + 2 * h1 * (q + 1) / 12, 3, colors.white); }
+        } else {
+          for (const o of [-60, 60]) strip(n, o - lw / 2, o + lw / 2, 3, colors.yellow);          // double yellow centre line
+          if (col.lane) for (const sd of [-1, 1]) for (let i = 1; i < (seg.lanes || 1); i++) strip(n, sd * i * LW - lw / 2, sd * i * LW + lw / 2, 3, col.lane);
+          // stop lines just before a junction, on each side's own carriageway
+          const next = segments[(baseIdx + n + 1) % L], prev = segments[(baseIdx + n - 1 + L) % L];
+          if (next.junction && !seg.junction) stripT(n, 0.35, 0.6, -h1, -60, -h1, -60, 3, colors.white);
+          if (prev.junction && !seg.junction) stripT(n, 0.4, 0.65, 60, h1, 60, h1, 3, colors.white);
+        }
       }
-      for (; used < QUADS; used++) { for (let k = 0; k < 18; k++) roadPos[vi * 3 + k] = 0; vi += 6; }
+      for (let used = (vi - start) / 6; used < QUADS; used++) { for (let k = 0; k < 18; k++) roadPos[vi * 3 + k] = 0; vi += 6; }
     }
     road.geometry.attributes.position.needsUpdate = true;
     road.geometry.attributes.color.needsUpdate = true;
@@ -521,11 +629,11 @@ window.World3D = (() => {
   function modelFor(obj) {
     let m = vehicles.get(obj);
     if (m) return m;
-    if (obj.isRival) m = autoModel(obj.palette || { body: obj.color || '#ffcc00', trim: '#111', canopy: '#151515' }, obj.img);
+    if (obj.isRival || obj.type === 'auto') m = autoModel(obj.palette || { body: obj.color || '#ffcc00', trim: '#111', canopy: '#151515' }, obj.img);
     else if (obj.isPlayer) m = autoModel({ body: '#1e9e4a', trim: '#ffd21f', canopy: '#151515' }, SP.player);
     else if (obj.type === 'bus') m = busModel(SP.bus);
     else if (obj.type === 'truck') m = truckModel(SP.truck);
-    else if (obj.type === 'car') { const i = Math.max(0, SP.cars.indexOf(obj.img)); m = carModel(cfg.CAR_COLORS[i] || '#e9e9ea', obj.img); }
+    else if (obj.type === 'car') { const i = Math.max(0, SP.cars.indexOf(obj.img)); m = carModel(obj.color || cfg.CAR_COLORS[i] || '#e9e9ea', obj.img); }
     else if (obj.type === 'cow') m = cowModel();
     else if (obj.type === 'dog') { const i = Math.max(0, SP.dogs.indexOf(obj.look)); m = dogModel(cfg.DOG_COATS[i]); }
     else return null;
@@ -626,11 +734,35 @@ window.World3D = (() => {
     }
   }
 
+  // nearest street lamps and headlights to your auto -> the night shader's uniforms
+  const lampCand = [], headCand = [];
+  function feedNightLights(pp, visible) {
+    lampCand.length = 0; headCand.length = 0;
+    for (const m of visible) {
+      const u = m.userData;
+      if (u.glow) {                                                  // street lamp: its head, out on the arm
+        const a = m.rotation.y, lx = u.glow.position.x;
+        lampCand.push({ x: m.position.x + lx * Math.cos(a), y: m.position.y + u.glow.position.y, z: m.position.z - lx * Math.sin(a) });
+      } else if (u.headY && u.size) {                                // vehicle: beam from the front, dipped a little
+        const b = m.rotation.y, fx = -Math.sin(b), fz = -Math.cos(b), h = u.size.l / 2;
+        headCand.push({ x: m.position.x + fx * h, y: m.position.y + u.headY, z: m.position.z + fz * h, fx, fz });
+      }
+    }
+    const d2 = c => (c.x - pp.x) ** 2 + (c.z - pp.z) ** 2;
+    lampCand.sort((a, b) => d2(a) - d2(b)); headCand.sort((a, b) => d2(a) - d2(b));
+    const L = nightU.uLamps.value, HP = nightU.uHeadP.value, HD = nightU.uHeadD.value;
+    for (let i = 0; i < NL; i++) {
+      const l = lampCand[i]; L[i].set(l ? l.x : 0, l ? l.y : 0, l ? l.z : 0, l ? 1.35 : 0);
+      const h = headCand[i];
+      if (h) { const n = Math.hypot(h.fx, 0.1, h.fz); HP[i].set(h.x, h.y, h.z, 1.3); HD[i].set(h.fx / n, -0.1 / n, h.fz / n, 4200); } else HP[i].w = 0;
+    }
+  }
+
   // ---------------------------------------------------------------- frame
   let lastVisible = new Set();
   function frame(state) {
     if (!ready || !segments.length) return null;
-    const { player, rivals, traffic, frameNo, shake, t } = state;
+    const { player, rivals, traffic, frameNo, shake, t, cross = [], lightOf = null } = state;
     buildFrame(player);
     buildRoad();
 
@@ -652,9 +784,12 @@ window.World3D = (() => {
         if (s.kind === 'building') { const len = s.len || 1400; p = placeAt(d + len / 2, s.offset + side * 450 / ROAD_W); }
         else if (s.kind === 'arch') p = placeAt(d, 0);
         else if (s.kind === 'lamp') p = placeAt(d, s.offset + side * 0.1);
+        else if (s.kind === 'sign' || s.kind === 'signal' || s.kind === 'cop') p = placeAt(d, s.offset);
         else p = placeAt(d, s.offset + side * s.nw / 2);
         m.position.set(p.x, p.y, p.z);
-        m.rotation.y = -p.th + (s.kind === 'billboard' || s.kind === 'chai' ? -side * 0.45 : 0);
+        m.rotation.y = -p.th + (s.kind === 'billboard' || s.kind === 'chai' ? -side * 0.45 : 0) + (s.facing === -1 ? Math.PI : 0);
+        if (s.kind === 'signal' && lightOf) { const L = lightOf(s.junction); for (const k of ['R', 'A', 'G']) for (const lm of m.userData.lamps[k]) lm.material = sigMat[k][k === L ? 1 : 0]; }
+        if (s.kind === 'cop') m.userData.wave.rotation.z = -1.2 - Math.sin(t * 5) * 0.5;
         m.visible = true; visible.add(m);
         if (s.kind === 'building' || s.kind === 'chai') {
           const sz = m.userData.size;
@@ -682,7 +817,8 @@ window.World3D = (() => {
       const m = place(c, dd, c.x); if (!m) continue;
       const animal = c.type === 'cow' || c.type === 'dog';
       const p = onGround(placeAt(dd, c.x), dd, c.x, animal ? m.userData.size.w : m.userData.size.l);
-      let yaw = -p.th - (c.type === 'cow' || c.type === 'dog' ? 0 : steerYaw(c, c.z, c.x));
+      const back = c.dir === -1, sy = animal ? 0 : steerYaw(c, c.z, c.x);
+      let yaw = back ? -p.th + Math.PI + sy : -p.th - sy; // oncoming vehicles face us
       if (c.type === 'cow') yaw += (c.vx || 0) > 0 ? -Math.PI / 2 : Math.PI / 2;
       if (c.type === 'dog') {
         if (c.mode === 'cross') yaw += (c.vx || 0) > 0 ? -Math.PI / 2 : Math.PI / 2;
@@ -690,14 +826,23 @@ window.World3D = (() => {
         m.scale.y = c.mode === 'sleep' ? 0.45 : 1;
         for (const leg of m.userData.legs) leg.visible = c.mode !== 'sleep';
       }
-      m.position.set(p.x, p.y, p.z); m.rotation.set(animal ? 0 : p.pitch, yaw, 0, 'YXZ');
+      m.position.set(p.x, p.y, p.z); m.rotation.set(animal ? 0 : back ? -p.pitch : p.pitch, yaw, 0, 'YXZ');
       if (c.type === 'cow' || c.type === 'dog') walk(m, t * (c.type === 'dog' ? 14 : 6), c.type === 'dog' ? (c.mode === 'chase' || c.mode === 'cross' ? 1 : 0) : (c.pause > 0 ? 0 : Math.abs(c.vx || 0)));
       else {
         spinWheels(m, c.z);
-        const ind = m.userData.ind, on = c.signal && (t * 2.6) % 1 < 0.55;
-        if (ind) for (const side of ['-1', '1']) for (const lamp of ind[side]) lamp.material = on && +side === c.signal ? indOn : indOff;
+        const ind = m.userData.ind, sx = (c.signalX || 0) * (back ? -1 : 1), on = sx && (t * 2.6) % 1 < 0.55; // model's own left/right
+        if (ind) for (const side of ['-1', '1']) for (const lamp of ind[side]) lamp.material = on && +side === sx ? indOn : indOff;
       }
       const sz = m.userData.size; screenOf(c, p, sz.h * 1.05, sz.w, frameNo);
+    }
+    // cross traffic at junctions: driving across the road (along x)
+    for (const c of cross) {
+      const dd = wrapD(c.z - camAbs);
+      const m = place(c, dd, c.x); if (!m) continue;
+      const p = placeAt(dd, c.x);
+      m.position.set(p.x, p.y + 4, p.z); m.rotation.set(0, -p.th - c.dirX * Math.PI / 2, 0, 'YXZ');
+      spinWheels(m, c.x * ROAD_W);
+      if (m.userData.arm) m.userData.arm.visible = false;
     }
     // the player's auto
     const pm = modelFor(player);
@@ -707,6 +852,7 @@ window.World3D = (() => {
     for (const m of lastVisible) if (!visible.has(m)) m.visible = false;
     lastVisible = visible;
     updateSmoke(player, t);
+    if (nightU.uNight.value) feedNightLights(pp, visible);
 
     renderer.render(scene, camera);
     const top = toScreen(pp.x, pp.y + 880, pp.z), bot = toScreen(pp.x, pp.y, pp.z);

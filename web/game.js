@@ -176,7 +176,7 @@ function deviceSummary() {
 //   error/<kind>/<problem>/<OS-browser>
 // with the details needed to reproduce them in the title (version, game state, OS/browser versions,
 // screen, audio state, stack). Nothing personal is sent. Also logged to the console.
-const GAME_VERSION = '2.8.3';
+const GAME_VERSION = '2.9.0';
 const safe = (f, fallback = '?') => { try { const v = f(); return v === undefined ? fallback : v; } catch (e) { return fallback; } };
 function envDetails() {
   const ua = navigator.userAgent || '';
@@ -438,6 +438,7 @@ const Sfx = {
   whoosh() { this.noise(0.14, 0.12, 3500); },
   crash() { this.noise(0.8, 0.6, 700); this.tone(90, 0.6, 'sine', 0.5, 30); this.noise(0.3, 0.3, 4000, 0.1); },
   bump() { this.tone(90, 0.12, 'sine', 0.4, 60); this.noise(0.08, 0.2, 900); },
+  whistle() { for (const [t, d] of [[0, 0.12], [0.18, 0.5]]) { this.tone(2900, d, 'sine', 0.16, 3100, t); this.tone(3350, d, 'sine', 0.08, 3500, t); } }, // traffic cop's whistle
   grunt() { this.tone(rand(170, 230), 0.22, 'sawtooth', 0.12, 110, 0, 900); },
   bark() { this.tone(560, 0.08, 'sawtooth', 0.14, 330, 0, 1600); this.noise(0.05, 0.08, 2200); this.tone(520, 0.08, 'sawtooth', 0.12, 300, 0.14, 1600); },
   yelp() { this.tone(900, 0.12, 'triangle', 0.16, 1500); this.tone(1300, 0.22, 'triangle', 0.12, 700, 0.12); },
@@ -749,7 +750,10 @@ const VehicleAudio = {
         const kind = this.kindOf(c); if (!kind) continue;
         const dz = wrapDelta(c.z - player.dist);
         // overtaking close by: they often lean on the horn
-        if (c._dz > 0 && dz <= 0 && Math.abs(c.x - player.x) < 0.9 && player.speed > c.speed && Math.random() < 0.55) this.honkAt(c, dz, true);
+        if (c.dir !== -1 && c._dz > 0 && dz <= 0 && Math.abs(c.x - player.x) < 0.9 && player.speed > c.speed && Math.random() < 0.55) this.honkAt(c, dz, true);
+        // you're in an oncoming vehicle's lane, heading at it: long angry horn
+        if (c.dir === -1 && dz > 0 && dz < 4500 && Math.abs(c.x - player.x) < (c.nw + TUK_NW) / 2 && !(c.honkCd > 0)) { c.honkCd = 2.5; this.honkAt(c, dz, true); }
+        if (c.honkCd > 0) c.honkCd -= dt;
         c._dz = dz;
         if (dz > -800 && dz < 3500) near.push({ c, kind, dz });
       }
@@ -767,7 +771,7 @@ const VehicleAudio = {
       if (!e) { v.g.gain.setTargetAtTime(0, t, 0.15); return; }
       const { c, kind, dz } = e, p = VEHICLE_SOUND[kind];
       const closeness = Math.max(0, 1 - Math.abs(dz) / 3500);
-      const closing = clamp((dz > 0 ? 1 : -1) * (player.speed - c.speed) / MAX_SPEED, -1, 1); // + while approaching
+      const closing = clamp((dz > 0 ? 1 : -1) * (player.speed - (c.dir || 1) * c.speed) / MAX_SPEED, -1, 1); // + while approaching
       const rpm = kind === 'auto' ? c.speed / MAX_SPEED : 0.6;
       const f = p.f * (1 + (kind === 'auto' ? rpm * 1.6 : 0.2)) * (1 + 0.12 * closing);
       v.o1.frequency.setTargetAtTime(f, t, 0.1); v.o2.frequency.setTargetAtTime(f * p.f2, t, 0.1);
@@ -1150,6 +1154,41 @@ function makeMilestone() {
   return c;
 }
 
+// road signs (face at the top, post below; the 3D renderer uses the face on a real post)
+function makeSign(kind) {
+  const c = mk(120, 300), g = c.getContext('2d');
+  g.fillStyle = '#8a8f96'; g.fillRect(55, 110, 10, 190);
+  const tri = (fill = '#fff') => { g.fillStyle = '#d32f2f'; g.beginPath(); g.moveTo(60, 6); g.lineTo(114, 102); g.lineTo(6, 102); g.closePath(); g.fill();
+    g.fillStyle = fill; g.beginPath(); g.moveTo(60, 24); g.lineTo(98, 92); g.lineTo(22, 92); g.closePath(); g.fill(); g.fillStyle = '#111'; };
+  const ring = () => { g.fillStyle = '#d32f2f'; g.beginPath(); g.arc(60, 56, 52, 0, Math.PI * 2); g.fill(); g.fillStyle = '#fff'; g.beginPath(); g.arc(60, 56, 40, 0, Math.PI * 2); g.fill(); g.fillStyle = '#111'; };
+  if (kind === 'signal') { tri(); rr(g, 50, 42, 20, 44, 5); g.fill(); for (const [y, col] of [[51, '#e53935'], [64, '#ffb300'], [77, '#43a047']]) { g.fillStyle = col; g.beginPath(); g.arc(60, y, 5, 0, 7); g.fill(); } }
+  else if (kind === 'junction') { tri(); g.fillRect(55, 40, 10, 48); g.fillRect(36, 58, 48, 10); }
+  else if (kind === 'narrow') { tri(); g.fillRect(44, 40, 8, 50); g.beginPath(); g.moveTo(76, 40); g.lineTo(84, 40); g.lineTo(76, 66); g.lineTo(76, 90); g.lineTo(68, 90); g.lineTo(68, 64); g.closePath(); g.fill(); }
+  else if (kind === 'nohorn') { ring(); g.beginPath(); g.moveTo(36, 50); g.lineTo(52, 50); g.lineTo(80, 34); g.lineTo(80, 78); g.lineTo(52, 62); g.lineTo(36, 62); g.closePath(); g.fill();
+    g.strokeStyle = '#d32f2f'; g.lineWidth = 9; g.beginPath(); g.moveTo(24, 20); g.lineTo(96, 92); g.stroke(); }
+  else if (kind === 'keepleft') { g.fillStyle = '#1565c0'; g.beginPath(); g.arc(60, 56, 52, 0, 7); g.fill(); g.strokeStyle = '#fff'; g.lineWidth = 12; g.lineCap = 'round';
+    g.beginPath(); g.moveTo(80, 30); g.lineTo(42, 76); g.stroke(); g.fillStyle = '#fff'; g.beginPath(); g.moveTo(28, 90); g.lineTo(34, 58); g.lineTo(58, 82); g.closePath(); g.fill(); }
+  else { ring(); g.font = 'bold 44px Arial'; g.textAlign = 'center'; g.fillText(kind.slice(5), 60, 72); } // limit40 / limit50 / limit60
+  return c;
+}
+function makeSignal() {
+  const c = mk(90, 320), g = c.getContext('2d');
+  g.fillStyle = '#3b3f45'; g.fillRect(40, 110, 10, 210);
+  g.fillStyle = '#16181b'; rr(g, 22, 4, 46, 112, 10); g.fill();
+  for (const [y, col] of [[26, '#e53935'], [60, '#ffb300'], [94, '#43a047']]) { g.fillStyle = col; g.beginPath(); g.arc(45, y, 13, 0, 7); g.fill(); }
+  return c;
+}
+function makeCop() {
+  const c = mk(90, 200), g = c.getContext('2d');
+  g.fillStyle = '#5d4b2a'; g.fillRect(30, 120, 12, 74); g.fillRect(48, 120, 12, 74);   // khaki trousers
+  g.fillStyle = '#f4f4f4'; rr(g, 24, 62, 42, 64, 8); g.fill();                         // white shirt
+  g.fillStyle = '#8d5524'; g.beginPath(); g.arc(45, 46, 15, 0, 7); g.fill();
+  g.fillStyle = '#f4f4f4'; g.fillRect(28, 24, 34, 12); g.fillRect(24, 34, 42, 5);       // cap
+  g.fillStyle = '#f4f4f4'; g.save(); g.translate(64, 70); g.rotate(-1.1); g.fillRect(0, -6, 44, 12); g.restore(); // raised arm
+  g.fillStyle = '#111'; g.fillRect(24, 116, 42, 6);
+  return c;
+}
+
 function makeArch() {
   const c = mk(640, 320), g = c.getContext('2d');
   for (const x of [0, 596]) {
@@ -1519,6 +1558,8 @@ function buildSharedSprites() {
   const r = mulberry32(7); SP.trees = [makeTree(r), makeTree(r), makeTree(r)];
   SP.temple = makeTemple(); SP.lampL = makeLamp(-1); SP.lampR = makeLamp(1);
   SP.chai = makeChai(); SP.milestone = makeMilestone(); SP.arch = makeArch();
+  SP.signs = Object.fromEntries(['signal', 'junction', 'narrow', 'nohorn', 'keepleft', 'limit40', 'limit50', 'limit60'].map(k => [k, makeSign(k)]));
+  SP.signal = makeSignal(); SP.cop = makeCop();
 }
 
 // ------------------------------------------------------------------ world state
@@ -1528,6 +1569,7 @@ const unlocked = TRACKS.length - 1; // every race is open from the start
 let state = 'title', paused = false, pauseSel = 0, countdown = 0, raceTime = 0, finishTimer = 0, finishDist = 0, startZ = 0;
 let position = 0, skyOffset = 0, farOffset = 0, nearOffset = 0, shake = 0;
 let rivals = [], traffic = [], finishOrder = [], results = null;
+let junctions = [], crossTraffic = [], worldT = 0; // road junctions (with signals) and the traffic crossing at them
 let particles = [], popups = [], messages = [], bubbles = [], frameNo = 0, hawkerT = 2;
 const player = {};
 
@@ -1570,11 +1612,13 @@ function buildTrack(tr) {
   addRoad(30, 30, 30, 0, 0);
   trackLength = segments.length * SEG_LEN;
 
+  layoutLanes(R);
   // start / finish
-  startZ = PLAYER_Z + 3 * 520 + 400;
+  startZ = PLAYER_Z + 3 * (use3D ? TUK_LEN + 350 : 520) + 400;
   const fs = Math.floor(startZ / SEG_LEN);
   segments[fs].finish = true; segments[fs + 1].finish = 2;
-  segments[fs].sprites.push({ img: SP.arch, offset: 0, nw: 2.6, center: true, kind: 'arch' });
+  segments[fs].sprites.push({ img: SP.arch, offset: 0, nw: segments[fs].half * 2 + 0.6, center: true, kind: 'arch' });
+  layoutJunctions(R, fs);
 
   // scenery
   // buildings and temples stand in a row along each side and never overlap (they're solid 3D boxes);
@@ -1582,12 +1626,13 @@ function buildTrack(tr) {
   const busyUntil = { '-1': 0, '1': 0 };
   for (let n = 30; n < segments.length; n++) {
     const seg = segments[n];
+    if (seg.clear) continue; // junction: the cross road runs through here
     if (n % 18 === 0) { const side = (n / 18) % 2 ? 1 : -1; seg.sprites.push({ img: side < 0 ? SP.lampL : SP.lampR, offset: side * 1.12, nw: 0.13, solid: true, kind: 'lamp' }); }
     if (n % 150 === 0) seg.sprites.push({ img: SP.milestone, offset: pick([-1, 1], R) * 1.1, nw: 0.08, solid: true, kind: 'milestone' });
     if (R() < (tr.themeDef.density ?? 0.4)) {
       const side = R() < 0.5 ? -1 : 1;
       let kind = weightedPick(tr.themeDef.scenery, R);
-      if ((kind === 'building' || kind === 'temple') && n < busyUntil[side]) kind = tr.themeDef.scenery.palm ? 'palm' : 'tree';
+      if ((kind === 'building' || kind === 'temple') && (n < busyUntil[side] || segments.slice(n, n + 9).some(q => q.clear))) kind = tr.themeDef.scenery.palm ? 'palm' : 'tree';
       let s;
       if (kind === 'palm') s = { img: side < 0 ? SP.palm : SP.palmF, offset: side * rand(1.25, 1.5), nw: 0.45, solid: true };
       else if (kind === 'tree') s = { img: pick(SP.trees, R), offset: side * rand(1.25, 1.4), nw: 0.8, solid: true };
@@ -1599,6 +1644,16 @@ function buildTrack(tr) {
       seg.sprites.push(s);
     }
   }
+  placeSigns(R, fs);
+  // everything by the roadside was placed for a road edge at 1: move it out to this stretch's edge
+  segments.forEach((seg, n) => {
+    for (const s of seg.sprites) {
+      if (s.center || s.edgeDone) continue;
+      const span = s.kind === 'building' ? Math.ceil((s.len || 1400) / SEG_LEN) : 1;
+      let h = 0; for (let k = 0; k <= span; k++) h = Math.max(h, segments[(n + k) % segments.length].half);
+      s.offset += Math.sign(s.offset) * (h - 1); s.edgeDone = true;
+    }
+  });
   // solid things block every segment they span (a building is several segments long)
   segments.forEach((seg, n) => {
     for (const s of seg.sprites) if (s.solid) {
@@ -1607,6 +1662,75 @@ function buildTrack(tr) {
     }
   });
 }
+
+// ------------------------------------------------------------------ two-way roads
+// The road is two-way and we keep left: our carriageway is x < 0, oncoming traffic uses x > 0. x is in fixed
+// units (1 = 2000 world units, one lane is LANE_W); stretches alternate between 4 lanes (2 each way) and
+// 6 lanes (3 each way), with a tapered transition. Every segment carries its half-width at both ends
+// (hw1, hw2), the wider of the two (half) and the lanes each way that are usable along all of it (lanes).
+const LANE_W = 0.6, TAPER = 30, JUNCTION_LEN = 12;
+const laneX = (dir, i) => -dir * (i + 0.5) * LANE_W;  // lane i counted from the centre line; dir +1 = our way
+const halfAt = z => findSegment(z).half;
+function layoutLanes(R) {
+  const N = segments.length, blocks = [];
+  let at = 0, per = 3;
+  while (at < N - 120) { blocks.push({ s: at, per }); at += at === 0 ? 300 : 160 + Math.floor(R() * 220); per = per === 3 ? 2 : 3; }
+  if (blocks[blocks.length - 1].per !== 3) blocks.pop(); // wrap back into the start stretch without a jump
+  const blockAt = k => { let b = 0; while (b + 1 < blocks.length && blocks[b + 1].s <= k) b++; return b; };
+  const halfAtK = k => {
+    const b = blockAt(k), cur = blocks[b], prev = blocks[b - 1];
+    if (!prev || k - cur.s >= TAPER) return cur.per * LANE_W;
+    return easeInOut(prev.per, cur.per, (k - cur.s) / TAPER) * LANE_W;
+  };
+  segments.forEach((seg, k) => {
+    seg.hw1 = halfAtK(k); seg.hw2 = halfAtK(k + 1); seg.half = Math.max(seg.hw1, seg.hw2);
+    const b = blockAt(k), cur = blocks[b], prev = blocks[b - 1];
+    seg.lanes = prev && k - cur.s < TAPER ? Math.min(prev.per, cur.per) : cur.per;
+  });
+  segments.blocks = blocks;
+}
+function layoutJunctions(R, fs) {
+  junctions = [];
+  const N = segments.length, flat = (a, b) => Math.abs(segments[b].p1.world.y - segments[a].p1.world.y) < 300;
+  let n = fs + 200;
+  while (n < N - 200) {
+    let found = -1;
+    for (let k = n; k < Math.min(N - 200, n + 260) && found < 0; k++) {
+      let ok = flat(k, k + JUNCTION_LEN);
+      for (let i = k - 25; ok && i < k + JUNCTION_LEN + 25; i++) { const q = segments[i]; if (Math.abs(q.curve) > 0.5 || q.hw1 !== q.hw2 || q.finish) ok = false; }
+      if (ok) found = k;
+    }
+    if (found < 0) { n += 260; continue; }
+    const j = { i: junctions.length, s0: found, s1: found + JUNCTION_LEN - 1, z0: found * SEG_LEN, z1: (found + JUNCTION_LEN) * SEG_LEN,
+      phase: R() * 22, cop: junctions.length % 2 === 0, busy: false, spawn: [0, 0], fined: false };
+    j.zc = (j.z0 + j.z1) / 2; j.half = segments[found].half;
+    for (let i = found; i <= j.s1; i++) segments[i].junction = j;
+    for (let i = found - 5; i <= j.s1 + 5; i++) segments[i].clear = true;
+    junctions.push(j);
+    n = found + JUNCTION_LEN + 260 + Math.floor(R() * 200);
+  }
+}
+// signals, the cop's post and the roadside signs (offsets are for a road edge at 1; moved out later)
+function placeSigns(R, fs) {
+  const N = segments.length, put = (n, s) => { n = ((n % N) + N) % N; if (!segments[n].clear || s.kind !== 'sign') segments[n].sprites.push(s); };
+  const sign = (n, name, side = -1) => put(n, { img: SP.signs[name], offset: side * 1.3, nw: 0.3, solid: true, kind: 'sign', facing: side < 0 ? 1 : -1 });
+  for (const j of junctions) {
+    put(j.s0 - 1, { img: SP.signal, offset: -1.22, nw: 0.2, solid: true, kind: 'signal', junction: j, facing: 1 });
+    put(j.s1 + 1, { img: SP.signal, offset: 1.22, nw: 0.2, solid: true, kind: 'signal', junction: j, facing: -1 });
+    if (j.cop) put(j.s0 - 2, { img: SP.cop, offset: -1.55, nw: 0.22, solid: false, kind: 'cop', junction: j });
+    sign(j.s0 - 70, 'signal'); sign(j.s1 + 70, 'signal', 1);
+  }
+  for (const b of segments.blocks) if (b.s > 0 && b.per === 2) { sign(b.s - 60, 'narrow'); sign(b.s + TAPER + 60, 'narrow', 1); }
+  for (let n = fs + 60; n < N - 60; n += 90 + Math.floor(R() * 160)) {
+    if (segments[n].clear) continue;
+    sign(n, pick(['limit40', 'limit50', 'limit60', 'limit50', 'keepleft', 'nohorn'], R), R() < 0.75 ? -1 : 1);
+  }
+}
+// traffic lights: a 22 s cycle per junction; main road green, amber, then red while the cross road goes
+const LIGHT_CYCLE = 22;
+const lightPhase = j => (((worldT + j.phase) % LIGHT_CYCLE) + LIGHT_CYCLE) % LIGHT_CYCLE;
+function lightOf(j) { const t = lightPhase(j); return t < 11 ? 'G' : t < 13.5 ? 'A' : 'R'; }
+const crossGo = j => { const t = lightPhase(j); return t >= 14.5 && t < 21; };
 
 function loadTrack(idx) {
   track = TRACKS[idx % TRACKS.length];
@@ -1620,7 +1744,7 @@ function loadTrack(idx) {
   const sky = SKYLINES[theme.city];
   bgLayers = { far: sky.far(theme, track.seed), near: sky.near(theme, track.seed + 5) };
   buildTrack(track);
-  if (use3D) World3D.setTrack({ segments, trackLength, theme, SP, themeSprites, CAR_COLORS, DOG_COATS, MAX_SPEED });
+  if (use3D) World3D.setTrack({ segments, trackLength, theme, SP, themeSprites, CAR_COLORS, DOG_COATS, MAX_SPEED, LANE_W });
 }
 
 function findSegment(z) { return segments[Math.floor(((z % trackLength) + trackLength) % trackLength / SEG_LEN) % segments.length]; }
@@ -1637,7 +1761,7 @@ function setupRace() {
   rivals = [];
   // grid: two per row, player in the middle of the pack
   const slots = [];
-  for (let i = 0; i < nR + 1; i++) slots.push({ row: Math.floor(i / 2), x: i % 2 ? 0.42 : -0.42 });
+  for (let i = 0; i < nR + 1; i++) slots.push({ row: Math.floor(i / 2), x: laneX(1, i % 2) }); // our side of the road, two lanes
   const rows = Math.ceil((nR + 1) / 2);
   const playerSlot = Math.min(nR, Math.floor((nR + 1) / 2) + ((nR + 1) % 2 ? 0 : 1));
   const rowZ = row => PLAYER_Z + (rows - 1 - row) * (use3D ? TUK_LEN + 350 : 520); // 3D autos need a real gap between rows
@@ -1651,28 +1775,31 @@ function setupRace() {
     rivals.push({ name: names[ri], color: c.body, palette: c, img: SP.rivals[ri % SP.rivals.length], nw: TUK_NW, voicePitch: rand(0.7, 1.35),
       x: slots[i].x, dist: rowZ(slots[i].row) + shiftZ, speed: 0,
       top: MAX_SPEED * clamp(track.skill * diff - 0.06 + Math.random() * 0.08, 0.7, 1.02),
-      health: 100, ko: 0, koBy: null, rot: 0, atk: null, cd: rand(1, 3), aggr: rand(0.6, 1.2), laneX: pick([-0.6, 0, 0.6]),
+      health: 100, ko: 0, koBy: null, rot: 0, atk: null, cd: rand(1, 3), aggr: rand(0.6, 1.2), laneX: laneX(1, Math.floor(Math.random() * 2)),
       laneT: rand(3, 8), delay: rand(0.05, 0.5), finished: false, time: 0, hurt: 0, scr: null, isRival: true });
     ri++;
   }
   // traffic
   traffic = [];
   const tr = mulberry32(track.seed + 99 + round);
-  const addTraffic = (type) => {
+  const addTraffic = (type, dir = 1) => {
     const z = startZ + 7000 + tr() * (trackLength - 13000); // clear of the starting grid (front and back)
-    const lane = pick([-0.66, 0, 0.66], tr);
-    if (type === 'cow') traffic.push({ type, z, x: rand(-1.2, 1.2), speed: 0, vx: pick([-1, 1], tr) * rand(0.05, 0.12), nw: 0.42, len: 380, pause: 0, scared: 0, label: 'HOLY COW' });
+    const h = halfAt(z);
+    if (type === 'cow') traffic.push({ type, z, x: rand(-h - 0.2, h + 0.2), speed: 0, vx: pick([-1, 1], tr) * rand(0.05, 0.12), nw: 0.42, len: 380, pause: 0, scared: 0, label: 'HOLY COW' });
     else {
-      const def = type === 'bus' ? { img: SP.bus, nw: 0.58, len: 3200, s: [0.28, 0.38], label: 'BUS' } : type === 'truck' ? { img: SP.truck, nw: 0.58, len: 2800, s: [0.25, 0.35], label: 'TRUCK' } : { img: pick(SP.cars, tr), nw: 0.38, len: 1500, s: [0.35, 0.5], label: 'CAR' };
-      traffic.push({ type, z, x: lane, tx: lane, img: def.img, nw: def.nw, len: def.len, speed: MAX_SPEED * rand(def.s[0], def.s[1]), laneT: rand(4, 12), label: def.label });
+      const def = type === 'bus' ? { img: SP.bus, nw: 0.56, len: 3200, s: [0.28, 0.38], label: 'BUS' } : type === 'truck' ? { img: SP.truck, nw: 0.56, len: 2800, s: [0.25, 0.35], label: 'TRUCK' } : { img: pick(SP.cars, tr), nw: 0.38, len: 1500, s: [0.35, 0.5], label: 'CAR' };
+      const lanes = findSegment(z).lanes, lane = type === 'car' ? Math.floor(tr() * lanes) : lanes - 1;
+      traffic.push({ type, dir, z, lane, x: laneX(dir, lane), img: def.img, nw: def.nw, len: def.len, speed: MAX_SPEED * rand(def.s[0], def.s[1]), label: def.label });
     }
   };
   for (let i = 0; i < track.traffic; i++) addTraffic(pick(['car', 'car', 'bus', 'truck'], tr));
+  for (let i = 0; i < Math.round(track.traffic * 0.8); i++) addTraffic(pick(['car', 'car', 'bus', 'truck'], tr), -1); // oncoming
   for (let i = 0; i < track.cows; i++) addTraffic('cow');
+  crossTraffic = []; for (const j of junctions) { j.busy = false; j.spawn = [0, 0]; j.fined = false; }
   for (let i = 0; i < (track.dogs || 0); i++) {
     const z = startZ + 3000 + tr() * (trackLength - 8000), r = tr();
     const mode = r < 0.28 ? 'sleep' : r < 0.8 ? 'sit' : 'cross';
-    const x = mode === 'sleep' ? rand(-0.9, 0.9) : mode === 'sit' ? pick([-1, 1], tr) * rand(1.15, 1.5) : rand(-1.2, 1.2);
+    const h = halfAt(z), x = mode === 'sleep' ? rand(-h + 0.1, h - 0.1) : mode === 'sit' ? pick([-1, 1], tr) * (h + rand(0.15, 0.5)) : rand(-h - 0.2, h + 0.2);
     traffic.push({ type: 'dog', label: 'DOG', z, x, speed: 0, vx: mode === 'cross' ? pick([-1, 1], tr) * rand(0.25, 0.4) : 0,
       mode, t: tr() * 3, look: SP.dogs[Math.floor(tr() * SP.dogs.length)], tried: false, barkT: 0, img: null, nw: 0.2, len: 170 });
   }
@@ -1841,11 +1968,7 @@ function honk() {
     if (dz < 0 || dz > 3000) continue;
     if (c.type === 'cow') { c.vx = (c.x >= player.x ? 1 : -1) * 0.7; c.scared = 2.5; }
     else if (c.type === 'dog') { if (dz < 2000) setTimeout(() => Animals.barkFrom(c, 3), rand(150, 500)); if (c.mode === 'sleep' || c.mode === 'sit') { c.mode = 'cross'; c.vx = (c.x >= player.x ? 1 : -1) * 0.9; } }
-    else if (Math.abs(c.x - player.x) < 0.5) {
-      let nx = c.x + (c.x >= player.x ? 0.66 : -0.66);
-      if (Math.abs(nx) > 0.7) nx = c.x - Math.sign(nx) * 0.66 * 2;
-      c.tx = clamp(nx, -0.66, 0.66);
-    }
+    else if (c.dir === 1 && Math.abs(c.x - player.x) < 0.5) c.yieldT = 1.5; // they move over when there's room
   }
 }
 
@@ -1887,6 +2010,7 @@ function crashPlayer(reason, dmg, dir) {
 // ------------------------------------------------------------------ update
 let lastBeep = 4;
 function update(dt) {
+  worldT += dt;
   for (const m of messages) m.t -= dt; messages = messages.filter(m => m.t > 0);
   for (const p of popups) { p.t -= dt; p.y -= 30 * dt; } popups = popups.filter(p => p.t > 0);
   for (const b of bubbles) b.t -= dt; bubbles = bubbles.filter(b => b.t > 0);
@@ -1910,6 +2034,7 @@ function update(dt) {
     guard('player-physics', () => updatePlayer(dt, state === 'race'));
     guard('rivals-combat', () => updateRivals(dt));
     guard('traffic', () => updateTraffic(dt));
+    guard('traffic', () => updateCross(dt));
     guard('rivals-combat', separateRivals);
     if (state === 'race') guard('player-physics', checkCollisions);
     guard('hawkers', () => updateHawkers(dt));
@@ -1933,7 +2058,7 @@ function updatePlayer(dt, controlled) {
   const dx = dt * 2 * sp;
   let steer = 0, acc = false, brk = false;
   if (controlled) { steer = (I.right() ? 1 : 0) - (I.left() ? 1 : 0); acc = I.up(); brk = I.down(); }
-  else { acc = player.speed < MAX_SPEED * 0.45; steer = clamp(-player.x * 1.5, -1, 1) * 0.6; }
+  else { acc = player.speed < MAX_SPEED * 0.45; steer = clamp((laneX(1, 0) - player.x) * 1.5, -1, 1) * 0.6; }
   player.steer = lerp(player.steer, steer, Math.min(1, dt * 10));
   player.hornCd -= dt; player.inv -= dt; player.hurt -= dt;
 
@@ -1945,7 +2070,7 @@ function updatePlayer(dt, controlled) {
     player.rot = lerp(player.rot, player.crashDir * 1.45, Math.min(1, dt * 7));
     player.x += player.crashDir * dt * 0.35 * sp;
     if (player.crash <= 0) {
-      player.rot = 0; player.lean = 0; player.tip = 0; player.speed = 0; player.x = clamp(player.x, -0.8, 0.8);
+      player.rot = 0; player.lean = 0; player.tip = 0; player.speed = 0; player.x = clamp(player.x, -halfAt(player.dist) + 0.3, -0.3);
       if (player.health <= 0) player.health = 60;
       player.inv = 1.5; msg('BACK ON THE ROAD!', '#8bc34a', 1.2);
     }
@@ -1953,7 +2078,7 @@ function updatePlayer(dt, controlled) {
     player.x += dx * player.steer;
     player.x -= dx * sp * seg.curve * CENTRIFUGAL;
     if (acc) player.speed += ACCEL * dt; else if (brk) player.speed += BRAKE * dt; else player.speed += DECEL * dt;
-    if (Math.abs(player.x) > 1) {
+    if (Math.abs(player.x) > seg.half) {
       if (player.speed > OFFROAD_LIMIT) player.speed += OFFROAD_DECEL * dt;
       if (Math.random() < sp * 0.8) particles.push({ x: (playerScr ? playerScr.x : W / 2) + rand(-100, 100), y: playerScr ? playerScr.y - 6 : H - 30, vx: rand(-60, 60), vy: rand(-80, -20), t: 0.6, size: rand(6, 12), color: 'rgba(160,120,70,.6)' });
     }
@@ -1967,7 +2092,7 @@ function updatePlayer(dt, controlled) {
     const wobble = player.tip > 0 ? Math.sin(performance.now() / 40) * 0.05 : 0;
     player.rot = player.lean * 0.2 + wobble + (player.atk ? player.atk.side * 0.04 : 0);
   }
-  player.x = clamp(player.x, -3, 3);
+  player.x = clamp(player.x, -seg.half - 1.8, seg.half + 1.8);
   player.speed = clamp(player.speed, 0, MAX_SPEED);
   const move = player.speed * dt;
   player.dist += move;
@@ -1990,7 +2115,7 @@ function updateRivals(dt) {
     if (r.ko > 0) {
       r.ko -= dt; r.speed = Math.max(0, r.speed - r.speed * 3 * dt - 2000 * dt);
       r.rot = lerp(r.rot, (r.koDir || 1) * 1.45, Math.min(1, dt * 7));
-      if (r.ko <= 0) { r.health = 55; r.rot = 0; r.x = clamp(r.x, -0.8, 0.8); }
+      if (r.ko <= 0) { r.health = 55; r.rot = 0; r.x = clamp(r.x, -halfAt(r.dist) + 0.3, -0.3); }
       r.dist += r.speed * dt; continue;
     }
     r.rot = lerp(r.rot, 0, Math.min(1, dt * 8));
@@ -2004,21 +2129,23 @@ function updateRivals(dt) {
 
     // steering: avoid traffic, otherwise chase player or keep lane
     let tx = r.laneX;
-    r.laneT -= dt; if (r.laneT <= 0) { r.laneT = rand(3, 8); r.laneX = pick([-0.6, 0, 0.6]); }
+    r.laneT -= dt; if (r.laneT <= 0) { r.laneT = rand(3, 8); r.laneX = laneX(1, Math.floor(Math.random() * seg.lanes)); }
+    const rMin = -seg.half + 0.2, rMax = -0.15; // rivals stay on our side of the centre line
     if (engaged) tx = player.x + (r.x >= player.x ? 1 : -1) * 0.4;
     let nearest = null, nd = 1800;
     for (const c of traffic) {
+      if (c.dir === -1) continue; // oncoming: on the other side
       const reach = use3D ? (c.len || 0) / 2 + TUK_LEN / 2 : 0, gapZ = wrapDelta(c.z - r.dist) - reach; // bumper-to-bumper gap
       if (gapZ > -2 * reach && gapZ < nd && Math.abs(c.x - r.x) < (r.nw + c.nw) / 2 + 0.1) { nearest = c; nd = gapZ; }
     }
     if (nearest) {
       const gap = (r.nw + nearest.nw) / 2 + 0.16;
       let side = r.x >= nearest.x ? 1 : -1;
-      if (Math.abs(nearest.x + side * gap) > 0.95) side = -side;
+      const nx = nearest.x + side * gap; if (nx < rMin || nx > rMax) side = -side;
       tx = nearest.x + side * gap;
       if (nd < 300 && nd > -150) r.speed = Math.min(r.speed, nearest.speed + 400);
     }
-    tx = clamp(tx, -0.9, 0.9);
+    tx = clamp(tx, rMin, rMax);
     r.x += clamp(tx - r.x, -1.3 * dt, 1.3 * dt);
     r.dist += r.speed * dt;
 
@@ -2053,20 +2180,20 @@ function updateDog(c, dt) {
   }
   if (c.mode === 'cross') {
     c.x += c.vx * dt;
-    if (Math.abs(c.x) > 1.5) { c.x = Math.sign(c.x) * 1.5; c.vx = 0; c.mode = 'sit'; }
+    const h = halfAt(c.z) + 0.5; if (Math.abs(c.x) > h) { c.x = Math.sign(c.x) * h; c.vx = 0; c.mode = 'sit'; }
   } else if (c.mode === 'chase') {
     c.chaseT -= dt;
     // run alongside the front wheel (a little ahead of the auto) until it outpaces the dog
     const top = MAX_SPEED * (c.chaseT > 2 ? 0.7 : 0.4); // strong sprint, then it tires
     c.speed += clamp(clamp(player.speed + (220 - dz) * 2, 0, top) - c.speed, -MAX_SPEED * dt, MAX_SPEED * 0.6 * dt);
-    const tx = clamp(player.x + c.side * 0.32, -1.6, 1.6);
+    const hh = halfAt(c.z) + 0.6, tx = clamp(player.x + c.side * 0.32, -hh, hh);
     c.x += clamp(tx - c.x, -1.2 * dt, 1.2 * dt);
     if (c.barkT <= 0 && Math.abs(dz) < 900) {
       c.barkT = rand(0.35, 0.7); Animals.barkFrom(c);
       const s = c.scr && c.scr.frame === frameNo ? c.scr : null;
       popup(pick(['BHOW!', 'BHOW BHOW!', 'WOOF!', 'GRRR!']), s ? s.x : W / 2 + c.side * 190, s ? s.y : H - 210, '#fff', 20);
     }
-    if (c.chaseT <= 0 || dz < -700) { c.mode = 'sit'; c.tx = Math.sign(c.x || 1) * 1.3; }
+    if (c.chaseT <= 0 || dz < -700) { c.mode = 'sit'; c.tx = Math.sign(c.x || 1) * (halfAt(c.z) + 0.3); }
   } else {
     c.speed = Math.max(0, c.speed - MAX_SPEED * dt);
     if (c.mode === 'sit' && c.tx !== undefined) c.x += clamp(c.tx - c.x, -0.6 * dt, 0.6 * dt);
@@ -2086,67 +2213,166 @@ function updateTraffic(dt) {
       c.scared -= dt;
       if (c.pause > 0) c.pause -= dt;
       else { c.x += c.vx * dt; if (Math.random() < dt * 0.1 && c.scared <= 0) c.pause = rand(1, 4); }
-      if (Math.abs(c.x) > 1.4) { c.vx = -Math.sign(c.x) * rand(0.05, 0.12); c.x = Math.sign(c.x) * 1.4; }
+      const h = halfAt(c.z) + 0.4; if (Math.abs(c.x) > h) { c.vx = -Math.sign(c.x) * rand(0.05, 0.12); c.x = Math.sign(c.x) * h; }
       c.img = c.vx > 0 ? SP.cowR : SP.cowL;
     } else driveTraffic(c, obs, dt);
   }
 }
 
-// Traffic is solid and drives by the rules (India keeps left): buses and trucks stay in the left lane,
-// cars on the left or in the middle. They keep a safe gap that grows with speed, brake for whatever is ahead
-// (you, rival autos, other traffic, cows), change lane only to overtake (pulling out to the right) and move
-// back to the left once past, always indicating first and never into a lane with something alongside.
-const TRAFFIC_LANES = [-0.66, 0, 0.66];
+// Traffic is solid and drives by the rules. The road is two-way and India keeps left: our traffic uses the
+// left carriageway (x < 0), oncoming traffic the right. Lanes are counted from the centre line; buses and
+// trucks keep to the outermost (left) lane, cars pick one. Everyone keeps a safe gap that grows with speed
+// and brakes for whatever is ahead (you, rival autos, traffic, cows), overtakes only on the inside (pulling
+// out towards the centre) and moves back out once past, always indicating first and never into a lane with
+// something alongside. They merge before a lane ends and stop at red lights (and for a busy junction).
 function trafficObstacles() {
-  const obs = [{ z: player.dist, x: player.x, speed: player.speed, nw: TUK_NW, len: TUK_LEN, who: player }];
-  for (const r of rivals) obs.push({ z: r.dist, x: r.x, speed: r.ko > 0 ? 0 : r.speed, nw: TUK_NW, len: TUK_LEN, who: r });
-  for (const c of traffic) if (c.type !== 'dog') obs.push({ z: c.z, x: c.x, speed: c.speed, nw: c.nw, len: c.type === 'cow' ? 900 : c.len, who: c });
+  const obs = [{ z: player.dist, x: player.x, vz: player.speed, nw: TUK_NW, len: TUK_LEN, who: player }];
+  for (const r of rivals) obs.push({ z: r.dist, x: r.x, vz: r.ko > 0 ? 0 : r.speed, nw: TUK_NW, len: TUK_LEN, who: r });
+  for (const c of traffic) if (c.type !== 'dog') obs.push({ z: c.z, x: c.x, vz: (c.dir || 0) * c.speed, nw: c.nw, len: c.type === 'cow' ? 900 : c.len, who: c });
   return obs;
 }
-function driveTraffic(c, obs, dt) {
-  if (c.cruise == null) {
-    c.cruise = c.speed; c.stuck = 0; c.signal = 0; c.signalT = 0; c.checkT = rand(1, 3);
-    c.home = c.type === 'car' ? pick([-0.66, 0]) : -0.66; c.x = c.tx = c.home;
+// the next junction ahead of z going dir, and how far its stop line is (from the front bumper)
+function stopLineAhead(z, dir, front, range) {
+  for (const j of junctions) {
+    const stop = dir > 0 ? j.z0 - 150 : j.z1 + 150, d = wrapDelta(stop - z) * dir - front;
+    if (d > -60 && d < range) return { j, d };
   }
+  return null;
+}
+function driveTraffic(c, obs, dt) {
+  const dir = c.dir;
+  if (c.cruise == null) { c.cruise = c.speed; c.stuck = 0; c.signal = 0; c.signalT = 0; c.checkT = rand(1, 3); c.pref = c.type === 'car' ? Math.floor(Math.random() * 3) : 2; }
   const reachOf = o => use3D ? (c.len + o.len) / 2 : 250;
-  const hits = (x, o) => Math.abs(o.x - x) < (c.nw + o.nw) / 2 + 0.03;
-  const laneFree = (x, ahead, behind) => !obs.some(o => {
-    if (o.who === c || !hits(x, o)) return false;
-    const dz = wrapDelta(o.z - c.z), r = reachOf(o);
-    return dz > -r - behind && dz < r + ahead;
-  });
-  // following: nearest thing ahead in this lane, keep a gap of about a third of a second plus a bit
-  let ahead = null, gap = Infinity;
+  const hits = (x, o) => Math.abs(o.x - x) < (c.nw + o.nw) / 2 - 0.02;
+  const fwd = o => wrapDelta(o.z - c.z) * dir;                 // how far ahead of me, going my way
+  const laneFree = (x, ahead, behind) => !obs.some(o => o.who !== c && hits(x, o) && fwd(o) > -reachOf(o) - behind && fwd(o) < reachOf(o) + ahead);
+  const lanesNow = findSegment(c.z).lanes;
+  let lanesAhead = lanesNow, laneEnds = Infinity;
+  for (let d = SEG_LEN; d <= 2600; d += SEG_LEN) { const l = findSegment(c.z + dir * d).lanes; if (l < lanesAhead) lanesAhead = l; if (l <= c.lane && laneEnds === Infinity) laneEnds = d; }
+  // what's ahead: the nearest thing in my lane, a stop line at red, or the end of my lane
+  let gap = Infinity, aheadV = 0, ahead = null;
   for (const o of obs) {
     if (o.who === c || !hits(c.x, o)) continue;
-    const dz = wrapDelta(o.z - c.z), g = dz - reachOf(o);
-    if (dz > 0 && g < 3000 && g < gap) { gap = g; ahead = o; }
+    const d = fwd(o), g = d - reachOf(o);
+    if (d > 0 && g < 3000 && g < gap) { gap = g; aheadV = Math.max(0, o.vz * dir); ahead = o; }
   }
+  const sl = stopLineAhead(c.z, dir, c.len / 2, 3000);
+  if (sl) {
+    const L = lightOf(sl.j), brakeDist = c.speed * c.speed / 12000;
+    if ((L === 'R' || sl.j.busy || (L === 'A' && sl.d > brakeDist)) && sl.d < gap) { gap = sl.d; aheadV = 0; ahead = null; }
+  }
+  if (laneEnds < Infinity && laneEnds - c.len / 2 - 120 < gap) { gap = laneEnds - c.len / 2 - 120; aheadV = 0; ahead = null; }
   const safe = 250 + c.speed * 0.35;
-  let target = c.cruise;
-  if (ahead) target = Math.min(c.cruise, Math.max(0, ahead.speed + (gap - safe) * 1.6));
+  const target = gap < Infinity ? Math.min(c.cruise, Math.max(0, aheadV + (gap - safe) * 1.6)) : c.cruise;
   c.speed += clamp(target - c.speed, -9000 * dt, 2500 * dt);
-  c.z = (c.z + c.speed * dt) % trackLength;
-  if (ahead && gap < 0) { c.z = ((ahead.z - reachOf(ahead)) % trackLength + trackLength) % trackLength; c.speed = Math.min(c.speed, ahead.speed); }
-  // lane changes: indicate, then move once the lane is still clear
+  c.z = ((c.z + dir * c.speed * dt) % trackLength + trackLength) % trackLength;
+  if (ahead && gap < 0) { c.z = ((ahead.z - dir * reachOf(ahead)) % trackLength + trackLength) % trackLength; c.speed = Math.min(c.speed, aheadV); }
+  // lane changes (signal: -1 towards the centre to overtake or merge, +1 back out to the left)
+  if (c.lane >= lanesNow) c.lane = lanesNow - 1;
+  if (c.yieldT > 0) c.yieldT -= dt;
+  const atLane = Math.abs(laneX(dir, c.lane) - c.x) < 0.01;
   if (c.signalT > 0) {
     c.signalT -= dt;
-    if (c.signalT <= 0) { const l = c.x + c.signal * 0.66; if (laneFree(l, 600, 500)) c.tx = l; else c.signal = 0; }
-  } else if (Math.abs(c.tx - c.x) < 0.01) {
+    if (c.signalT <= 0) {
+      const l = c.lane + c.signal;
+      if (l >= 0 && l < lanesNow && laneFree(laneX(dir, l), 600, 500)) c.lane = l;  // go (keeps blinking until in the lane)
+      else if (c.signal < 0 && c.lane >= lanesAhead) c.signalT = 0.3;             // must merge: keep indicating, try again
+      else c.signal = 0;
+    }
+  } else if (atLane) {
     c.signal = 0;
     if (ahead && gap < safe + 400 && c.speed < c.cruise * 0.8) c.stuck += dt; else c.stuck = 0;
     c.checkT -= dt;
-    const right = c.x + 0.66, left = c.x - 0.66;
-    if (c.stuck > 0.8 && right <= 0.67 && laneFree(right, 900, 700)) { c.signal = 1; c.signalT = 0.8; c.stuck = 0; }            // overtake on the right
-    else if (c.checkT <= 0) { c.checkT = rand(1.5, 3); if (c.x > c.home + 0.3 && laneFree(left, 1400, 900)) { c.signal = -1; c.signalT = 0.8; } } // back to the left
+    const home = Math.min(c.pref, lanesAhead - 1);
+    if (c.lane >= lanesAhead && c.lane > 0) { c.signal = -1; c.signalT = 0.6; }                                   // my lane ends: merge in
+    else if (c.yieldT > 0 && c.lane + 1 < lanesAhead && laneFree(laneX(dir, c.lane + 1), 700, 600)) { c.signal = 1; c.signalT = 0.35; c.yieldT = 0; } // let the honker through
+    else if (c.stuck > 0.8 && c.lane > 0 && laneFree(laneX(dir, c.lane - 1), 900, 700)) { c.signal = -1; c.signalT = 0.8; c.stuck = 0; } // overtake on the inside
+    else if (c.checkT <= 0) { c.checkT = rand(1.5, 3); if (c.lane < home && laneFree(laneX(dir, c.lane + 1), 1400, 900)) { c.signal = 1; c.signalT = 0.8; } } // back out to the left
   }
-  // steer toward the chosen lane, but never slide into something alongside
-  const nx = c.x + clamp(c.tx - c.x, -0.4 * dt, 0.4 * dt);
+  // steer toward the lane, never sliding into something alongside
+  const tx = laneX(dir, c.lane), nx = c.x + clamp(tx - c.x, -0.45 * dt, 0.45 * dt);
   if (nx !== c.x) {
-    const blocked = obs.some(o => o.who !== c && Math.abs(wrapDelta(o.z - c.z)) < reachOf(o) && hits(nx, o) && !hits(c.x, o));
-    if (blocked) { c.tx = TRAFFIC_LANES.reduce((b, l) => Math.abs(l - c.x) < Math.abs(b - c.x) ? l : b); } else c.x = nx;
-    if (Math.abs(c.tx - c.x) < 0.01) c.signal = 0;
+    const blocked = obs.some(o => o.who !== c && Math.abs(fwd(o)) < reachOf(o) && hits(nx, o) && !hits(c.x, o));
+    if (blocked) c.lane = clamp(Math.round(Math.abs(c.x) / LANE_W - 0.5), 0, lanesNow - 1); else c.x = nx;
   }
+  if (Math.abs(laneX(dir, c.lane) - c.x) < 0.01 && c.signalT <= 0) c.signal = 0;
+  c.signalX = -c.signal * dir; // the side (in x) that's blinking
+}
+
+// ------------------------------------------------------------------ junction cross traffic
+// When the cross road has green, traffic streams across the junction (keeping left: eastbound on the far
+// side, westbound on the near side); on red it queues at the cross road's stop lines. Cross vehicles brake
+// for anything in their path but can't stop instantly, so jumping the red is a real risk. A traffic cop at
+// every other junction fines you for jumping it.
+const CROSS_TYPES = [
+  { type: 'car', nw: 0.38, len: 1500, label: 'CAR' }, { type: 'car', nw: 0.38, len: 1500, label: 'CAR' },
+  { type: 'auto', nw: TUK_NW, len: TUK_LEN, label: 'AUTO' }, { type: 'bus', nw: 0.56, len: 3200, label: 'BUS' },
+];
+function spawnCross(j, dirX, queued) {
+  const d = pick(CROSS_TYPES), lenX = d.len / ROAD_W;
+  const stopX = -dirX * (j.half + 0.35);
+  const lineUp = crossTraffic.filter(c => c.j === j && c.dirX === dirX && c.x * dirX < stopX * dirX + 0.1);
+  if (lineUp.length >= 4) return;
+  const back = lineUp.reduce((m, c) => Math.min(m, c.x * dirX - c.lenX / 2), stopX * dirX) - 0.3 - lenX / 2;
+  const x = queued ? back * dirX : -dirX * (j.half + 13);
+  if (!queued && x * dirX > back) return;
+  crossTraffic.push({ j, dirX, x, z: j.zc + dirX * 600, type: d.type, nw: d.nw, len: d.len, lenX, label: d.label, cruise: rand(1.9, 2.4), speed: queued ? 0 : 2.1,
+    img: d.type === 'bus' ? SP.bus : d.type === 'auto' ? pick(SP.rivals) : pick(SP.cars), palette: d.type === 'auto' ? pick(RIVAL_COLORS) : null, color: pick(CAR_COLORS) });
+}
+function dropCross(gone) {
+  const out = crossTraffic.filter(gone); if (!out.length) return;
+  crossTraffic = crossTraffic.filter(c => !gone(c));
+  if (use3D) World3D.forget(out); // free their 3D models
+}
+function updateCross(dt) {
+  if (!use3D) return; // (the 2D fallback has no cross traffic)
+  for (const j of junctions) {
+    const dz = wrapDelta(j.zc - player.dist), active = dz > -4000 && dz < 30000;
+    if (!active) { if (j.live) { dropCross(c => c.j === j); j.live = false; } continue; }
+    if (!j.live) { j.live = true; for (const dx of [-1, 1]) for (let k = 0; k < 2; k++) spawnCross(j, dx, true); }
+    for (const [k, dx] of [[0, -1], [1, 1]]) {
+      j.spawn[k] -= dt;
+      if (j.spawn[k] <= 0) { const go = crossGo(j); j.spawn[k] = go ? rand(1.2, 2.4) : rand(2.5, 5); spawnCross(j, dx, !go); }
+    }
+  }
+  const bodies = [{ x: player.x, z: player.dist, w: TUK_NW, l: TUK_LEN, who: player }, ...rivals.map(r => ({ x: r.x, z: r.dist, w: TUK_NW, l: TUK_LEN, who: r })),
+    ...traffic.filter(c => c.type !== 'dog').map(c => ({ x: c.x, z: c.z, w: c.nw, l: c.type === 'cow' ? 900 : c.len, who: c }))];
+  for (const j of junctions) j.busy = false;
+  for (const c of crossTraffic) {
+    const inLane = b => Math.abs(wrapDelta(b.z - c.z)) < (c.nw * ROAD_W + b.l) / 2;
+    // nearest thing ahead in my path: a body on the road, the car in front, or my stop line when it's red
+    let gap = Infinity;
+    for (const b of bodies) if (inLane(b)) { const g = (b.x - c.x) * c.dirX - c.lenX / 2 - b.w / 2; if (g > -0.1 && g < gap) gap = g; }
+    for (const o of crossTraffic) if (o !== c && o.j === c.j && o.dirX === c.dirX) { const g = (o.x - c.x) * c.dirX - (c.lenX + o.lenX) / 2; if (g > -0.2 && g < gap) gap = g; }
+    const stop = (-c.dirX * (c.j.half + 0.35) - c.x) * c.dirX - c.lenX / 2;
+    if (!crossGo(c.j) && stop > -0.05 && stop < gap) gap = stop;
+    const target = gap === Infinity ? c.cruise : Math.min(c.cruise, Math.sqrt(2 * 3 * Math.max(0, gap - 0.12)));
+    c.speed += clamp(target - c.speed, -3 * dt, 1.2 * dt);  // brakes hard, but not instantly
+    c.x += c.dirX * c.speed * dt;
+    if (Math.abs(c.x) - c.lenX / 2 < c.j.half + 0.2) c.j.busy = true;
+    // hits: you get T-boned; a rival is knocked out
+    for (const b of bodies) {
+      if (b.who === player ? player.crash > 0 || player.inv > 0 : b.who.ko > 0) continue;
+      if (!inLane(b) || Math.abs(b.x - c.x) > (c.lenX + b.w) / 2) continue;
+      if (b.who === player) { crashPlayer(`T-BONED BY A ${c.label}!`, 25 + c.speed * 6); player.speed = 0; }
+      else if (b.who.isRival) { b.who.ko = 2.5; b.who.koDir = c.dirX; b.who.speed *= 0.2; }
+      else { b.who.speed = 0; }
+      c.speed = 0;
+    }
+  }
+  dropCross(c => Math.abs(c.x) >= c.j.half + 16);
+  // jumping the red: the cop blows his whistle and writes a challan
+  const front = player.dist + TUK_LEN / 2;
+  for (const j of junctions) {
+    const line = j.z0 - 150, was = wrapDelta(line - (player._front ?? front)), now = wrapDelta(line - front);
+    if (was > 0 && now <= 0 && was - now < 1500 && state === 'race' && player.x < 0.1) { // (a real crossing, not a respawn jump)
+      if (lightOf(j) === 'R') {
+        if (j.cop) { const fine = 200; cash = Math.max(0, cash - fine); store.set('cash', cash); Sfx.whistle(); msg(`CHALLAN! -₹${fine}`, '#ff8a65', 2); popup('JUMPED THE RED!', W / 2, H - 300, '#ff5252', 24); }
+        else popup('JUMPED THE RED!', W / 2, H - 300, '#ff5252', 22);
+      }
+    }
+  }
+  player._front = front;
 }
 
 function checkCollisions() {
@@ -2154,7 +2380,7 @@ function checkCollisions() {
   // in 3D every vehicle is a solid body centred on its position, so contact happens when the bodies' ends
   // meet (half of each length apart); the flat 2D sprites only touch just ahead of the auto
   const pw = TUK_NW, half = use3D ? TUK_LEN / 2 : 0, seg = findSegment(player.dist + half * 0.8);
-  if (Math.abs(player.x) > 1) {
+  if (Math.abs(player.x) > seg.half) {
     for (const s of seg.solids) {
       if (Math.sign(s.offset) !== Math.sign(player.x)) continue;
       // buildings and temples: their front wall is at the offset; other things are centred half their width out
@@ -2171,6 +2397,13 @@ function checkCollisions() {
     const dz = wrapDelta(c.z - player.dist);
     const reach = use3D ? (c.len || 0) / 2 + half : 230;
     if (dz < (use3D ? -reach : -60) || dz > reach || !overlap(player.x, use3D ? pw : pw * 0.85, c.x, use3D ? c.nw : c.nw * 0.85)) continue;
+    // oncoming, nose to nose: a head-on smash (alongside it's a scrape, below)
+    if (c.dir === -1 && !(use3D && Math.abs(dz) < reach - 260)) {
+      const rel = (player.speed + c.speed) / MAX_SPEED;
+      crashPlayer(`HEAD-ON WITH A ${c.label}!`, 30 + rel * 25); player.speed = 0; c.speed = 0;
+      if (dz > 0) player.dist -= reach - dz;
+      return;
+    }
     // alongside (3D): the auto scrapes the vehicle's side and is shoved back out into its own line
     if (use3D && dz < reach - 260 && c.type !== 'dog') {
       const dir = player.x >= c.x ? 1 : -1;
@@ -2233,7 +2466,7 @@ function separateRivals() {
     const pdz = player.dist - a.dist, pdx = a.x - player.x, pov = TUK_NW - Math.abs(pdx);
     if (Math.abs(pdz) < reachR - 260 && pov > 0) a.x += (pdx >= 0 ? 1 : -1) * pov;
     for (const c of traffic) {
-      if (c.type === 'dog' || c.type === 'cow') continue;
+      if (c.type === 'dog' || c.type === 'cow' || c.dir === -1) continue;
       const reach = use3D ? (c.len || 0) / 2 + TUK_LEN / 2 : 200, dz = wrapDelta(c.z - a.dist), cw = use3D ? c.nw : c.nw * 0.85;
       if (dz <= -reach || dz >= reach) continue;
       if (dz > 0) push(a, { dist: a.dist + dz, x: c.x, speed: c.speed }, dz, reach, cw, false);
@@ -2306,10 +2539,12 @@ function poly(x1, y1, x2, y2, x3, y3, x4, y4, color) {
 
 function drawSegment(seg, n) {
   const col = seg.dark ? theme.dark : theme.light;
-  const x1 = seg.p1.screen.x, y1 = seg.p1.screen.y, w1 = seg.p1.screen.w;
-  const x2 = seg.p2.screen.x, y2 = seg.p2.screen.y, w2 = seg.p2.screen.w;
+  const x1 = seg.p1.screen.x, y1 = seg.p1.screen.y, u1 = seg.p1.screen.w;
+  const x2 = seg.p2.screen.x, y2 = seg.p2.screen.y, u2 = seg.p2.screen.w;
+  const w1 = u1 * seg.hw1, w2 = u2 * seg.hw2; // this stretch's road half-width (4 or 6 lanes)
+  if (seg.junction) { ctx.fillStyle = col.road; ctx.fillRect(0, y2, W, y1 - y2 + 1); return; } // the cross road
   ctx.fillStyle = col.grass; ctx.fillRect(0, y2, W, y1 - y2 + 1);
-  const r1 = w1 / 6, r2 = w2 / 6, s1 = w1 * 0.35, s2 = w2 * 0.35;
+  const r1 = u1 / 6, r2 = u2 / 6, s1 = u1 * 0.35, s2 = u2 * 0.35;
   poly(x1 - w1 - r1 - s1, y1, x1 - w1 - r1, y1, x2 - w2 - r2, y2, x2 - w2 - r2 - s2, y2, col.shoulder);
   poly(x1 + w1 + r1 + s1, y1, x1 + w1 + r1, y1, x2 + w2 + r2, y2, x2 + w2 + r2 + s2, y2, col.shoulder);
   poly(x1 - w1 - r1, y1, x1 - w1, y1, x2 - w2, y2, x2 - w2 - r2, y2, col.rumble);
@@ -2323,13 +2558,15 @@ function drawSegment(seg, n) {
       const a2 = x2 - w2 + (2 * w2 * i) / cells, b2 = x2 - w2 + (2 * w2 * (i + 1)) / cells;
       poly(a1, y1, b1, y1, b2, y2, a2, y2, '#f5f5f5');
     }
-  } else if (col.lane) {
-    const l1 = w1 / 32, l2 = w2 / 32, lw1 = w1 * 2 / LANES, lw2 = w2 * 2 / LANES;
-    let lx1 = x1 - w1 + lw1, lx2 = x2 - w2 + lw2;
-    for (let lane = 1; lane < LANES; lane++, lx1 += lw1, lx2 += lw2) poly(lx1 - l1 / 2, y1, lx1 + l1 / 2, y1, lx2 + l2 / 2, y2, lx2 - l2 / 2, y2, col.lane);
+    return;
   }
-  const fog = 1 / Math.pow(Math.E, (n / DRAW_DIST) * (n / DRAW_DIST) * FOG_DENSITY);
-  if (fog < 1) { ctx.globalAlpha = 1 - fog; ctx.fillStyle = theme.fog; ctx.fillRect(0, y2, W, y1 - y2 + 1); ctx.globalAlpha = 1; }
+  // double yellow centre line (solid), dashed white lines between the lanes of each direction
+  const l1 = u1 / 40, l2 = u2 / 40;
+  for (const o of [-0.03, 0.03]) poly(x1 + o * u1 - l1 / 2, y1, x1 + o * u1 + l1 / 2, y1, x2 + o * u2 + l2 / 2, y2, x2 + o * u2 - l2 / 2, y2, '#f2c200');
+  if (col.lane) for (const side of [-1, 1]) for (let i = 1; i < seg.lanes; i++) {
+    const o = side * i * LANE_W;
+    poly(x1 + o * u1 - l1 / 2, y1, x1 + o * u1 + l1 / 2, y1, x2 + o * u2 + l2 / 2, y2, x2 + o * u2 - l2 / 2, y2, col.lane);
+  }
 }
 
 function drawBackground(ctx, hz) {
@@ -2435,7 +2672,7 @@ function render() {
 function render3D() {
   try {
     drawBackground(bgCtx, World3D.horizonY());
-    const info = World3D.frame({ player, rivals, traffic, frameNo, shake, t: performance.now() / 1000 });
+    const info = World3D.frame({ player, rivals, traffic, frameNo, shake, t: performance.now() / 1000, cross: crossTraffic, lightOf });
     playerScr = info ? info.player : null;
     ctx.clearRect(0, 0, W, H);
     return true;
@@ -2514,7 +2751,7 @@ function drawPlayer(seg, pct) {
   const destW = TUK_NW * ROAD_W * scale * W / 2, destH = destW * SP.player.height / SP.player.width;
   const camY = lerp(seg.p1.camera.y, seg.p2.camera.y, pct);
   const sp = player.speed / MAX_SPEED;
-  const bumpy = Math.abs(player.x) > 1 ? 4 : 1.2;
+  const bumpy = Math.abs(player.x) > halfAt(player.dist) ? 4 : 1.2;
   const bounce = player.crash > 0 ? 0 : (Math.random() - 0.5) * bumpy * sp * 2;
   const y = H / 2 - (scale * camY * H / 2) - destH + bounce;
   if (player.inv > 0 && Math.floor(player.inv * 10) % 2) return;
@@ -2800,5 +3037,5 @@ function step(now) {
 requestAnimationFrame(frame);
 // expose for debugging
 window.__rrr = { get state() { return state; }, player, get rivals() { return rivals; }, get results() { return results; }, setupRace,
-  step(n) { for (let i = 0; i < n; i++) update(STEP); render(); }, keys, Sfx, Music, Ambience, VehicleAudio, VoiceClips, Animals, SKYLINES, THEMES, SP, get traffic() { return traffic; }, get segments() { return segments; }, get bubbles() { return bubbles; }, setLevel(l) { level = l; attractSetup(); } };
+  step(n) { for (let i = 0; i < n; i++) update(STEP); render(); }, keys, Sfx, Music, Ambience, VehicleAudio, VoiceClips, Animals, SKYLINES, THEMES, SP, get traffic() { return traffic; }, get segments() { return segments; }, get bubbles() { return bubbles; }, get junctions() { return junctions; }, get cross() { return crossTraffic; }, lightOf, setLevel(l) { level = l; attractSetup(); } };
 })();

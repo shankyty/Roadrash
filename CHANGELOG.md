@@ -1,5 +1,22 @@
 # Changelog
 
+## v2.9.0: Two-way city roads, junctions and real night lighting
+
+- **Two-way roads:**
+  - We keep left, and oncoming traffic comes at you on the right side of a double yellow line.
+  - Stretches alternate between 6 lanes and 4 lanes, with the road narrowing and widening smoothly. "Road narrows" signs warn you, and traffic merges before its lane ends.
+- **Oncoming traffic:**
+  - Crossing the centre line to overtake is a risky shortcut. Oncoming drivers lean on the horn, and a head-on hit is a big crash.
+- **Junctions with traffic lights:**
+  - Every junction has signals: green, amber, red.
+  - Traffic stops at its stop line on red. When the cross road gets green, cars, autos and buses stream across.
+  - Jump the red and you can get T-boned, because cross traffic brakes but can't stop instantly. Rivals jump reds too and get knocked out.
+  - Every other junction has a traffic cop under a striped umbrella. Jump his red and he blows his whistle and writes you a **₹200 challan**.
+- **Road signs:** signal ahead, road narrows, speed limits (40/50/60), keep left and (of course) no horn.
+- **Night is dark now:**
+  - On night tracks, light falls only where it really does: warm pools under the street lamps and headlight beams ahead of every vehicle, including oncoming traffic and cross traffic.
+  - Cars, buses and trucks have glowing headlamps.
+
 ## v2.8.3: Real exhaust smoke, solid traffic that follows the rules
 
 - **Exhaust smoke from the tail pipe:**
