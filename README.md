@@ -6,7 +6,7 @@ Road Rash-style combat racing through Mumbai, Hyderabad, Delhi and Chennai. Inst
 
 **https://shankyty.github.io/Roadrash/**
 
-No install needed. It works on any desktop browser, and on phones and tablets in landscape with on-screen touch controls.
+No install needed. It works on any desktop browser, and on phones and tablets with on-screen touch controls: in landscape the controls sit over the game, and in portrait they sit underneath it.
 
 ## Install with Homebrew
 
@@ -39,7 +39,7 @@ One hand drives and the other swings the lathi. Press **Tab** on the title or pa
 | Swing lathi left / right | **A** / **D** (left hand) | **←** / **→** (right hand) |
 | Horn (cows, dogs and traffic move aside) | Space, W or S | Space, ↑ or ↓ |
 
-**Esc** or **P** during a race opens the menu: **Resume**, **Restart race** or **Quit to main menu**. Use ↑/↓ and Enter to choose, or click an option. On the results screen, **Enter** continues and **Esc** returns to the main menu. **M** mutes all sound, and **N** turns the music on or off.
+**Esc** or **P** during a race opens the menu: **Resume**, **Restart race** or **Quit to main menu**. Use ↑/↓ and Enter to choose, or click an option. On the results screen, **Enter** continues and **Esc** returns to the main menu. **V** opens the **sound mixer**, with separate volumes for all sound, race (engine, horn, fights), music and city noise; it's also in the pause menu, and there's a 🔊 button on phones. **M** mutes everything and **N** turns the music on or off.
 
 In the Mac app's **Game** menu: Pause/Resume (⌘P), Restart Race (⌘R), Quit to Main Menu (⇧⌘M), Reload Game (⇧⌘R). **⌃⌘F** toggles full screen.
 

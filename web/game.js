@@ -168,6 +168,14 @@ function deviceSummary() {
   const kind = os === 'iPadOS' || (touch && short >= 600) ? 'tablet' : touch && short < 600 ? 'phone' : 'computer';
   return `device/${kind}/${os}/${browser}`;
 }
+// crashes on players' devices show up in the dashboard as "error/<message>"
+let errorsReported = 0;
+function reportError(message, where) {
+  if (errorsReported++ >= 3) return;
+  trackEvent(`error/${String(message || 'unknown').replace(/\s+/g, ' ').slice(0, 80)}`, `${where || ''} ${deviceSummary()}`.trim());
+}
+addEventListener('error', e => reportError(e.message, `${(e.filename || '').split('/').pop()}:${e.lineno || 0}`));
+addEventListener('unhandledrejection', e => reportError(`promise: ${e.reason && e.reason.message || e.reason}`));
 if (analyticsOn) {
   const tag = document.createElement('script');
   tag.async = true; tag.src = '//gc.zgo.at/count.js'; tag.dataset.goatcounter = GOATCOUNTER;
@@ -184,6 +192,9 @@ const store = {
 };
 
 // ------------------------------------------------------------------ audio
+// iOS: play as media so the silent switch doesn't mute the game (Safari 17+)
+try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) { /* older iOS */ }
+const VOL_DEFAULTS = { master: 1, race: 1, music: 0.8, city: 0.8 };
 // Auto-rickshaw engine: single-cylinder two-stroke. Each firing is a pop that rings an exhaust
 // resonance and a tinny body rattle; off-throttle it misfires ("ring-ding-ding").
 const TWO_STROKE_WORKLET = `
@@ -227,12 +238,17 @@ class TwoStroke extends AudioWorkletProcessor {
 registerProcessor('two-stroke', TwoStroke);`;
 
 const Sfx = {
-  ctx: null, master: null, engine: null, muted: store.get('muted', false),
+  ctx: null, master: null, engine: null, muted: store.get('muted', false), vol: { ...VOL_DEFAULTS, ...store.get('vol', {}) },
   init() {
     if (this.ctx) { if (this.ctx.state === 'suspended') this.ctx.resume(); return; }
     try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return; }
     const a = this.ctx;
-    this.master = a.createGain(); this.master.gain.value = this.muted ? 0 : 0.5; this.master.connect(a.destination);
+    this.master = a.createGain(); this.master.connect(a.destination);
+    // three channels the player can balance: race (engine, horn, fights), music, city noise
+    for (const k of ['raceBus', 'musicBus', 'cityBus']) { this[k] = a.createGain(); this[k].connect(this.master); }
+    this.applyVol();
+    // iOS unlock: a silent blip started from inside the tap
+    const blip = a.createBufferSource(); blip.buffer = a.createBuffer(1, 1, 22050); blip.connect(a.destination); blip.start(0);
     const len = a.sampleRate; this.noiseBuf = a.createBuffer(1, len, a.sampleRate);
     const d = this.noiseBuf.getChannelData(0); for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
     this.loadSamples();
@@ -243,7 +259,7 @@ const Sfx = {
       a.audioWorklet.addModule(url).then(() => {
         const node = new AudioWorkletNode(a, 'two-stroke');
         const hp = a.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 70;
-        node.connect(hp); hp.connect(this.master);
+        node.connect(hp); hp.connect(this.raceBus);
         this.engine = { worklet: node, rpm: node.parameters.get('rpm'), throttle: node.parameters.get('throttle'), level: node.parameters.get('level') };
       }).catch(() => this.fallbackEngine());
     } else this.fallbackEngine();
@@ -255,7 +271,7 @@ const Sfx = {
     const f = a.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 400; f.Q.value = 2;
     const eg = a.createGain(); eg.gain.value = 0;
     const lfo = a.createOscillator(); lfo.type = 'square'; const lg = a.createGain(); lg.gain.value = 0;
-    lfo.connect(lg); lg.connect(eg.gain); o.connect(f); f.connect(eg); eg.connect(this.master); o.start(); lfo.start();
+    lfo.connect(lg); lg.connect(eg.gain); o.connect(f); f.connect(eg); eg.connect(this.raceBus); o.start(); lfo.start();
     this.engine = { o, f, eg, lfo, lg };
   },
   // Recorded engine (web/sounds.js): an idle loop and a rev loop, crossfaded by load and pitched by speed.
@@ -269,7 +285,7 @@ const Sfx = {
       return new Promise((res, rej) => a.decodeAudioData(bytes.buffer, res, rej));
     };
     Promise.all(Object.entries(src).map(([k, url]) => decode(url).then(b => { bufs[k] = b; }))).then(() => {
-      const loop = buf => { const n = a.createBufferSource(); n.buffer = buf; n.loop = true; const g = a.createGain(); g.gain.value = 0; n.connect(g); g.connect(this.master); n.start(); return { n, g }; };
+      const loop = buf => { const n = a.createBufferSource(); n.buffer = buf; n.loop = true; const g = a.createGain(); g.gain.value = 0; n.connect(g); g.connect(this.raceBus); n.start(); return { n, g }; };
       const idle = loop(bufs.idle), rev = loop(bufs.rev);
       this.samples = { idleSrc: idle.n, idleGain: idle.g, revSrc: rev.n, revGain: rev.g, start: bufs.start };
     }).catch(() => { this.samples = null; });
@@ -278,10 +294,20 @@ const Sfx = {
   startEngine() {
     const s = this.samples; if (!s || !this.ctx) return;
     const n = this.ctx.createBufferSource(); n.buffer = s.start;
-    const g = this.ctx.createGain(); g.gain.value = 0.8; n.connect(g); g.connect(this.master); n.start();
+    const g = this.ctx.createGain(); g.gain.value = 0.8; n.connect(g); g.connect(this.raceBus); n.start();
     this.engineOnAt = this.ctx.currentTime + 1.6;
   },
-  toggleMute() { this.muted = !this.muted; store.set('muted', this.muted); if (this.master) this.master.gain.value = this.muted ? 0 : 0.5; },
+  toggleMute() { this.muted = !this.muted; store.set('muted', this.muted); this.applyVol(); },
+  setVol(k, v) { this.vol[k] = Math.round(clamp(v, 0, 1) * 10) / 10; store.set('vol', this.vol); this.applyVol(); },
+  applyVol() {
+    if (!this.master) return;
+    const t = this.ctx.currentTime;
+    this.master.gain.setTargetAtTime(this.muted ? 0 : 0.5 * this.vol.master, t, 0.03);
+    this.raceBus.gain.setTargetAtTime(this.vol.race, t, 0.03);
+    this.musicBus.gain.setTargetAtTime(this.vol.music, t, 0.03);
+    this.cityBus.gain.setTargetAtTime(this.vol.city, t, 0.03);
+  },
+  get running() { return !!this.ctx && this.ctx.state === 'running'; },
   setEngine(pct, on, throttle = 0) {
     if (!this.ctx) return;
     const t = this.ctx.currentTime, smp = this.samples;
@@ -314,14 +340,14 @@ const Sfx = {
     const g = a.createGain(); g.gain.setValueAtTime(0.0001, t);
     g.gain.exponentialRampToValueAtTime(vol, t + 0.015); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     let node = o; if (filter) { const fl = a.createBiquadFilter(); fl.type = 'lowpass'; fl.frequency.value = filter; o.connect(fl); node = fl; }
-    node.connect(g); g.connect(this.master); o.start(t); o.stop(t + dur + 0.05);
+    node.connect(g); g.connect(this.raceBus); o.start(t); o.stop(t + dur + 0.05);
   },
   noise(dur, vol, filter = 1000, delay = 0) {
     if (!this.ctx) return; const a = this.ctx, t = a.currentTime + delay;
     const s = a.createBufferSource(); s.buffer = this.noiseBuf;
     const fl = a.createBiquadFilter(); fl.type = 'lowpass'; fl.frequency.value = filter;
     const g = a.createGain(); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    s.connect(fl); fl.connect(g); g.connect(this.master); s.start(t); s.stop(t + dur + 0.05);
+    s.connect(fl); fl.connect(g); g.connect(this.raceBus); s.start(t); s.stop(t + dur + 0.05);
   },
   horn() { this.tone(380, 0.13, 'square', 0.16, 360, 0, 1800); this.tone(300, 0.22, 'square', 0.16, 280, 0.15, 1600); },
   hit() { this.noise(0.12, 0.5, 1400); this.tone(120, 0.2, 'sine', 0.55, 50); },
@@ -362,7 +388,7 @@ const Music = {
   ensure() {
     const a = Sfx.ctx; if (!a || !Sfx.master) return false;
     if (!this.bus) {
-      this.bus = a.createGain(); this.bus.gain.value = 0; this.bus.connect(Sfx.master);
+      this.bus = a.createGain(); this.bus.gain.value = 0; this.bus.connect(Sfx.musicBus);
       // tanpura-style drone on Sa and Pa
       const lp = a.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 700;
       const dg = a.createGain(); dg.gain.value = 0.045; lp.connect(dg); dg.connect(this.bus);
@@ -436,7 +462,7 @@ const Ambience = {
   stopAll() { const a = Sfx.ctx; for (const s of this.sources) { try { s.g.gain.setTargetAtTime(0, a.currentTime, 0.3); s.n.stop(a.currentTime + 1.5); } catch (e) { /* not started */ } } this.sources = []; this.next = 0; },
   ensure() {
     const a = Sfx.ctx; if (!a || this.bus) return;
-    this.bus = a.createGain(); this.bus.gain.value = 0; this.bus.connect(Sfx.master);
+    this.bus = a.createGain(); this.bus.gain.value = 0; this.bus.connect(Sfx.cityBus);
     this.timer = setInterval(() => this.tick(), 200);
   },
   decode(city) {
@@ -1344,16 +1370,22 @@ function keyDown(code) {
   if (!was) onPress(code);
 }
 function keyUp(code) { keys[code] = false; }
+const unlockAudio = () => { Sfx.init(); if (Sfx.ctx && Sfx.ctx.state !== 'running') Sfx.ctx.resume(); };
+for (const ev of ['pointerup', 'touchend', 'click', 'keydown']) addEventListener(ev, unlockAudio, { capture: true, passive: true });
 // swallow every non-shortcut key so the macOS WKWebView shell never plays the "unhandled key" beep
 addEventListener('keydown', e => { if (!e.metaKey && !e.ctrlKey && !/^F\d+$/.test(e.code)) e.preventDefault(); if (!e.repeat) keyDown(e.code); else keys[e.code] = true; });
 addEventListener('keyup', e => keyUp(e.code));
 addEventListener('blur', () => { for (const k in keys) keys[k] = false; if (state === 'race') openPause(); });
 
 const RACING_STATES = ['countdown', 'race', 'finished'];
-const PAUSE_MENU = [{ label: 'RESUME', cmd: 'resume' }, { label: 'RESTART RACE', cmd: 'restart' }, { label: 'QUIT TO MAIN MENU', cmd: 'menu' }];
+const PAUSE_MENU = [{ label: 'RESUME', cmd: 'resume' }, { label: 'RESTART RACE', cmd: 'restart' }, { label: 'SOUND MIXER', cmd: 'mixer' }, { label: 'QUIT TO MAIN MENU', cmd: 'menu' }];
+const MIXER = [['master', 'ALL SOUND'], ['race', 'RACE', 'engine, horn, fights'], ['music', 'MUSIC'], ['city', 'CITY NOISE', 'street & hawkers']];
+let mixer = null;
+function openMixer() { mixer = { sel: 0 }; }
 function openPause() { paused = true; pauseSel = 0; }
 // Commands shared by the pause menu, mouse clicks and the macOS app menu (window.rrrCommand).
 function runCommand(cmd) {
+  if (cmd === 'mixer') { openMixer(); return; }
   if (cmd === 'pause') { if (RACING_STATES.includes(state) && !paused) openPause(); else if (paused) paused = false; return; }
   paused = false;
   if (cmd === 'restart' && state !== 'title' && state !== 'champion') setupRace();
@@ -1363,6 +1395,15 @@ window.rrrCommand = runCommand;
 function onPress(code) {
   if (code === 'KeyM') { Sfx.toggleMute(); return; }
   if (code === 'KeyN') { Music.toggle(); msg(Music.on ? 'MUSIC ON' : 'MUSIC OFF', '#fff', 1); return; }
+  if (mixer) {
+    const k = { ArrowUp: -1, KeyW: -1, T_up: -1, ArrowDown: 1, KeyS: 1, T_down: 1 }[code];
+    const d = { ArrowLeft: -0.1, KeyA: -0.1, T_left: -0.1, ArrowRight: 0.1, KeyD: 0.1, T_right: 0.1 }[code];
+    if (k) mixer.sel = (mixer.sel + MIXER.length + k) % MIXER.length;
+    if (d) { Sfx.setVol(MIXER[mixer.sel][0], Sfx.vol[MIXER[mixer.sel][0]] + d); Sfx.beep(false); }
+    if (['Escape', 'Enter', 'KeyV', 'Space'].includes(code)) mixer = null;
+    return;
+  }
+  if (code === 'KeyV') { if (RACING_STATES.includes(state) && !paused) openPause(); openMixer(); return; }
   if (code === 'Tab' && (state === 'title' || paused)) { toggleLayout(); return; }
   if (paused) {
     if (code === 'KeyP' || code === 'Escape') { paused = false; return; }
@@ -1960,6 +2001,8 @@ function render() {
   else if (state === 'champion') drawChampion();
   else { drawHUD(); if (state === 'countdown') drawCountdown(); if (state === 'results') drawResults(); }
   if (paused) drawPaused(); else drawMessages();
+  if (mixer) drawMixer();
+  else drawSoundHint();
 }
 
 function drawPlayer(seg, pct) {
@@ -2100,7 +2143,7 @@ function drawControls(top) {
   text('LEFT HAND', W / 2 - 150, top + 2 + 150, 10, '#aaa'); text('RIGHT HAND', W / 2 + 150, top + 2 + 150, 10, '#aaa');
   if (arrowsDrive) { fight(W / 2 - 150); drive(W / 2 + 150); } else { drive(W / 2 - 150); fight(W / 2 + 150); }
   ctx.strokeStyle = 'rgba(255,255,255,.15)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(W / 2, top + 14); ctx.lineTo(W / 2, top + 160); ctx.stroke();
-  text(`TAB: switch hands  ·  P pause  ·  M mute`, W / 2, top + 168, 11, '#ffcc80', 'center', 'system-ui, sans-serif');
+  text(`TAB: switch hands  ·  P pause  ·  V sound mixer  ·  M mute  ·  N music`, W / 2, top + 168, 11, '#ffcc80', 'center', 'system-ui, sans-serif');
 }
 function drawTitle() {
   ctx.fillStyle = 'rgba(10,5,20,.45)'; ctx.fillRect(0, 0, W, H);
@@ -2151,7 +2194,19 @@ function drawResults() {
   ctx.globalAlpha = 1;
   text('ESC — MAIN MENU', W / 2, by + 104, 13, '#ddd');
 }
-const pauseItemRect = i => ({ x: W / 2 - 170, y: 118 + i * 50, w: 340, h: 40 });
+const pauseItemRect = i => ({ x: W / 2 - 170, y: 100 + i * 44, w: 340, h: 36 });
+// tell players why they might hear nothing
+const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+function drawSoundHint() {
+  let t = null;
+  if (!Sfx.running) t = '\ud83d\udd0a Tap or press any key to turn on sound';
+  else if (Sfx.muted) t = '\ud83d\udd07 Sound muted: press M (or \ud83d\udd0a) to change';
+  else if (isIOS && !navigator.audioSession && state === 'title') t = 'iPhone: no sound? Switch off silent mode';
+  if (!t) return;
+  ctx.font = '13px system-ui, sans-serif'; const w = ctx.measureText(t).width + 24;
+  panel(W / 2 - w / 2, state === 'title' ? 8 : 48, w, 26, 0.7);
+  text(t, W / 2, (state === 'title' ? 8 : 48) + 13, 13, '#fff', 'center', 'system-ui, sans-serif', false);
+}
 function drawPaused() {
   ctx.fillStyle = 'rgba(12,6,20,.86)'; ctx.fillRect(0, 0, W, H);
   text('PAUSED', W / 2, 66, 50, '#fff');
@@ -2160,24 +2215,55 @@ function drawPaused() {
     ctx.fillStyle = sel ? '#ffd21f' : 'rgba(255,255,255,.1)'; rr(ctx, r.x, r.y, r.w, r.h, 10); ctx.fill();
     text((sel ? '\u25b6  ' : '') + m.label, W / 2, r.y + r.h / 2 + 1, 18, sel ? '#1a1a1a' : '#fff', 'center', FONT, !sel);
   });
-  text('\u2191 \u2193 choose  \u00b7  ENTER select  \u00b7  ESC resume  \u00b7  TAB switch hands', W / 2, 284, 12, '#ffcc80', 'center', 'system-ui, sans-serif');
+  text('\u2191 \u2193 choose  \u00b7  ENTER select  \u00b7  ESC resume  \u00b7  TAB switch hands', W / 2, 286, 12, '#ffcc80', 'center', 'system-ui, sans-serif');
   drawControls(300);
 }
-// mouse / trackpad on the pause menu
+const mixRow = i => ({ x: W / 2 - 250, y: 128 + i * 62, w: 500, h: 52 });
+const mixBar = i => { const r = mixRow(i); return { x: r.x + 220, y: r.y + 19, w: 200, h: 14 }; };
+const mixDone = { x: W / 2 - 80, y: 128 + MIXER.length * 62 + 8, w: 160, h: 40 };
+const inRect = (x, y, r) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
+function drawMixer() {
+  ctx.fillStyle = 'rgba(12,6,20,.9)'; ctx.fillRect(0, 0, W, H);
+  text('SOUND MIXER', W / 2, 70, 40, '#ffd21f');
+  text(Sfx.muted ? '\ud83d\udd07 muted: press M to unmute' : '\u2191 \u2193 choose  \u00b7  \u2190 \u2192 adjust  \u00b7  or tap the bars', W / 2, 106, 13, Sfx.muted ? '#ff8a80' : '#ffcc80', 'center', 'system-ui, sans-serif');
+  MIXER.forEach(([k, label, sub], i) => {
+    const r = mixRow(i), b = mixBar(i), sel = i === mixer.sel, v = Sfx.vol[k];
+    ctx.fillStyle = sel ? 'rgba(255,210,31,.18)' : 'rgba(255,255,255,.06)'; rr(ctx, r.x, r.y, r.w, r.h, 10); ctx.fill();
+    text(label, r.x + 18, r.y + (sub ? 20 : r.h / 2), 16, sel ? '#ffd21f' : '#fff', 'left');
+    if (sub) text(sub, r.x + 18, r.y + 38, 11, '#bbb', 'left', 'system-ui, sans-serif');
+    ctx.fillStyle = 'rgba(255,255,255,.15)'; rr(ctx, b.x, b.y, b.w, b.h, 7); ctx.fill();
+    ctx.fillStyle = sel ? '#ffd21f' : '#8bc34a'; rr(ctx, b.x, b.y, Math.max(b.h, b.w * v), b.h, 7); ctx.fill();
+    text(`${Math.round(v * 100)}%`, r.x + r.w - 18, r.y + r.h / 2, 15, '#fff', 'right');
+  });
+  ctx.fillStyle = '#ffd21f'; rr(ctx, mixDone.x, mixDone.y, mixDone.w, mixDone.h, 10); ctx.fill();
+  text('DONE', W / 2, mixDone.y + mixDone.h / 2 + 1, 18, '#1a1a1a', 'center', FONT, false);
+}
+// mouse / trackpad / taps on the pause menu and the mixer
 canvas.addEventListener('click', e => {
-  if (!paused) return;
   const b = canvas.getBoundingClientRect(), x = (e.clientX - b.left) * W / b.width, y = (e.clientY - b.top) * H / b.height;
+  if (mixer) {
+    if (inRect(x, y, mixDone)) { mixer = null; return; }
+    MIXER.forEach(([k], i) => {
+      const bar = mixBar(i);
+      if (inRect(x, y, { x: bar.x - 10, y: bar.y - 14, w: bar.w + 20, h: bar.h + 28 })) { mixer.sel = i; Sfx.setVol(k, (x - bar.x) / bar.w); }
+      else if (inRect(x, y, mixRow(i))) mixer.sel = i;
+    });
+    return;
+  }
+  if (!paused) return;
   PAUSE_MENU.forEach((m, i) => { const r = pauseItemRect(i); if (x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h) runCommand(m.cmd); });
 });
 canvas.addEventListener('mousemove', e => {
-  if (!paused) return;
+  if (!paused || mixer) return;
   const b = canvas.getBoundingClientRect(), x = (e.clientX - b.left) * W / b.width, y = (e.clientY - b.top) * H / b.height;
   PAUSE_MENU.forEach((m, i) => { const r = pauseItemRect(i); if (x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h) pauseSel = i; });
 });
 
 // ------------------------------------------------------------------ layout & loop
+const PORTRAIT_PANEL = 220;
 function fit() {
-  const s = Math.min(innerWidth / W, innerHeight / H);
+  const portrait = matchMedia('(orientation: portrait) and (pointer: coarse)').matches;
+  const s = Math.min(innerWidth / W, (innerHeight - (portrait ? PORTRAIT_PANEL : 0)) / H);
   canvas.style.width = `${Math.floor(W * s)}px`; canvas.style.height = `${Math.floor(H * s)}px`;
 }
 addEventListener('resize', fit);
@@ -2188,11 +2274,14 @@ fit();
 let last = performance.now(), acc = 0;
 const STEP = 1 / 60;
 function frame(now) {
+  requestAnimationFrame(frame);
+  try { step(now); } catch (err) { reportError(err && err.message, 'frame'); }
+}
+function step(now) {
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
   if (!paused) { acc += dt; while (acc >= STEP) { update(STEP); acc -= STEP; } }
   else Sfx.setEngine(0, false);
   render();
-  requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
 // expose for debugging

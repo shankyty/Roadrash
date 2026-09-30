@@ -1,5 +1,27 @@
 # Changelog
 
+## v2.6.0: Sound fixes, sound mixer and portrait phones
+
+### Sound works on more devices
+- **iPhone:** the game now plays even when the silent switch is on (iOS 17 and newer). On older iPhones, a hint on the title screen says to turn silent mode off.
+- **Phones in general:** sound now starts from any tap. Before, some phones stayed silent because the touch buttons tried to start audio too early.
+- A hint says **"Tap or press any key to turn on sound"** until audio is running, and **"Sound muted"** if you've pressed **M**.
+
+### Sound mixer
+Press **V**, pick **Sound mixer** in the pause menu, or tap **🔊** on a phone to balance four volumes:
+- **All sound**
+- **Race:** engine, horn and fights
+- **Music**
+- **City noise:** street sounds and hawkers
+
+Use ←/→, or tap or click the bars. Your settings are saved.
+
+### Play in portrait
+Phones with rotation lock no longer get stuck on a "rotate your phone" screen. In portrait, the game sits at the top with big touch controls underneath. Turning the phone sideways still gives a bigger view.
+
+### Crash reports
+If the game hits an error on someone's device, it now shows up in the analytics dashboard as `error/...` with the device, OS and browser, so problems can be fixed. The game also keeps running instead of freezing.
+
 ## v2.5.0: All tracks open
 
 - All 7 races across Mumbai, Hyderabad, Delhi and Chennai are **unlocked from the start**. Pick any of them on the title screen with ← →.
