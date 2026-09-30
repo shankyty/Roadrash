@@ -194,6 +194,7 @@ const Sfx = {
     this.master = a.createGain(); this.master.gain.value = this.muted ? 0 : 0.5; this.master.connect(a.destination);
     const len = a.sampleRate; this.noiseBuf = a.createBuffer(1, len, a.sampleRate);
     const d = this.noiseBuf.getChannelData(0); for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    this.loadSamples();
     if (a.audioWorklet) {
       const url = URL.createObjectURL(new Blob([TWO_STROKE_WORKLET], { type: 'application/javascript' }));
       a.audioWorklet.addModule(url).then(() => {
@@ -214,9 +215,45 @@ const Sfx = {
     lfo.connect(lg); lg.connect(eg.gain); o.connect(f); f.connect(eg); eg.connect(this.master); o.start(); lfo.start();
     this.engine = { o, f, eg, lfo, lg };
   },
+  // Recorded engine (web/sounds.js): an idle loop and a rev loop, crossfaded by load and pitched by speed.
+  // Until they decode (or if they fail) the synthesised two-stroke plays instead.
+  loadSamples() {
+    const src = window.RRR_SOUNDS; if (!src) return;
+    const a = this.ctx, bufs = {};
+    const decode = url => {
+      const bin = atob(url.slice(url.indexOf(',') + 1)), bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      return new Promise((res, rej) => a.decodeAudioData(bytes.buffer, res, rej));
+    };
+    Promise.all(Object.entries(src).map(([k, url]) => decode(url).then(b => { bufs[k] = b; }))).then(() => {
+      const loop = buf => { const n = a.createBufferSource(); n.buffer = buf; n.loop = true; const g = a.createGain(); g.gain.value = 0; n.connect(g); g.connect(this.master); n.start(); return { n, g }; };
+      const idle = loop(bufs.idle), rev = loop(bufs.rev);
+      this.samples = { idleSrc: idle.n, idleGain: idle.g, revSrc: rev.n, revGain: rev.g, start: bufs.start };
+    }).catch(() => { this.samples = null; });
+  },
+  // kick-start at the beginning of a race; the loops fade in once it has caught
+  startEngine() {
+    const s = this.samples; if (!s || !this.ctx) return;
+    const n = this.ctx.createBufferSource(); n.buffer = s.start;
+    const g = this.ctx.createGain(); g.gain.value = 0.8; n.connect(g); g.connect(this.master); n.start();
+    this.engineOnAt = this.ctx.currentTime + 1.6;
+  },
   toggleMute() { this.muted = !this.muted; store.set('muted', this.muted); if (this.master) this.master.gain.value = this.muted ? 0 : 0.5; },
   setEngine(pct, on, throttle = 0) {
-    const e = this.engine; if (!e) return; const t = this.ctx.currentTime;
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime, smp = this.samples;
+    if (smp) {
+      if (this.engine && this.engine.worklet) this.engine.level.setTargetAtTime(0, t, 0.05);
+      const live = on && t >= (this.engineOnAt || 0);
+      const load = clamp(pct * 0.75 + throttle * 0.35, 0, 1);
+      const k = clamp((load - 0.2) / 0.55, 0, 1), revMix = k * k * (3 - 2 * k);
+      smp.idleGain.gain.setTargetAtTime(live ? (1 - revMix) * 0.8 : 0, t, 0.08);
+      smp.revGain.gain.setTargetAtTime(live ? revMix * 0.7 : 0, t, 0.08);
+      smp.idleSrc.playbackRate.setTargetAtTime(1 + pct * 0.7, t, 0.1);
+      smp.revSrc.playbackRate.setTargetAtTime(0.82 + pct * 0.45 + throttle * 0.05, t, 0.1);
+      return;
+    }
+    const e = this.engine; if (!e) return;
     if (e.worklet) {
       e.rpm.setTargetAtTime(clamp(pct * 0.85 + throttle * 0.15, 0, 1), t, 0.05);
       e.throttle.setTargetAtTime(throttle, t, 0.05);
@@ -1018,6 +1055,7 @@ function setupRace() {
   finishOrder = []; results = null; particles = []; popups = []; messages = []; bubbles = [];
   raceTime = 0; position = 0; countdown = 3.99;
   state = 'countdown'; lastBeep = 4;
+  Sfx.startEngine();
 }
 
 // ------------------------------------------------------------------ input
@@ -1757,6 +1795,7 @@ function drawTitle() {
   const locked = TRACKS.length - 1 - unlocked;
   text(`Race ${level + 1} of ${TRACKS.length}${locked ? `  \u00b7  finish top 3 to unlock ${locked} more` : ''}  \u00b7  \u2190 \u2192 choose  \u00b7  Wallet ${fmtCash(cash)}${round ? `  \u00b7  Tour ${round + 1}` : ''}`, W / 2, 500, 12, '#ffcc80', 'center', 'system-ui, sans-serif');
   text('Mind the tip-over: three wheels don\'t like sharp turns at full speed!', W / 2, 522, 12, '#ddd', 'center', 'system-ui, sans-serif');
+  text('Engine sound: "Auto Rickshaw - Start, Idle, Revving" by kalhan (freesound.org) \u00b7 CC BY 4.0', W - 8, 534, 8, 'rgba(255,255,255,.45)', 'right', 'system-ui, sans-serif', false);
 }
 function drawChampion() {
   ctx.fillStyle = 'rgba(10,5,20,.55)'; ctx.fillRect(0, 0, W, H);
