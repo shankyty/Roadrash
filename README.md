@@ -59,6 +59,7 @@ In the Mac app's **Game** menu: Pause/Resume (⌘P), Restart Race (⌘R), Quit t
 - Finish in the top 3 to qualify, and **Enter** on the results screen takes you straight to the next race. Prize money and a ₹100 bonus for each rival you knock out go into your wallet, which is saved between sessions.
 - Rival autos catch up, ride alongside you and hit you with their own lathis. If your health runs out, you're knocked out for a few seconds.
 - Watch out for cows, buses, trucks and cars. Crashing into roadside objects wrecks you.
+- Traffic is audible: buses, trucks, cars and rival autos have their own engine sounds (positional, with Doppler) and honk like real Indian traffic, especially when you overtake them closely.
 - Stray dogs sleep in the middle of the road, trot across it, and chase your auto barking *"BHOW BHOW!"*. Roadside dogs often sprint alongside your auto for a while, sometimes in pairs. They always leap clear and never get hurt, but swerving around one costs you speed. Honk to wake them and send them off the road.
 - Autos only have three wheels, so taking a sharp turn at full speed makes you lean. If you stay in the red, you tip over.
 - Clear all 4 races to become **Auto King of India**. Each new tour after that is harder.

@@ -214,7 +214,7 @@ function envDetails() {
   ].join(' · ');
 }
 // Which part of the game an error came from: the first stack frame whose function belongs to a component.
-const AUDIO_METHODS = 'init|fallbackEngine|loadSamples|startEngine|setEngine|applyVol|setVol|toggleMute|tone|noise|horn|hit|whoosh|crash|bump|moo|bark|yelp|grunt|beep|ko|cash|ensure|setCity|toggle|tick|env|osc|drum|note|decode|stopAll|shopsNearby|unlockAudio';
+const AUDIO_METHODS = 'ensureVoices|updateVehicles|honkAt|hornTone|kindOf|init|fallbackEngine|loadSamples|startEngine|setEngine|applyVol|setVol|toggleMute|tone|noise|horn|hit|whoosh|crash|bump|moo|bark|yelp|grunt|beep|ko|cash|ensure|setCity|toggle|tick|env|osc|drum|note|decode|stopAll|shopsNearby|unlockAudio';
 const COMPONENTS = [
   ['audio', new RegExp(`^(?:Sfx|Music|Ambience|Object)?\\.?(?:${AUDIO_METHODS})$|^(?:Sfx|Music|Ambience|TwoStroke)`)],
   ['traffic', /^(updateDog|startChase|updateTraffic|honk)$/],
@@ -644,6 +644,99 @@ if (Voice.ok) {
   try { speechSynthesis.addEventListener('voiceschanged', () => Voice.loadVoices()); } catch (e) { /* older Safari */ }
 }
 addEventListener('visibilitychange', () => { if (document.hidden) Voice.stopVoices(); });
+
+// ------------------------------------------------------------------ other vehicles
+// Positional engine sound for the nearest buses, trucks, cars and rival autos (louder when close,
+// panned to their side of the road, Doppler-shifted as you close in or drop back), plus Indian
+// traffic horns: random honking, and vehicles honking at you when you overtake them closely.
+const VEHICLE_SOUND = {
+  truck: { f: 30, f2: 2, lp: 230, am: [8, 0.45], gain: 0.55, horn: { notes: [196, 247], dur: 0.75, wave: 'sawtooth', cut: 1700, blasts: 1 } },
+  bus: { f: 36, f2: 2, lp: 260, am: [9, 0.35], gain: 0.5, horn: { notes: [294, 370], dur: 0.35, wave: 'sawtooth', cut: 2200, blasts: 2 } },
+  car: { f: 70, f2: 1.5, lp: 600, am: [0, 0], gain: 0.25, horn: { notes: [415, 523], dur: 0.12, wave: 'square', cut: 3000, blasts: 2 } },
+  auto: { f: 34, f2: 1.5, lp: 500, am: [22, 0.6], gain: 0.22, horn: { notes: [380, 300], dur: 0.16, wave: 'square', cut: 1800, blasts: 2, bulb: true } },
+};
+const VehicleAudio = {
+  voices: [], ready: false, honkT: 3,
+  kindOf(c) { return c.isRival ? 'auto' : VEHICLE_SOUND[c.type] ? c.type : null; },
+  ensureVoices() {
+    const a = Sfx.ctx; if (this.ready) return true; if (!a || !Sfx.raceBus) return false;
+    for (let i = 0; i < 5; i++) {
+      const g = a.createGain(); g.gain.value = 0;
+      const pan = a.createStereoPanner ? a.createStereoPanner() : null;
+      const lp = a.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 400; lp.Q.value = 1.5;
+      const o1 = a.createOscillator(); o1.type = 'sawtooth';
+      const o2 = a.createOscillator(); o2.type = 'square';
+      const am = a.createGain(); am.gain.value = 1;
+      const lfo = a.createOscillator(); lfo.type = 'square';
+      const lfoG = a.createGain(); lfoG.gain.value = 0; lfo.connect(lfoG); lfoG.connect(am.gain);
+      o1.connect(lp); o2.connect(lp); lp.connect(am); am.connect(g);
+      if (pan) { g.connect(pan); pan.connect(Sfx.raceBus); } else g.connect(Sfx.raceBus);
+      o1.start(); o2.start(); lfo.start();
+      this.voices.push({ o1, o2, lp, g, pan, lfo, lfoG });
+    }
+    return (this.ready = true);
+  },
+  updateVehicles(dt) {
+    if (!this.ensureVoices()) return;
+    const a = Sfx.ctx, t = a.currentTime, live = RACING_STATES.includes(state) && !paused;
+    const near = [];
+    if (live) {
+      for (const c of traffic) {
+        const kind = this.kindOf(c); if (!kind) continue;
+        const dz = wrapDelta(c.z - player.dist);
+        // overtaking close by: they often lean on the horn
+        if (c._dz > 0 && dz <= 0 && Math.abs(c.x - player.x) < 0.9 && player.speed > c.speed && Math.random() < 0.55) this.honkAt(c, dz, true);
+        c._dz = dz;
+        if (dz > -800 && dz < 3500) near.push({ c, kind, dz });
+      }
+      for (const r of rivals) { const dz = r.dist - player.dist; if (r.ko <= 0 && dz > -800 && dz < 3500) near.push({ c: r, kind: 'auto', dz }); }
+      // random city honking from someone in view
+      this.honkT -= dt;
+      if (this.honkT <= 0) {
+        this.honkT = rand(1.5, 4.5);
+        const pool = near.filter(n => n.dz > -300); if (pool.length) { const n = pick(pool); this.honkAt(n.c, n.dz, false); }
+      }
+    }
+    near.sort((x, y) => Math.abs(x.dz) - Math.abs(y.dz));
+    this.voices.forEach((v, i) => {
+      const e = near[i];
+      if (!e) { v.g.gain.setTargetAtTime(0, t, 0.15); return; }
+      const { c, kind, dz } = e, p = VEHICLE_SOUND[kind];
+      const closeness = Math.max(0, 1 - Math.abs(dz) / 3500);
+      const closing = clamp((dz > 0 ? 1 : -1) * (player.speed - c.speed) / MAX_SPEED, -1, 1); // + while approaching
+      const rpm = kind === 'auto' ? c.speed / MAX_SPEED : 0.6;
+      const f = p.f * (1 + (kind === 'auto' ? rpm * 1.6 : 0.2)) * (1 + 0.12 * closing);
+      v.o1.frequency.setTargetAtTime(f, t, 0.1); v.o2.frequency.setTargetAtTime(f * p.f2, t, 0.1);
+      v.lp.frequency.setTargetAtTime(p.lp * (0.6 + 0.8 * closeness), t, 0.1);
+      v.lfo.frequency.setTargetAtTime(Math.max(1, p.am[0] * (kind === 'auto' ? 0.6 + rpm * 1.4 : 1)), t, 0.1);
+      v.lfoG.gain.setTargetAtTime(p.am[1] * 0.5, t, 0.1);
+      v.g.gain.setTargetAtTime(p.gain * closeness * closeness, t, 0.12);
+      if (v.pan) v.pan.pan.setTargetAtTime(clamp((c.x - player.x) * 0.7, -0.9, 0.9), t, 0.1);
+    });
+  },
+  honkAt(c, dz, angry) {
+    const kind = this.kindOf(c); if (!kind) return;
+    const h = VEHICLE_SOUND[kind].horn, closeness = Math.max(0, 1 - Math.abs(dz) / 3500);
+    this.hornTone(h, 0.35 * closeness * closeness + (angry ? 0.1 : 0), clamp((c.x - player.x) * 0.7, -0.9, 0.9), angry ? 1.6 : 1);
+  },
+  hornTone(h, vol, panX, stretch) {
+    const a = Sfx.ctx; if (!a || vol < 0.01) return;
+    const out = a.createGain(); out.gain.value = vol;
+    const lp = a.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = h.cut; lp.connect(out);
+    if (a.createStereoPanner) { const pn = a.createStereoPanner(); pn.pan.value = panX; out.connect(pn); pn.connect(Sfx.raceBus); } else out.connect(Sfx.raceBus);
+    const blast = h.dur * stretch;
+    for (let b = 0; b < h.blasts; b++) {
+      const t0 = a.currentTime + b * (blast + 0.08);
+      const env = a.createGain(); env.gain.setValueAtTime(0.0001, t0); env.gain.exponentialRampToValueAtTime(1, t0 + 0.02);
+      env.gain.setValueAtTime(1, t0 + blast * 0.8); env.gain.exponentialRampToValueAtTime(0.0001, t0 + blast); env.connect(lp);
+      (h.bulb ? [h.notes[b % 2]] : h.notes).forEach(f => {
+        const o = a.createOscillator(); o.type = h.wave; o.frequency.setValueAtTime(f, t0);
+        if (!h.bulb) o.frequency.linearRampToValueAtTime(f * 0.97, t0 + blast); // air horns sag a little
+        o.connect(env); o.start(t0); o.stop(t0 + blast + 0.05);
+      });
+    }
+  },
+};
 
 // ------------------------------------------------------------------ sprite painting
 function mk(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
@@ -1539,7 +1632,7 @@ addEventListener('blur', () => { for (const k in keys) keys[k] = false; if (stat
 
 const RACING_STATES = ['countdown', 'race', 'finished'];
 const PAUSE_MENU = [{ label: 'RESUME', cmd: 'resume' }, { label: 'RESTART RACE', cmd: 'restart' }, { label: 'SOUND MIXER', cmd: 'mixer' }, { label: 'QUIT TO MAIN MENU', cmd: 'menu' }];
-const MIXER = [['master', 'ALL SOUND'], ['race', 'RACE', 'engine, horn, fights'], ['voices', 'VOICES', 'curses & hawker shouts'], ['music', 'MUSIC'], ['city', 'CITY NOISE', 'street sounds']];
+const MIXER = [['master', 'ALL SOUND'], ['race', 'RACE', 'engines, horns, traffic, fights'], ['voices', 'VOICES', 'curses & hawker shouts'], ['music', 'MUSIC'], ['city', 'CITY NOISE', 'street sounds']];
 let mixer = null;
 function openMixer() { mixer = { sel: 0 }; }
 function openPause() { paused = true; pauseSel = 0; Voice.stopVoices(); }
@@ -1688,6 +1781,7 @@ function update(dt) {
   for (const b of bubbles) b.t -= dt; bubbles = bubbles.filter(b => b.t > 0);
   for (const p of particles) { p.t -= dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += (p.g || 0) * dt; } particles = particles.filter(p => p.t > 0);
   shake = Math.max(0, shake - dt);
+  guard('audio', () => VehicleAudio.updateVehicles(dt));
 
   if (state === 'title' || state === 'champion') { guard('race-rules', () => updateAttract(dt)); return; }
   if (state === 'countdown') {
@@ -2456,5 +2550,5 @@ function step(now) {
 requestAnimationFrame(frame);
 // expose for debugging
 window.__rrr = { get state() { return state; }, player, get rivals() { return rivals; }, get results() { return results; }, setupRace,
-  step(n) { for (let i = 0; i < n; i++) update(STEP); render(); }, keys, Sfx, Music, Ambience, SKYLINES, THEMES, SP, get traffic() { return traffic; }, get bubbles() { return bubbles; }, setLevel(l) { level = l; attractSetup(); } };
+  step(n) { for (let i = 0; i < n; i++) update(STEP); render(); }, keys, Sfx, Music, Ambience, VehicleAudio, SKYLINES, THEMES, SP, get traffic() { return traffic; }, get bubbles() { return bubbles; }, setLevel(l) { level = l; attractSetup(); } };
 })();
