@@ -65,7 +65,7 @@ const THEMES = {
     buildings: ['#f4d35e', '#ee964b', '#8ecae6', '#f28482', '#cdb4db', '#e9edc9'],
     scenery: { palm: 4, building: 5, billboard: 2, tree: 1, chai: 1 },
   },
-  sealink: { city: 'mumbai', ads: MUMBAI_ADS, // night on the bridge, the sea either side
+  sealink: { city: 'mumbai', ads: MUMBAI_ADS, ambience: false, // night on the bridge, the sea either side
     sky: ['#050816', '#141c3d', '#2c3a6b'], sun: '#f4f1de', night: true, fog: '#1d2748', sea: '#0e1a33',
     far: '#26325a', near: '#141b36', lights: 0.6, density: 0.06,
     light: { road: '#3c3d44', grass: '#10223f', rumble: '#e0e0e0', lane: '#d8d8d8', shoulder: '#6b6f78' },
@@ -203,6 +203,7 @@ const Sfx = {
     const d = this.noiseBuf.getChannelData(0); for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
     this.loadSamples();
     Music.ensure();
+    Ambience.ensure();
     if (a.audioWorklet) {
       const url = URL.createObjectURL(new Blob([TWO_STROKE_WORKLET], { type: 'application/javascript' }));
       a.audioWorklet.addModule(url).then(() => {
@@ -381,6 +382,60 @@ const Music = {
       const o1 = this.osc('sawtooth', f * 2, t, dur + 0.05, bp), o2 = this.osc('square', f * 2, t, dur + 0.05, bp);
       const lfo = a.createOscillator(), lg = a.createGain(); lfo.frequency.value = 5.5; lg.gain.value = 7; lfo.connect(lg); lg.connect(o1.frequency); lg.connect(o2.frequency); lfo.start(t); lfo.stop(t + dur + 0.1);
     }
+  },
+};
+
+// ------------------------------------------------------------------ street ambience
+// Real market/street recordings per city (web/ambience-<city>.js, loaded on demand). The loop is
+// played as overlapping copies with crossfades so there is no seam, and it swells near shops.
+const Ambience = {
+  city: null, bufs: {}, requested: {}, bus: null, next: 0, timer: null, sources: [],
+  XF: 2,
+  setCity(city) {
+    if (city === this.city) return;
+    this.city = city; this.stopAll();
+    if (!this.requested[city]) {
+      this.requested[city] = true;
+      const tag = document.createElement('script'); tag.src = `ambience-${city}.js`; document.head.appendChild(tag);
+    }
+  },
+  stopAll() { const a = Sfx.ctx; for (const s of this.sources) { try { s.g.gain.setTargetAtTime(0, a.currentTime, 0.3); s.n.stop(a.currentTime + 1.5); } catch (e) { /* not started */ } } this.sources = []; this.next = 0; },
+  ensure() {
+    const a = Sfx.ctx; if (!a || this.bus) return;
+    this.bus = a.createGain(); this.bus.gain.value = 0; this.bus.connect(Sfx.master);
+    this.timer = setInterval(() => this.tick(), 200);
+  },
+  decode(city) {
+    const url = (window.RRR_AMBIENCE || {})[city]; if (!url || this.bufs[city] !== undefined) return;
+    this.bufs[city] = null;
+    const bin = atob(url.slice(url.indexOf(',') + 1)), bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    Sfx.ctx.decodeAudioData(bytes.buffer, b => { this.bufs[city] = b; }, () => { this.bufs[city] = false; });
+  },
+  shopsNearby() {
+    if (!segments.length) return 0;
+    let n = 0; const base = findSegment(position).index;
+    for (let i = 0; i < 40; i++) for (const s of segments[(base + i) % segments.length].sprites) if (s.kind === 'chai' || s.kind === 'building') n++;
+    return Math.min(1, n / 6);
+  },
+  tick() {
+    const a = Sfx.ctx; if (!a || a.state !== 'running') return;
+    this.decode(this.city);
+    const buf = this.bufs[this.city];
+    const quiet = theme.ambience === false; // e.g. out on the Sea Link
+    const base = paused ? 0.15 : state === 'title' || state === 'champion' ? 0.35 : 0.55;
+    this.bus.gain.setTargetAtTime(quiet ? 0 : base * (0.55 + 0.45 * this.shopsNearby()), a.currentTime, 0.8);
+    if (!buf) return;
+    if (!this.next || this.next < a.currentTime) this.next = a.currentTime + 0.05;
+    if (this.next - a.currentTime > this.XF + 0.5) return;
+    // schedule the next overlapping copy: fade in over XF, fade out over the last XF
+    const t = this.next, d = buf.duration, n = a.createBufferSource(), g = a.createGain();
+    n.buffer = buf; n.connect(g); g.connect(this.bus);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(1, t + this.XF);
+    g.gain.setValueAtTime(1, t + d - this.XF); g.gain.linearRampToValueAtTime(0, t + d);
+    n.start(t); n.stop(t + d + 0.05);
+    const entry = { n, g }; this.sources.push(entry); n.onended = () => { this.sources = this.sources.filter(s => s !== entry); };
+    this.next = t + d - this.XF;
   },
 };
 
@@ -1158,6 +1213,7 @@ function loadTrack(idx) {
   track.themeDef = THEMES[track.theme];
   theme = track.themeDef;
   Music.setCity(theme.city);
+  Ambience.setCity(theme.city);
   const r = mulberry32(track.seed * 3);
   themeSprites = { buildings: theme.buildings.map(col => makeBuilding(r, col)),
     billboards: [...BILLBOARDS, ...theme.ads.map((lines, i) => ({ ...AD_COLORS[i % AD_COLORS.length], lines }))].map(makeBillboard) };
@@ -2028,7 +2084,7 @@ function drawTitle() {
   const locked = TRACKS.length - 1 - unlocked;
   text(`Race ${level + 1} of ${TRACKS.length}${locked ? `  \u00b7  finish top 3 to unlock ${locked} more` : ''}  \u00b7  \u2190 \u2192 choose  \u00b7  Wallet ${fmtCash(cash)}${round ? `  \u00b7  Tour ${round + 1}` : ''}`, W / 2, 500, 12, '#ffcc80', 'center', 'system-ui, sans-serif');
   text('Mind the tip-over: three wheels don\'t like sharp turns at full speed!', W / 2, 522, 12, '#ddd', 'center', 'system-ui, sans-serif');
-  text('Engine sound: "Auto Rickshaw - Start, Idle, Revving" by kalhan (freesound.org) \u00b7 CC BY 4.0', W - 8, 534, 8, 'rgba(255,255,255,.45)', 'right', 'system-ui, sans-serif', false);
+  text('Engine: "Auto Rickshaw - Start, Idle, Revving" by kalhan \u00b7 Chennai street: Nielsvdb \u00b7 both CC BY 4.0 via freesound.org', W - 8, 534, 8, 'rgba(255,255,255,.45)', 'right', 'system-ui, sans-serif', false);
 }
 function drawChampion() {
   ctx.fillStyle = 'rgba(10,5,20,.55)'; ctx.fillRect(0, 0, W, H);
@@ -2106,5 +2162,5 @@ function frame(now) {
 requestAnimationFrame(frame);
 // expose for debugging
 window.__rrr = { get state() { return state; }, player, get rivals() { return rivals; }, get results() { return results; }, setupRace,
-  step(n) { for (let i = 0; i < n; i++) update(STEP); render(); }, keys, Sfx, Music, SKYLINES, THEMES, SP, get traffic() { return traffic; }, get bubbles() { return bubbles; }, setLevel(l) { level = l; unlocked = Math.max(unlocked, l); attractSetup(); } };
+  step(n) { for (let i = 0; i < n; i++) update(STEP); render(); }, keys, Sfx, Music, Ambience, SKYLINES, THEMES, SP, get traffic() { return traffic; }, get bubbles() { return bubbles; }, setLevel(l) { level = l; unlocked = Math.max(unlocked, l); attractSetup(); } };
 })();
