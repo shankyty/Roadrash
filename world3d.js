@@ -34,7 +34,7 @@ window.World3D = (() => {
   const unitCone = new T.ConeGeometry(0.5, 1, 10);
   const unitSphere = new T.SphereGeometry(0.5, 14, 10);
   const unitPlane = new T.PlaneGeometry(1, 1);
-  const halfTube = new T.CylinderGeometry(0.5, 0.5, 1, 20, 1, false, Math.PI / 2, Math.PI); // top half of a tube
+  const halfTube = new T.CylinderGeometry(0.5, 0.5, 1, 20, 1, true, Math.PI / 2, Math.PI); // top half of a tube (open ends)
   const blob = new T.CircleGeometry(0.5, 20);
   const matCache = new Map();
   const lambert = (color, extra = {}) => {
@@ -74,37 +74,86 @@ window.World3D = (() => {
   };
 
   // ---------------------------------------------------------------- vehicle models (forward is -Z, origin on the ground)
+  // cut a region out of a painted sprite (used to put the old rear artwork on the 3D body's back faces)
+  const crops = new Map();
+  function crop(src, x0, y0, x1, y1) {
+    const key = src; if (!crops.has(key)) crops.set(key, {});
+    const k = [x0, y0, x1, y1].join(','), c = crops.get(key);
+    if (!c[k]) { const cv = document.createElement('canvas'); cv.width = x1 - x0; cv.height = y1 - y0; cv.getContext('2d').drawImage(src, x0, y0, x1 - x0, y1 - y0, 0, 0, x1 - x0, y1 - y0); c[k] = cv; }
+    return c[k];
+  }
+  const facePanel = (canvas, w, h, x, y, z, ry = 0) => {
+    const m = new T.Mesh(unitPlane, spriteMat(canvas)); m.scale.set(w, h, 1); m.position.set(x, y, z); m.rotation.y = ry; return m;
+  };
+  // Auto-rickshaw modelled on real Bajaj/TVS autos: narrow nose over one front wheel with a mudguard and
+  // round headlamp, big framed windscreen with mirrors, boxy canvas canopy with a visor, open sides with the
+  // driver and a rear bench seat, a wider rear tub over the back wheels, and two-tone paint.
   function autoModel(pal, rearCanvas) {
-    const g = new T.Group(), Wd = 540, L = 900;
+    const g = new T.Group(), Wd = 560, L = 1060, R = L / 2;
+    const body = pal.body, upper = pal.trim, hood = pal.canopy;
     g.add(shadow(Wd, L));
-    g.add(box(Wd * 0.92, 60, L * 0.95, '#222', 0, 130, 0));                                // chassis
-    g.add(box(Wd, 230, 430, pal.body, 0, 260, L / 2 - 215));                               // rear body
-    g.add(box(Wd * 1.01, 46, 432, pal.trim, 0, 300, L / 2 - 215));                          // trim band
-    g.add(box(Wd * 0.94, 70, L * 0.55, pal.body, 0, 195, -40));                             // floor
-    g.add(box(Wd * 0.5, 360, 230, pal.body, 0, 300, -L / 2 + 115));                         // front cowl
-    g.add(box(Wd * 0.52, 48, 232, pal.trim, 0, 350, -L / 2 + 115));
-    const dome = new T.Mesh(halfTube, lambert(pal.canopy)); dome.rotation.x = Math.PI / 2;      // rounded canvas roof
-    dome.scale.set(Wd, L * 0.78, 150); dome.position.set(0, 440, -10); g.add(dome);
-    g.add(box(Wd * 0.96, 170, 60, pal.canopy, 0, 390, L / 2 - 215));                        // back wall
-    for (const sx of [-1, 1]) for (const sz of [-1, 1]) g.add(box(26, 170, 26, pal.canopy, sx * (Wd / 2 - 14), 395, sz === 1 ? L / 2 - 240 : -L / 2 + 280));
-    g.add(box(Wd * 0.86, 160, 20, lambert('#1d2a33', { transparent: true, opacity: 0.55 }), 0, 400, -L / 2 + 275)); // windscreen
-    const lamp = cyl(40, 30, '#fff8d0', 0, 390, -L / 2 - 2); lamp.rotation.x = Math.PI / 2; lamp.material = lambert('#fff8d0', { emissive: '#fff3b0', emissiveIntensity: 0.6 }); g.add(lamp);
-    // driver and passengers (you can see them through the open sides)
-    g.add(box(90, 110, 80, '#3949ab', 0, 330, -L / 2 + 340));
-    const driverHead = new T.Mesh(unitSphere, lambert('#8d5524')); driverHead.scale.set(95, 105, 95); driverHead.position.set(0, 420, -L / 2 + 340); g.add(driverHead);
-    for (const px of [-110, 110]) { const h = new T.Mesh(unitSphere, lambert('#2b2b2b')); h.scale.set(85, 95, 85); h.position.set(px, 400, 120); g.add(h); }
-    g.add(wheel(112, 70, -Wd / 2 + 30, 112, L / 2 - 130));
-    g.add(wheel(112, 70, Wd / 2 - 30, 112, L / 2 - 130));
-    g.add(wheel(105, 64, 0, 105, -L / 2 + 120));
-    if (rearCanvas) g.add(rearPanel(rearCanvas, Wd, L / 2 + 3, -8));
+    // chassis and footboard
+    g.add(box(Wd * 0.7, 40, L * 0.9, '#1c1c1c', 0, 120, 0));
+    g.add(box(Wd * 0.92, 44, 420, body, 0, 150, -40));
+    // rear tub over the back wheels (with the old rear artwork on its back face)
+    g.add(box(Wd, 260, 480, body, 0, 265, R - 240));
+    g.add(box(Wd * 1.01, 34, 482, upper, 0, 380, R - 240));                          // trim stripe
+    for (const sx of [-1, 1]) g.add(box(40, 120, 300, body, sx * (Wd / 2 + 8), 200, R - 190)); // rear wheel arches
+    // rear bench seat and backrest
+    g.add(box(Wd * 0.84, 90, 230, '#2d4f8a', 0, 440, R - 390));
+    g.add(box(Wd * 0.84, 230, 60, '#2d4f8a', 0, 560, R - 285));
+    // front: narrow nose down to the front wheel, mudguard, dashboard panel in the upper colour
+    g.add(box(250, 300, 190, body, 0, 300, -R + 110));
+    g.add(box(Wd * 0.86, 150, 170, upper, 0, 500, -R + 150));                        // dash / upper front panel
+    // mudguard: the top half of a short tube arched over the front wheel, its axis across the auto
+    const guard = new T.Mesh(halfTube, lambert(body, { side: T.DoubleSide })); guard.rotation.order = 'YXZ'; guard.rotation.set(Math.PI / 2, Math.PI / 2, 0);
+    guard.scale.set(290, 150, 290); guard.position.set(0, 118, -R + 70); g.add(guard);
+    const lamp = cyl(46, 40, '#fff8d0', 0, 380, -R + 12); lamp.rotation.x = Math.PI / 2;
+    lamp.material = lambert('#fff8d0', { emissive: '#fff3b0', emissiveIntensity: 0.6 }); g.add(lamp);
+    g.add(box(30, 30, 30, '#ff9800', -90, 440, -R + 40)); g.add(box(30, 30, 30, '#ff9800', 90, 440, -R + 40)); // indicators
+    // windscreen (slightly raked) with a frame in the upper colour, and mirrors
+    const ws = new T.Group(); ws.position.set(0, 575, -R + 205); ws.rotation.x = 0.16;
+    ws.add(box(Wd * 0.82, 250, 12, lambert('#9fc3d6', { transparent: true, opacity: 0.45 }), 0, 125, 0));
+    for (const sx of [-1, 1]) ws.add(box(26, 262, 30, upper, sx * Wd * 0.42, 125, 0));
+    ws.add(box(Wd * 0.86, 24, 30, upper, 0, 252, 0));
+    g.add(ws);
+    for (const sx of [-1, 1]) {
+      g.add(box(10, 90, 10, '#333', sx * (Wd * 0.46), 640, -R + 190));
+      const mir = new T.Mesh(unitSphere, lambert('#333')); mir.scale.set(60, 44, 18); mir.position.set(sx * (Wd * 0.5), 690, -R + 190); g.add(mir);
+    }
+    // canopy: roof with a visor over the windscreen, canvas back wall, side panels over the rear seat, pillars
+    g.add(box(Wd * 1.03, 44, L * 0.86, hood, 0, 830, 10));
+    g.add(box(Wd * 0.9, 34, L * 0.8, hood, 0, 866, 20));                            // softer, domed roof edge
+    g.add(box(Wd * 1.03, 30, 90, hood, 0, 818, -R + 150));                          // visor
+    g.add(box(Wd * 0.99, 400, 40, hood, 0, 630, R - 260));                          // back wall
+    for (const sx of [-1, 1]) {
+      g.add(box(18, 150, 470, hood, sx * (Wd / 2 + 4), 745, R - 470));              // canvas strip over the doorway
+      g.add(box(18, 440, 260, hood, sx * (Wd / 2 + 4), 600, R - 390));              // canvas side behind the passengers
+      g.add(box(26, 420, 26, upper, sx * (Wd / 2 - 6), 620, -R + 240));             // A-pillar
+      g.add(box(26, 420, 26, hood, sx * (Wd / 2 - 6), 620, R - 520));               // B-pillar
+    }
+    // driver and passengers
+    g.add(box(120, 170, 110, '#3949ab', 0, 470, -R + 400));
+    const head = new T.Mesh(unitSphere, lambert('#8d5524')); head.scale.set(100, 115, 100); head.position.set(0, 620, -R + 400); g.add(head);
+    g.add(box(40, 30, 160, '#222', 0, 560, -R + 300));                                // handlebar
+    for (const px of [-120, 120]) { const h = new T.Mesh(unitSphere, lambert('#2b2b2b')); h.scale.set(90, 100, 90); h.position.set(px, 600, R - 380); g.add(h); }
+    // wheels: two at the back under the tub, one in front under the mudguard
+    g.add(wheel(125, 80, -Wd / 2 + 40, 125, R - 190));
+    g.add(wheel(125, 80, Wd / 2 - 40, 125, R - 190));
+    g.add(wheel(118, 70, 0, 118, -R + 70));
+    // the painted rear (plate, HORN OK PLEASE, tail lights, rear window) on the back faces
+    if (rearCanvas) {
+      g.add(facePanel(crop(rearCanvas, 10, 108, 230, 206), Wd, 250, 0, 262, R + 1));
+      g.add(facePanel(crop(rearCanvas, 18, 4, 222, 112), Wd * 0.99, 400, 0, 630, R - 239));
+    }
     // lathi arm, shown while swinging
-    const arm = new T.Group(); arm.position.set(0, 420, -L / 2 + 360);
-    const armPivot = new T.Group(); armPivot.position.x = Wd * 0.3;           // shoulder, towards the side being hit
-    armPivot.add(box(220, 40, 40, '#3949ab', 110, 0, 0));                    // sleeve
-    armPivot.add(box(620, 28, 28, '#c8a165', 480, 0, 0));                    // lathi
+    const arm = new T.Group(); arm.position.set(0, 560, -R + 400);
+    const armPivot = new T.Group(); armPivot.position.x = Wd * 0.3;
+    armPivot.add(box(220, 44, 44, '#3949ab', 110, 0, 0));
+    armPivot.add(box(640, 30, 30, '#c8a165', 490, 0, 0));
     arm.add(armPivot); arm.visible = false;
     g.userData.arm = arm; g.userData.armPivot = armPivot; g.add(arm);
-    g.userData.size = { w: Wd, h: 540, l: L };
+    g.userData.size = { w: Wd, h: 880, l: L };
     return g;
   }
   function busModel(rearCanvas) {
@@ -478,7 +527,7 @@ window.World3D = (() => {
       const m = place(r, dd, r.x); if (!m) continue;
       const bounce = r.speed > 0 ? Math.sin(t * 22 + r.dist) * 6 : 0;
       const p = placeAuto(r, m, dd, r.x, r.rot || 0, r.atk, r.hurt, bounce);
-      screenOf(r, p, 600, 540, frameNo);
+      screenOf(r, p, 900, 560, frameNo);
     }
     for (const c of traffic) {
       const dd = wrapD(c.z - camAbs);
@@ -506,12 +555,29 @@ window.World3D = (() => {
     lastVisible = visible;
 
     renderer.render(scene, camera);
-    const top = toScreen(pp.x, pp.y + 540, pp.z), bot = toScreen(pp.x, pp.y, pp.z);
+    const top = toScreen(pp.x, pp.y + 880, pp.z), bot = toScreen(pp.x, pp.y, pp.z);
     return { player: { x: bot.x, y: bot.y, top: top.y } };
   }
 
   // drop models for objects that no longer exist (new race)
   function forget(objs) { for (const o of objs) { const m = vehicles.get(o); if (m) { scene.remove(m); vehicles.delete(o); } } }
 
-  return { init, setTrack, frame, forget, horizonY, setCamera, get camera() { return camMode; }, get ready() { return ready; } };
+  // debug: render one model from four angles into a canvas (used to check models without driving)
+  function turntable(kind, size = 360) {
+    const cv = document.createElement('canvas'); cv.width = size * 2; cv.height = size * 2;
+    const r = new T.WebGLRenderer({ canvas: cv, antialias: true, preserveDrawingBuffer: true }); r.setClearColor('#8a8f99');
+    const sc = new T.Scene(); sc.add(new T.HemisphereLight(0xffffff, 0x666666, 1)); const d = new T.DirectionalLight(0xffffff, 0.6); d.position.set(1, 2, 1); sc.add(d);
+    const m = kind === 'player' ? autoModel({ body: '#1e9e4a', trim: '#ffd21f', canopy: '#151515' }, SP.player)
+      : kind === 'rival' ? autoModel({ body: '#1a1a1a', trim: '#f5c400', canopy: '#f5c400' }, SP.rivals[0]) : null;
+    sc.add(m);
+    const cam = new T.PerspectiveCamera(35, 1, 10, 20000); r.setScissorTest(true);
+    [[-0.8, 0], [0.8, 0], [Math.PI, 0], [Math.PI / 2, 0]].forEach(([a], i) => {
+      const x = (i % 2) * size, y = (1 - Math.floor(i / 2)) * size;
+      cam.position.set(Math.sin(a) * 2600, 1100, -Math.cos(a) * 2600); cam.lookAt(0, 420, 0);
+      r.setViewport(x, y, size, size); r.setScissor(x, y, size, size); r.render(sc, cam);
+    });
+    return cv;
+  }
+
+  return { init, setTrack, frame, forget, horizonY, setCamera, turntable, get camera() { return camMode; }, get ready() { return ready; } };
 })();
