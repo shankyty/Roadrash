@@ -172,7 +172,7 @@ function deviceSummary() {
 //   error/<kind>/<problem>/<OS-browser>
 // with the details needed to reproduce them in the title (version, game state, OS/browser versions,
 // screen, audio state, stack). Nothing personal is sent. Also logged to the console.
-const GAME_VERSION = '2.7.2';
+const GAME_VERSION = '2.7.3';
 const safe = (f, fallback = '?') => { try { const v = f(); return v === undefined ? fallback : v; } catch (e) { return fallback; } };
 function envDetails() {
   const ua = navigator.userAgent || '';
@@ -191,7 +191,7 @@ function envDetails() {
   ].join(' · ');
 }
 // Which part of the game an error came from: the first stack frame whose function belongs to a component.
-const AUDIO_METHODS = 'loadAnimals|playAt|spot|outAt|mooAt|barkAt|mooFrom|barkFrom|updateAnimals|ensureVoices|updateVehicles|honkAt|hornTone|kindOf|init|fallbackEngine|loadSamples|startEngine|setEngine|applyVol|setVol|toggleMute|tone|noise|horn|hit|whoosh|crash|bump|moo|bark|yelp|grunt|beep|ko|cash|ensure|setCity|toggle|tick|env|osc|drum|note|decode|stopAll|shopsNearby|unlockAudio';
+const AUDIO_METHODS = 'loadHorns|hornClip|loadAnimals|playAt|spot|outAt|mooAt|barkAt|mooFrom|barkFrom|updateAnimals|ensureVoices|updateVehicles|honkAt|hornTone|kindOf|init|fallbackEngine|loadSamples|startEngine|setEngine|applyVol|setVol|toggleMute|tone|noise|horn|hit|whoosh|crash|bump|moo|bark|yelp|grunt|beep|ko|cash|ensure|setCity|toggle|tick|env|osc|drum|note|decode|stopAll|shopsNearby|unlockAudio';
 const COMPONENTS = [
   ['audio', new RegExp(`^(?:Sfx|Music|Ambience|Object)?\\.?(?:${AUDIO_METHODS})$|^(?:Sfx|Music|Ambience|TwoStroke)`)],
   ['traffic', /^(updateDog|startChase|updateTraffic|honk)$/],
@@ -330,6 +330,7 @@ const Sfx = {
     this.loadSamples();
     VoiceClips.loadClips();
     Animals.loadAnimals();
+    VehicleAudio.loadHorns();
     Music.ensure();
     Ambience.ensure();
     if (a.audioWorklet) {
@@ -773,10 +774,33 @@ const VehicleAudio = {
       if (v.pan) v.pan.pan.setTargetAtTime(clamp((c.x - player.x) * 0.7, -0.9, 0.9), t, 0.1);
     });
   },
+  // real horns (web/horns.js): musical truck horns and a deep bus air horn, recorded in Jaipur
+  hornBufs: {}, hornsLoaded: false,
+  loadHorns() {
+    if (this.hornsLoaded || !Sfx.ctx) return; this.hornsLoaded = true;
+    const src = window.RRR_HORNS;
+    if (!src) { reportError('audio', 'horns.js missing: using synthesised horns'); return; }
+    for (const [name, url] of Object.entries(src)) {
+      const bin = atob(url.slice(url.indexOf(',') + 1)), bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      Sfx.ctx.decodeAudioData(bytes.buffer, b => { this.hornBufs[name] = b; }, e => reportError('audio', `horn ${name} decode failed`, e));
+    }
+  },
   honkAt(c, dz, angry) {
     const kind = this.kindOf(c); if (!kind) return;
     const h = VEHICLE_SOUND[kind].horn, closeness = Math.max(0, 1 - Math.abs(dz) / 3500);
-    this.hornTone(h, 0.35 * closeness * closeness + (angry ? 0.1 : 0), clamp((c.x - player.x) * 0.7, -0.9, 0.9), angry ? 1.6 : 1);
+    const vol = 0.35 * closeness * closeness + (angry ? 0.1 : 0), pan = clamp((c.x - player.x) * 0.7, -0.9, 0.9);
+    const rec = kind === 'truck' ? this.hornBufs[pick(['truck1', 'truck2'])] : kind === 'bus' ? this.hornBufs.bus : null;
+    if (rec) this.hornClip(rec, vol * 2.2, pan, angry); else this.hornTone(h, vol, pan, angry ? 1.6 : 1);
+  },
+  hornClip(buf, vol, panX, angry) {
+    const a = Sfx.ctx; if (!a || vol < 0.01) return;
+    const out = a.createGain(); out.gain.value = Math.min(vol, 1.2);
+    if (a.createStereoPanner) { const pn = a.createStereoPanner(); pn.pan.value = panX; out.connect(pn); pn.connect(Sfx.raceBus); } else out.connect(Sfx.raceBus);
+    const n = a.createBufferSource(); n.buffer = buf; n.playbackRate.value = rand(0.97, 1.03); n.connect(out);
+    // an angry driver cuts the horn short and hits it again
+    if (angry) { n.start(a.currentTime, 0, Math.min(0.7, buf.duration)); const n2 = a.createBufferSource(); n2.buffer = buf; n2.connect(out); n2.start(a.currentTime + 0.8); }
+    else n.start();
   },
   hornTone(h, vol, panX, stretch) {
     const a = Sfx.ctx; if (!a || vol < 0.01) return;
@@ -2501,7 +2525,7 @@ function drawTitle() {
   text(TRACKS[level].name, W / 2, 425, 16, '#fff');
   text(`Race ${level + 1} of ${TRACKS.length}  \u00b7  \u2190 \u2192 choose  \u00b7  Wallet ${fmtCash(cash)}${round ? `  \u00b7  Tour ${round + 1}` : ''}`, W / 2, 500, 12, '#ffcc80', 'center', 'system-ui, sans-serif');
   text('Mind the tip-over: three wheels don\'t like sharp turns at full speed!', W / 2, 522, 12, '#ddd', 'center', 'system-ui, sans-serif');
-  text('Engine: kalhan \u00b7 Chennai street: Nielsvdb \u00b7 Dog bark: AleXZavesa (CC BY 4.0, freesound.org) \u00b7 Voices: Meta MMS-TTS (CC BY-NC 4.0)', W - 8, 534, 8, 'rgba(255,255,255,.45)', 'right', 'system-ui, sans-serif', false);
+  text('Engine: kalhan \u00b7 Chennai street: Nielsvdb \u00b7 Dog bark: AleXZavesa \u00b7 Horns: Anton (CC BY 4.0, freesound.org) \u00b7 Voices: Meta MMS-TTS (CC BY-NC 4.0)', W - 8, 534, 8, 'rgba(255,255,255,.45)', 'right', 'system-ui, sans-serif', false);
 }
 function drawChampion() {
   ctx.fillStyle = 'rgba(10,5,20,.55)'; ctx.fillRect(0, 0, W, H);
