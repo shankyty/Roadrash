@@ -90,6 +90,14 @@ The website uses [GoatCounter](https://www.goatcounter.com): no cookies and no p
 
 Nothing is sent from localhost or from the Mac app.
 
+To see a summary of who is playing (countries and states, devices, where visitors came from, races per city), download an export from the dashboard (**Settings → Export**) and run:
+
+```bash
+./analytics.sh
+```
+
+It picks up the newest `goatcounter-export-*.zip` in this folder or in `~/Downloads`; no token is needed. Exports are git-ignored, so visitor data never reaches the repo.
+
 ## Credits
 
 - Street ambience (trimmed, loudness-normalised loops in `web/ambience-*.js`):
