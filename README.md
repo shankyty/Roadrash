@@ -52,14 +52,14 @@ In the Mac app's **Game** menu: Pause/Resume (⌘P), Restart Race (⌘R), Quit t
   - **Chennai**: Marina Beach Road, with the Kapaleeshwarar gopuram, the lighthouse and Chennai Central behind.
 - All 7 races are open from the start: pick any of them on the title screen with ← →.
 - Drivers who take a lathi hit shout back in their city's street slang (Bambaiya, Dakhni, Dilli or Tamil), and the lines are **spoken aloud** in Hindi or Tamil from where the speaker is on the road: panned to their side, louder when close, with Doppler as you pass. Every rival has their own voice pitch.
-- Hawkers at chai stalls and shops call out as you pass, in local lingo and out loud: *"Vada pav! Garam garam!"*, *"Irani chai, aao miyan!"*, *"Chole bhature, aa jao!"*, *"Kaapi! Kaapi!"*.
+- Hawkers at chai stalls and shops call out as you pass, out loud and street-style: *"Vada paaav!"*, *"Bhel puri lelo!"*, *"Chai bole, chaaai!"*, *"Irani chaaai!"*, *"Golgappe, golgappe!"*, *"Sundal, sundaaal!"*.
 - Each city has its own background music, all original and generated live in the browser: filmi dholak (Mumbai), qawwali (Hyderabad), bhangra (Delhi) and kuthu with a nadaswaram-style reed (Chennai). Press **N** to turn it on or off.
 - Real street and market recordings play in the background of each city, louder where the road is lined with shops.
 - The engine is a real Bajaj auto-rickshaw recording: a kick-start at race start, then idle and rev loops that pitch up with your speed.
 - Finish in the top 3 to qualify, and **Enter** on the results screen takes you straight to the next race. Prize money and a ₹100 bonus for each rival you knock out go into your wallet, which is saved between sessions.
 - Rival autos catch up, ride alongside you and hit you with their own lathis. If your health runs out, you're knocked out for a few seconds.
 - Watch out for cows, buses, trucks and cars. Crashing into roadside objects wrecks you.
-- Traffic is audible: buses, trucks, cars and rival autos have their own engine sounds (positional, with Doppler) and honk like real Indian traffic, especially when you overtake them closely.
+- Traffic is audible: buses, trucks, cars and rival autos have their own engine sounds (positional, with Doppler) and honk like real Indian traffic, especially when you overtake them closely. Cows moo and dogs bark from where they are.
 - Stray dogs sleep in the middle of the road, trot across it, and chase your auto barking *"BHOW BHOW!"*. Roadside dogs often sprint alongside your auto for a while, sometimes in pairs. They always leap clear and never get hurt, but swerving around one costs you speed. Honk to wake them and send them off the road.
 - Autos only have three wheels, so taking a sharp turn at full speed makes you lean. If you stay in the red, you tip over.
 - Clear all 4 races to become **Auto King of India**. Each new tour after that is harder.
@@ -108,6 +108,6 @@ It picks up the newest `goatcounter-export-*.zip` in this folder or in `~/Downlo
   - Delhi: ["India Streets NewDelhi City"](https://freesound.org/s/263636/) by Alcappuccino, CC0.
   - Chennai: ["Chennai (India) Traffic Ambience 01"](https://freesound.org/s/465712/) by **Nielsvdb**, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
   - Hyderabad: ["Street Ambience India"](https://freesound.org/s/509181/) by guidofm (recorded in Pune), CC0.
-- Voices: the curses and hawker calls (`web/voices.js`) were generated with Meta's [MMS-TTS](https://huggingface.co/facebook/mms-tts-hin) models, [`facebook/mms-tts-hin`](https://huggingface.co/facebook/mms-tts-hin) and [`facebook/mms-tts-tam`](https://huggingface.co/facebook/mms-tts-tam), licensed [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/) (non-commercial use). They were trimmed, EQ'd and loudness-normalised.
+- Voices: the curses and hawker calls (`web/voices.js`) were generated with Meta's [MMS-TTS](https://huggingface.co/facebook/mms-tts-hin) models, [`facebook/mms-tts-hin`](https://huggingface.co/facebook/mms-tts-hin) and [`facebook/mms-tts-tam`](https://huggingface.co/facebook/mms-tts-tam), licensed [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/) (non-commercial use). They were trimmed, EQ'd and loudness-normalised. To rebuild them, see [`tools/voices/`](tools/voices/): `lines.json` holds each line's text and chosen take, and `make_voices.py` regenerates `web/voices.js` exactly.
 - Music: original compositions, synthesised in real time by the game.
 - Engine sound: ["Auto Rickshaw - Start, Idle, Revving"](https://freesound.org/s/261051/) by **kalhan** (recorded at an NID sound-design workshop), licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). It was trimmed into a start clip plus idle and rev loops, level-adjusted and resampled (`web/sounds.js`).

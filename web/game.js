@@ -40,35 +40,12 @@ const RIVAL_COLORS = [
 const HIT_WORDS = ['DHISHOOM!', 'DHISHKYAON!', 'THAPPAD!', 'DHAMAKA!', 'BAM!'];
 // Roadside hawkers call out to passing autos in the city's street lingo.
 const HAWKER_CALLS = {
-  mumbai: ['VADA PAV! GARAM GARAM!', 'CUTTING CHAI, BOSS!', 'BHEL PURI LE LO!', 'PAV BHAJI, EKDUM FRESH!', 'NIMBU PAANI THANDA!'],
-  hyderabad: ['IRANI CHAI, AAO MIYAN!', 'HALEEM GARAM HAI!', 'BIRYANI KHAO NA!', 'OSMANIA BISCUIT LE LO!', 'MIRCHI BAJJI, HAU!'],
-  delhi: ['CHOLE BHATURE, AA JAO!', 'GOLGAPPE BHAIYA!', 'RABDI JALEBI, GARMA GARAM!', 'MOMOS, PAAJI!', 'CHAI PEE LO, YAAR!'],
-  chennai: ['KAAPI! KAAPI!', 'SUNDAL, SUNDAL!', 'IDLI VADAI, VAANGA!', 'MURUKKU, SAAPDUNGA!', 'ELANEER, ELANEER!'],
+  mumbai: ['VADA PAAAV!', 'BHEL PURI LELO!', 'CHAI BOLE, CHAAAI!', 'PAV BHAJI GARAM!', 'NIMBU PAANI THANDA!'],
+  hyderabad: ['IRANI CHAAAI!', 'HALEEM GARAM HAI!', 'BIRYANI LELO!', 'OSMANIA BISCUIT LELO!', 'MIRCHI BAJJI, GARAM!'],
+  delhi: ['CHOLE BHATURE LELO!', 'GOLGAPPE, GOLGAPPE!', 'GARMA GARAM JALEBI!', 'MOMOS LELO, MOMOS!', 'CHAI BOLO, CHAAAI!'],
+  chennai: ['KAAPI, KAAPIII!', 'SUNDAL, SUNDAAAL!', 'IDLI VADAI!', 'MURUKKU, MURUKKU!', 'ELANEER, ELANEEER!'],
 };
 // What a driver shouts after taking a lathi hit, in the local street slang of the race's city.
-// What the voices actually read: native script, so Hindi/Tamil voices pronounce the lines properly.
-const SPOKEN = {
-  // Mumbai
-  'ABE O HERO!': 'अबे ओ हीरो!', 'KYA RE, DIMAAG KHARAB?': 'क्या रे, दिमाग खराब?', 'AYE BHIDU, SAMBHAL KE!': 'ए भिड़ू, संभल के!',
-  'APUN KO MAARA?!': 'अपुन को मारा?!', 'CHAL NIKAL!': 'चल निकल!', 'WAAT LAGA DUNGA!': 'वाट लगा दूंगा!', 'GHANTA!': 'घंटा!',
-  'VADA PAV! GARAM GARAM!': 'वड़ा पाव! गरम गरम!', 'CUTTING CHAI, BOSS!': 'कटिंग चाय, बॉस!', 'BHEL PURI LE LO!': 'भेल पूरी ले लो!',
-  'PAV BHAJI, EKDUM FRESH!': 'पाव भाजी, एकदम फ्रेश!', 'NIMBU PAANI THANDA!': 'नींबू पानी ठंडा!',
-  // Hyderabad
-  'KYA RE MIYAN!': 'क्या रे मियाँ!', 'NAKKO RE!': 'नक्को रे!', 'HAU, AB DEKH!': 'हौ, अब देख!', 'EK DENGA NA!': 'एक देंगा ना!',
-  'KAIKU MAARA?!': 'कायकू मारा?!', 'CHUP BAITH!': 'चुप बैठ!', 'BAIGAN!': 'बैंगन!',
-  'IRANI CHAI, AAO MIYAN!': 'ईरानी चाय, आओ मियाँ!', 'HALEEM GARAM HAI!': 'हलीम गरम है!', 'BIRYANI KHAO NA!': 'बिरयानी खाओ ना!',
-  'OSMANIA BISCUIT LE LO!': 'उस्मानिया बिस्कुट ले लो!', 'MIRCHI BAJJI, HAU!': 'मिर्ची बज्जी, हौ!',
-  // Delhi
-  'OYE! JAANTA HAI MERA BAAP KAUN HAI?': 'ओए! जानता है मेरा बाप कौन है?', 'ABEY OYE!': 'अबे ओए!', 'KYA KAR RAHA HAI YAAR!': 'क्या कर रहा है यार!',
-  'TERI TOH...!': 'तेरी तो...!', 'BADTAMEEZ!': 'बदतमीज़!', 'OYE HOYE!': 'ओए होए!', 'BHAI SAHAB, DHANG SE!': 'भाई साहब, ढंग से!',
-  'CHOLE BHATURE, AA JAO!': 'छोले भटूरे, आ जाओ!', 'GOLGAPPE BHAIYA!': 'गोलगप्पे भैया!', 'RABDI JALEBI, GARMA GARAM!': 'रबड़ी जलेबी, गरमा गरम!',
-  'MOMOS, PAAJI!': 'मोमोज़, पाजी!', 'CHAI PEE LO, YAAR!': 'चाय पी लो, यार!',
-  // Chennai (Tamil)
-  'DEI!': 'டேய்!', 'ENNA DA?!': 'என்ன டா?!', 'PODA!': 'போடா!', 'AIYYO!': 'ஐயோ!', 'ENNA MACHAAN?!': 'என்ன மச்சான்?!',
-  'SUMMA IRU DA!': 'சும்மா இரு டா!', 'ITHU TOO MUCH DA!': 'இது டூ மச் டா!',
-  'KAAPI! KAAPI!': 'காபி! காபி!', 'SUNDAL, SUNDAL!': 'சுண்டல், சுண்டல்!', 'IDLI VADAI, VAANGA!': 'இட்லி வடை, வாங்க!',
-  'MURUKKU, SAAPDUNGA!': 'முறுக்கு, சாப்பிடுங்க!', 'ELANEER, ELANEER!': 'இளநீர், இளநீர்!',
-};
 const CURSES = {
   mumbai: ['ABE O HERO!', 'KYA RE, DIMAAG KHARAB?', 'AYE BHIDU, SAMBHAL KE!', 'APUN KO MAARA?!', 'CHAL NIKAL!', 'WAAT LAGA DUNGA!', 'GHANTA!'],
   hyderabad: ['KYA RE MIYAN!', 'NAKKO RE!', 'HAU, AB DEKH!', 'EK DENGA NA!', 'KAIKU MAARA?!', 'CHUP BAITH!', 'BAIGAN!'],
@@ -214,7 +191,7 @@ function envDetails() {
   ].join(' · ');
 }
 // Which part of the game an error came from: the first stack frame whose function belongs to a component.
-const AUDIO_METHODS = 'ensureVoices|updateVehicles|honkAt|hornTone|kindOf|init|fallbackEngine|loadSamples|startEngine|setEngine|applyVol|setVol|toggleMute|tone|noise|horn|hit|whoosh|crash|bump|moo|bark|yelp|grunt|beep|ko|cash|ensure|setCity|toggle|tick|env|osc|drum|note|decode|stopAll|shopsNearby|unlockAudio';
+const AUDIO_METHODS = 'spot|outAt|mooAt|barkAt|mooFrom|barkFrom|updateAnimals|ensureVoices|updateVehicles|honkAt|hornTone|kindOf|init|fallbackEngine|loadSamples|startEngine|setEngine|applyVol|setVol|toggleMute|tone|noise|horn|hit|whoosh|crash|bump|moo|bark|yelp|grunt|beep|ko|cash|ensure|setCity|toggle|tick|env|osc|drum|note|decode|stopAll|shopsNearby|unlockAudio';
 const COMPONENTS = [
   ['audio', new RegExp(`^(?:Sfx|Music|Ambience|Object)?\\.?(?:${AUDIO_METHODS})$|^(?:Sfx|Music|Ambience|TwoStroke)`)],
   ['traffic', /^(updateDog|startChase|updateTraffic|honk)$/],
@@ -227,7 +204,7 @@ const COMPONENTS = [
   ['ui', /^(draw(?:HUD|Title|Results|Paused|Mixer|Controls|Countdown|Champion|Bubbles|Popups|Messages|SoundHint)|text|panel|bar|keycap)$/],
   ['renderer', /^(render|drawSegment|drawBackground|drawSprite|drawTuk|drawLathi|drawPlayer|project|poly)$/],
   ['input', /^(onPress|keyDown|keyUp|runCommand|toggleLayout|openPause|openMixer)$/],
-  ['voices', /^(?:Object\.|Voice\.|VoiceClips\.)?(sayLine|pickVoice|unlockVoice|loadVoices|stopVoices|loadClips|playClip|place|updateClips|stopClips)$/],
+  ['voices', /^(?:Object\.|Voice\.|VoiceClips\.)?(sayLine|stopVoices|loadClips|playClip|place|updateClips|stopClips)$/],
   ['analytics', /^(trackEvent|deviceSummary|envDetails)$/],
   ['game-loop', /^(update|step|frame)$/],
 ];
@@ -602,6 +579,67 @@ const Ambience = {
   },
 };
 
+// ------------------------------------------------------------------ animals
+// Cows moo and dogs bark from where they stand on the road: distance gain, stereo pan and a
+// Doppler-ish pitch nudge. Played on the City noise channel.
+const Animals = {
+  mooT: 2, lastMoo: 0,
+  spot(c) {
+    const dz = wrapDelta(c.z - player.dist), closeness = clamp(1 - Math.abs(dz) / 3200, 0, 1);
+    const closing = clamp((player.speed - (c.speed || 0)) * Math.sign(dz || 1) / MAX_SPEED, -1, 1);
+    return { dz, gain: closeness * closeness, pan: clamp((c.x - player.x) * 0.55, -0.9, 0.9), rate: 1 + 0.12 * closing };
+  },
+  outAt(gain, pan) {
+    const a = Sfx.ctx; if (!a || !Sfx.cityBus || gain < 0.02) return null;
+    const g = a.createGain(); g.gain.value = gain;
+    if (a.createStereoPanner) { const pn = a.createStereoPanner(); pn.pan.value = pan; g.connect(pn); pn.connect(Sfx.cityBus); } else g.connect(Sfx.cityBus);
+    return g;
+  },
+  // "mooo": a low buzzy voice through an "oo" vowel filter, swelling up then sagging
+  mooAt(gain, pan, rate) {
+    const a = Sfx.ctx, out = this.outAt(gain * 0.9, pan); if (!out) return;
+    const t = a.currentTime, dur = rand(1.1, 1.6), f0 = rand(105, 135) * rate;
+    const env = a.createGain(); env.gain.setValueAtTime(0.0001, t); env.gain.exponentialRampToValueAtTime(1, t + 0.25);
+    env.gain.setValueAtTime(1, t + dur * 0.7); env.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    const f1 = a.createBiquadFilter(); f1.type = 'bandpass'; f1.frequency.value = 380; f1.Q.value = 3;
+    const f2 = a.createBiquadFilter(); f2.type = 'bandpass'; f2.frequency.value = 820; f2.Q.value = 4;
+    const mix = a.createGain(); mix.gain.value = 3; f1.connect(mix); f2.connect(mix); mix.connect(env); env.connect(out);
+    const o = a.createOscillator(); o.type = 'sawtooth';
+    o.frequency.setValueAtTime(f0 * 0.85, t); o.frequency.linearRampToValueAtTime(f0 * 1.12, t + dur * 0.35); o.frequency.linearRampToValueAtTime(f0 * 0.8, t + dur);
+    const vib = a.createOscillator(), vg = a.createGain(); vib.frequency.value = 5; vg.gain.value = 3; vib.connect(vg); vg.connect(o.frequency);
+    o.connect(f1); o.connect(f2); o.start(t); o.stop(t + dur + 0.05); vib.start(t); vib.stop(t + dur + 0.05);
+  },
+  // "woof": a sharp noisy onset with a falling pitch through a mouth-like band, one to three times
+  barkAt(gain, pan, rate, times = 2) {
+    const a = Sfx.ctx, out = this.outAt(gain, pan); if (!out) return;
+    const pitch = rand(0.85, 1.25) * rate;
+    for (let i = 0; i < times; i++) {
+      const t = a.currentTime + i * rand(0.16, 0.24), dur = 0.12;
+      const env = a.createGain(); env.gain.setValueAtTime(0.0001, t); env.gain.exponentialRampToValueAtTime(1, t + 0.008); env.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      const bp = a.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 900 * pitch; bp.Q.value = 1.8;
+      bp.connect(env); env.connect(out);
+      const o = a.createOscillator(); o.type = 'sawtooth'; o.frequency.setValueAtTime(620 * pitch, t); o.frequency.exponentialRampToValueAtTime(260 * pitch, t + dur);
+      o.connect(bp); o.start(t); o.stop(t + dur + 0.02);
+      const n = a.createBufferSource(); n.buffer = Sfx.noiseBuf; const ng = a.createGain(); ng.gain.value = 0.35; n.connect(ng); ng.connect(bp);
+      n.start(t, Math.random() * 0.5); n.stop(t + 0.05);
+    }
+  },
+  mooFrom(c) { const p = this.spot(c); this.mooAt(Math.max(p.gain, 0.3), p.pan, p.rate); this.lastMoo = performance.now(); },
+  barkFrom(c, times) { const p = this.spot(c); this.barkAt(p.gain, p.pan, p.rate, times || 1 + Math.floor(Math.random() * 3)); },
+  updateAnimals(dt) {
+    if (!Sfx.ctx || !RACING_STATES.includes(state) || paused) return;
+    this.mooT -= dt;
+    for (const c of traffic) {
+      const dz = wrapDelta(c.z - player.dist);
+      if (dz < -400 || dz > 2600) { if (c.type === 'cow' && Math.abs(dz) > 3000) c.mooed = false; continue; }
+      // most cows moo once as you come up on them
+      if (c.type === 'cow' && !c.mooed && dz > 0 && dz < 2200) { c.mooed = true; if (this.mooT <= 0 && Math.random() < 0.7) { this.mooFrom(c); this.mooT = rand(1.2, 2.5); } }
+      // roadside dogs sound off as you come up to them (chasers bark from updateDog)
+      if (c.type === 'dog' && c.mode === 'sit' && dz > 0 && dz < 1500 && Math.random() < dt * 0.25) this.barkFrom(c);
+    }
+  },
+};
+
 // ------------------------------------------------------------------ voice clips
 // Recorded (TTS-generated) lines from web/voices.js, played from the speaker's spot on the road:
 // distance gain + muffling, stereo pan, and Doppler pitch while they play. Falls back to Voice (speech).
@@ -610,7 +648,7 @@ const VoiceClips = {
   loadClips() {
     if (this.loading || !Sfx.ctx) return; this.loading = true;
     const src = window.RRR_VOICES;
-    if (!src) { this.failed = true; reportError('voices', 'voices.js missing: using speech synthesis'); return; }
+    if (!src) { this.failed = true; reportError('voices', 'voices.js missing: bubbles will be silent'); return; }
     let bad = 0;
     for (const [line, url] of Object.entries(src)) {
       const bin = atob(url.slice(url.indexOf(',') + 1)), bytes = new Uint8Array(bin.length);
@@ -659,54 +697,12 @@ const VoiceClips = {
 };
 
 // ------------------------------------------------------------------ voices
-// Speech bubbles are read aloud with the device's own Hindi (hi-IN) or Tamil (ta-IN) voice.
-// Falls back to an Indian-English voice reading the romanised line, and reports if nothing can speak.
+// Bubble lines are only ever heard as the recorded clips (VoiceClips); the game never uses the
+// browser's text-to-speech. If a clip can't play, the bubble simply stays silent.
 const Voice = {
-  list: [], unlocked: false, lastAt: 0, noVoicesReported: false,
-  get ok() { return 'speechSynthesis' in window && typeof SpeechSynthesisUtterance !== 'undefined'; },
-  loadVoices() { try { this.list = speechSynthesis.getVoices() || []; } catch (e) { this.list = []; } },
-  pickVoice(lang) {
-    const want = lang.toLowerCase(), norm = v => v.lang.toLowerCase().replace('_', '-');
-    return this.list.find(v => norm(v) === want && v.localService) || this.list.find(v => norm(v) === want)
-      || this.list.find(v => norm(v).startsWith(want.slice(0, 2) + '-')) || null;
-  },
-  // iOS only lets speech start from inside a tap; speak a silent blank once
-  unlockVoice() {
-    if (this.unlocked || !this.ok) return;
-    this.unlocked = true;
-    try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); } catch (e) { reportError('voices', 'speech unlock failed', e); }
-  },
-  sayLine(line, { kind, pitch = 1, rate = 1.1, where = null, owner = null, clipRate = 1 }) {
-    if (VoiceClips.playClip(line, { kind, rate: clipRate, where, owner })) return;
-    if (!this.ok || paused) return;
-    const vol = Sfx.muted ? 0 : Sfx.vol.master * Sfx.vol.voices;
-    if (vol < 0.02) return;
-    const now = performance.now();
-    if (kind === 'hawker' && (speechSynthesis.speaking || now - this.lastAt < 1200)) return; // hawkers never talk over anyone
-    if (kind === 'curse' && speechSynthesis.speaking) speechSynthesis.cancel(); // a fresh curse cuts in
-    if (!this.list.length) this.loadVoices();
-    const lang = theme.city === 'chennai' ? 'ta-IN' : 'hi-IN';
-    let voice = this.pickVoice(lang), text = SPOKEN[line] || line, useLang = lang;
-    if (!voice && this.list.length) {
-      voice = this.pickVoice('en-IN') || this.pickVoice('en-GB') || null; text = line.toLowerCase(); useLang = voice ? voice.lang : 'en-IN';
-      if (!this.missingReported) { this.missingReported = true; reportError('voices', `no ${lang} voice, using ${voice ? voice.name : 'default'}`); }
-    }
-    if (!this.list.length && !this.noVoicesReported) { this.noVoicesReported = true; reportError('voices', 'no speech voices listed (speaking with default)'); }
-    this.lastAt = now;
-    try {
-      const u = new SpeechSynthesisUtterance(text);
-      u.lang = useLang; if (voice) u.voice = voice;
-      u.volume = clamp(vol, 0, 1); u.pitch = clamp(pitch, 0.1, 2); u.rate = clamp(rate, 0.5, 2);
-      u.onerror = e => { if (!['interrupted', 'canceled'].includes(e.error)) reportError('voices', `speech error: ${e.error}`, null, `${useLang} ${voice ? voice.name : 'default voice'}`); };
-      speechSynthesis.speak(u);
-    } catch (e) { reportError('voices', 'speak() threw', e); }
-  },
-  stopVoices() { VoiceClips.stopClips(); try { if (this.ok) speechSynthesis.cancel(); } catch (e) { /* ignore */ } },
+  sayLine(line, { kind, where = null, owner = null, clipRate = 1 }) { VoiceClips.playClip(line, { kind, rate: clipRate, where, owner }); },
+  stopVoices() { VoiceClips.stopClips(); },
 };
-if (Voice.ok) {
-  Voice.loadVoices();
-  try { speechSynthesis.addEventListener('voiceschanged', () => Voice.loadVoices()); } catch (e) { /* older Safari */ }
-}
 addEventListener('visibilitychange', () => {
   if (document.hidden) { Voice.stopVoices(); return; }
   // coming back to the tab: pick audio up again if the phone had paused it
@@ -1614,7 +1610,7 @@ function setupRace() {
   for (let i = 0; i < slots.length; i++) {
     if (i === playerSlot) continue;
     const c = RIVAL_COLORS[ri % RIVAL_COLORS.length];
-    rivals.push({ name: names[ri], color: c.body, img: SP.rivals[ri % SP.rivals.length], nw: TUK_NW, voicePitch: rand(0.7, 1.35), voiceRate: rand(1.05, 1.3),
+    rivals.push({ name: names[ri], color: c.body, img: SP.rivals[ri % SP.rivals.length], nw: TUK_NW, voicePitch: rand(0.7, 1.35),
       x: slots[i].x, dist: rowZ(slots[i].row) + shiftZ, speed: 0,
       top: MAX_SPEED * clamp(track.skill * diff - 0.06 + Math.random() * 0.08, 0.7, 1.02),
       health: 100, ko: 0, koBy: null, rot: 0, atk: null, cd: rand(1, 3), aggr: rand(0.6, 1.2), laneX: pick([-0.6, 0, 0.6]),
@@ -1680,7 +1676,6 @@ function keyUp(code) { keys[code] = false; }
 let unlockCheck = null;
 const unlockAudio = e => {
   Sfx.init();
-  Voice.unlockVoice();
   const a = Sfx.ctx; if (!a || a.state === 'running') return;
   const p = a.resume(); if (p && p.catch) p.catch(err => reportError('audio', 'resume() rejected', err));
   // the tap should have started audio; if it is still not running, sound is blocked on this device
@@ -1701,7 +1696,7 @@ addEventListener('blur', () => { for (const k in keys) keys[k] = false; if (stat
 
 const RACING_STATES = ['countdown', 'race', 'finished'];
 const PAUSE_MENU = [{ label: 'RESUME', cmd: 'resume' }, { label: 'RESTART RACE', cmd: 'restart' }, { label: 'SOUND MIXER', cmd: 'mixer' }, { label: 'QUIT TO MAIN MENU', cmd: 'menu' }];
-const MIXER = [['master', 'ALL SOUND'], ['race', 'RACE', 'engines, horns, traffic, fights'], ['voices', 'VOICES', 'curses & hawker shouts'], ['music', 'MUSIC'], ['city', 'CITY NOISE', 'street sounds']];
+const MIXER = [['master', 'ALL SOUND'], ['race', 'RACE', 'engines, horns, traffic, fights'], ['voices', 'VOICES', 'curses & hawker shouts'], ['music', 'MUSIC'], ['city', 'CITY NOISE', 'street sounds & animals']];
 let mixer = null;
 function openMixer() { mixer = { sel: 0 }; }
 function openPause() { paused = true; pauseSel = 0; Voice.stopVoices(); }
@@ -1783,7 +1778,7 @@ function updateHawkers(dt) {
   const sx = sp.offset + Math.sign(sp.offset) * sp.nw / 2; // centre of the stall
   bubbles.push({ who: sp, text: line, t: 2.2, hawker: true });
   // sing-song street call from the stall itself (it stands still, so you hear Doppler as you drive past)
-  Voice.sayLine(line, { kind: 'hawker', pitch: rand(1.1, 1.5), rate: 0.95, clipRate: rand(0.95, 1.15), owner: sp,
+  Voice.sayLine(line, { kind: 'hawker', clipRate: rand(0.95, 1.15), owner: sp,
     where: () => ({ dz: wrapDelta(z - player.dist), x: sx, vz: 0 }) });
 }
 function curse(who) {
@@ -1792,7 +1787,7 @@ function curse(who) {
   bubbles.push({ who, text: line, t: 1.7 });
   setTimeout(() => Sfx.grunt(), 120);
   // every rival has their own voice; your driver sounds the same all race
-  Voice.sayLine(line, { kind: 'curse', pitch: who.isPlayer ? 0.95 : who.voicePitch || 1, rate: who.isPlayer ? 1.15 : who.voiceRate || 1.15,
+  Voice.sayLine(line, { kind: 'curse',
     owner: who, clipRate: who.isPlayer ? 1 : 0.85 + ((who.voicePitch || 1) - 0.7) * 0.55,
     where: who.isPlayer ? null : () => ({ dz: who.dist - player.dist, x: who.x, vz: who.speed }) });
 }
@@ -1806,7 +1801,7 @@ function honk() {
     const dz = wrapDelta(c.z - player.dist);
     if (dz < 0 || dz > 3000) continue;
     if (c.type === 'cow') { c.vx = (c.x >= player.x ? 1 : -1) * 0.7; c.scared = 2.5; }
-    else if (c.type === 'dog') { if (c.mode === 'sleep' || c.mode === 'sit') { c.mode = 'cross'; c.vx = (c.x >= player.x ? 1 : -1) * 0.9; } }
+    else if (c.type === 'dog') { if (dz < 2000) setTimeout(() => Animals.barkFrom(c, 3), rand(150, 500)); if (c.mode === 'sleep' || c.mode === 'sit') { c.mode = 'cross'; c.vx = (c.x >= player.x ? 1 : -1) * 0.9; } }
     else if (Math.abs(c.x - player.x) < 0.5) {
       let nx = c.x + (c.x >= player.x ? 0.66 : -0.66);
       if (Math.abs(nx) > 0.7) nx = c.x - Math.sign(nx) * 0.66 * 2;
@@ -1860,6 +1855,7 @@ function update(dt) {
   shake = Math.max(0, shake - dt);
   guard('audio', () => VehicleAudio.updateVehicles(dt));
   guard('voices', () => VoiceClips.updateClips());
+  guard('audio', () => Animals.updateAnimals(dt));
 
   if (state === 'title' || state === 'champion') { guard('race-rules', () => updateAttract(dt)); return; }
   if (state === 'countdown') {
@@ -2026,7 +2022,7 @@ function updateDog(c, dt) {
     const tx = clamp(player.x + c.side * 0.32, -1.6, 1.6);
     c.x += clamp(tx - c.x, -1.2 * dt, 1.2 * dt);
     if (c.barkT <= 0 && Math.abs(dz) < 900) {
-      c.barkT = rand(0.35, 0.7); Sfx.bark();
+      c.barkT = rand(0.35, 0.7); Animals.barkFrom(c);
       const s = c.scr && c.scr.frame === frameNo ? c.scr : null;
       popup(pick(['BHOW!', 'BHOW BHOW!', 'WOOF!', 'GRRR!']), s ? s.x : W / 2 + c.side * 190, s ? s.y : H - 210, '#fff', 20);
     }
@@ -2084,7 +2080,7 @@ function checkCollisions() {
       return;
     }
     const rel = (player.speed - c.speed) / MAX_SPEED;
-    if (c.type === 'cow') { Sfx.moo(); c.vx = (c.x >= player.x ? 1 : -1) * 0.8; c.scared = 2; }
+    if (c.type === 'cow') { Animals.mooFrom(c); c.vx = (c.x >= player.x ? 1 : -1) * 0.8; c.scared = 2; }
     if (rel > 0.3) { crashPlayer(`SMASHED INTO A ${c.label}!`, 20 + rel * 25); player.speed = c.speed * 0.3; }
     else { player.speed = c.speed * 0.8; player.health -= 3; Sfx.bump(); shake = 0.15; }
     player.dist -= 230 - dz;
@@ -2634,5 +2630,5 @@ function step(now) {
 requestAnimationFrame(frame);
 // expose for debugging
 window.__rrr = { get state() { return state; }, player, get rivals() { return rivals; }, get results() { return results; }, setupRace,
-  step(n) { for (let i = 0; i < n; i++) update(STEP); render(); }, keys, Sfx, Music, Ambience, VehicleAudio, VoiceClips, SKYLINES, THEMES, SP, get traffic() { return traffic; }, get bubbles() { return bubbles; }, setLevel(l) { level = l; attractSetup(); } };
+  step(n) { for (let i = 0; i < n; i++) update(STEP); render(); }, keys, Sfx, Music, Ambience, VehicleAudio, VoiceClips, Animals, SKYLINES, THEMES, SP, get traffic() { return traffic; }, get bubbles() { return bubbles; }, setLevel(l) { level = l; attractSetup(); } };
 })();

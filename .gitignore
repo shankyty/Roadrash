@@ -5,3 +5,4 @@ goatcounter-export-*
 ScreenRecording*
 Screen Recording*
 *.mov
+tools/voices/.venv/

@@ -1,18 +1,26 @@
 # Changelog
 
-## v2.7.0: Speech bubbles talk 🗣️
+## v2.7.0: Speech bubbles talk, traffic and animals make noise 🗣️🐄🐕
 
-- **Curses and hawker calls are now spoken aloud**, in **Hindi** in Mumbai, Hyderabad and Delhi and in **Tamil** in Chennai. All 48 lines are real audio clips, generated from native-script text (for example "क्या रे मियाँ!" or "காபி! காபி!") with Meta's open MMS text-to-speech models (CC BY-NC 4.0).
-- **Voices come from where the speaker is:** a rival's curse is panned to their side of the road, and a hawker's call comes from their stall. Voices get louder and clearer as you get close, and are muffled far away. Pitch rises as you drive toward a speaker and drops as you pass (**Doppler**).
-- If the clips can't load, the device's own speech voices read the lines as a backup.
-- Every rival has their own voice pitch and speed, your driver has a consistent voice, and hawkers use a sing-song street call. A fresh curse cuts in over a hawker; hawkers never talk over anyone.
-- New **Voices** slider in the sound mixer (V / pause menu / 🔊). New default balance: race 35%, voices 70%, music 40%, city noise 70%.
+### Voices
+- **Curses and hawker calls are spoken aloud**, in **Hindi** in Mumbai, Hyderabad and Delhi and in **Tamil** in Chennai. All 48 lines are real audio clips made with Meta's open MMS text-to-speech models (CC BY-NC 4.0). Each line was generated six times and the clearest take was picked automatically.
+- **Curses sound like shouts:** a raised pitch, heavy compression and a gritty edge.
+- **Hawkers call like the street:** short calls with a drawn-out tail, for example *"Vada paaav!"*, *"Bhel puri lelo!"*, *"Chai bole, chaaai!"*, *"Irani chaaai!"*, *"Golgappe, golgappe!"*, *"Sundal, sundaaal!"* and *"Kaapi, kaapiii!"*. A gentle vibrato and a little street echo are added.
+- **Voices come from where the speaker is:** a rival's curse is panned to their side of the road, and a hawker's call comes from their stall. Voices get louder and clearer as you get close and are muffled far away, and pitch rises as you approach and drops as you pass (**Doppler**).
+- The game never uses the browser's or phone's text-to-speech. New **Voices** slider in the sound mixer.
+
+### Traffic and animals
 - **Other vehicles make noise:** buses and trucks rumble with a deep diesel knock, cars hum and rival autos rattle. Each gets louder as you approach, is panned to its side of the road, and shifts pitch as you close in or fall behind.
-- **Indian traffic horns:** long truck air horns, double bus blasts, car *beep-beeps* and auto bulb *pom-poms*, with random honking for atmosphere. Overtake someone closely and they'll often honk at you. All of it is on the mixer's **Race** channel.
-- **Better phone layout in landscape:** the touch buttons are pinned to the screen edges (clear of the iPhone notch) instead of covering the game. During races, the HUD moves to the top on touch devices: position, time and km/h top-left with your health bar under it, and the rival's bar top-right.
-- **Add to Home Screen:** the game now opens full screen, with no browser toolbar, when launched from the home screen (Android: landscape as well).
-- **iPhone audio interruptions:** when iOS pauses the game's audio (a phone call, screen recording or another app), players see *"Sound paused by your phone … tap to resume"*, and sound picks up again when they tap or come back to the tab.
-- If a device has no Hindi or Tamil voice, an Indian-English voice reads the line instead. Missing voices and speech errors are reported to analytics as `error/voices/...`.
+- **Indian traffic horns:** long truck air horns, double bus blasts, car *beep-beeps* and auto bulb *pom-poms*, with random honking. Overtake someone closely and they'll often honk at you.
+- **Cows moo** as you come up on them, and when you bump one. **Dogs bark** from where they are: chasers beside your auto, roadside dogs as you approach, and any dog nearby when you honk. Animals play on the **City noise** channel.
+
+### Phones
+- **Better landscape layout:** the touch buttons are pinned to the screen edges (clear of the iPhone notch), and the race HUD moves to the top on touch devices.
+- **Add to Home Screen** opens the game full screen.
+- **iPhone audio interruptions** (a call, screen recording or another app) show *"Sound paused by your phone … tap to resume"*, and sound resumes by itself.
+
+### Mix
+- New default balance: race 35%, voices 70%, music 40%, city noise 70%.
 
 ## v2.6.1: Detailed problem reports
 

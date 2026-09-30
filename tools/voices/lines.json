@@ -1,0 +1,386 @@
+[
+ {
+  "line": "ABE O HERO!",
+  "city": "mumbai",
+  "kind": "curse",
+  "lang": "hin",
+  "say": "अबे ओ हीरो!",
+  "seed": 5003
+ },
+ {
+  "line": "KYA RE, DIMAAG KHARAB?",
+  "city": "mumbai",
+  "kind": "curse",
+  "lang": "hin",
+  "say": "क्या रे, दिमाग खराब?",
+  "seed": 5035
+ },
+ {
+  "line": "AYE BHIDU, SAMBHAL KE!",
+  "city": "mumbai",
+  "kind": "curse",
+  "lang": "hin",
+  "say": "ए भिड़ू, संभल के!",
+  "seed": 5063
+ },
+ {
+  "line": "APUN KO MAARA?!",
+  "city": "mumbai",
+  "kind": "curse",
+  "lang": "hin",
+  "say": "अपुन को मारा?!",
+  "seed": 5093
+ },
+ {
+  "line": "CHAL NIKAL!",
+  "city": "mumbai",
+  "kind": "curse",
+  "lang": "hin",
+  "say": "चल निकल!",
+  "seed": 5125
+ },
+ {
+  "line": "WAAT LAGA DUNGA!",
+  "city": "mumbai",
+  "kind": "curse",
+  "lang": "hin",
+  "say": "वाट लगा दूंगा!",
+  "seed": 5160
+ },
+ {
+  "line": "GHANTA!",
+  "city": "mumbai",
+  "kind": "curse",
+  "lang": "hin",
+  "say": "घंटा!",
+  "seed": 5186
+ },
+ {
+  "line": "KYA RE MIYAN!",
+  "city": "hyderabad",
+  "kind": "curse",
+  "lang": "hin",
+  "say": "क्या रे मियाँ!",
+  "seed": 5218
+ },
+ {
+  "line": "NAKKO RE!",
+  "city": "hyderabad",
+  "kind": "curse",
+  "lang": "hin",
+  "say": "नक्को रे!",
+  "seed": 5250
+ },
+ {
+  "line": "HAU, AB DEKH!",
+  "city": "hyderabad",
+  "kind": "curse",
+  "lang": "hin",
+  "say": "हौ, अब देख!",
+  "seed": 5284
+ },
+ {
+  "line": "EK DENGA NA!",
+  "city": "hyderabad",
+  "kind": "curse",
+  "lang": "hin",
+  "say": "एक देंगा ना!",
+  "seed": 5310
+ },
+ {
+  "line": "KAIKU MAARA?!",
+  "city": "hyderabad",
+  "kind": "curse",
+  "lang": "hin",
+  "say": "कायकू मारा?!",
+  "seed": 5343
+ },
+ {
+  "line": "CHUP BAITH!",
+  "city": "hyderabad",
+  "kind": "curse",
+  "lang": "hin",
+  "say": "चुप बैठ!",
+  "seed": 5372
+ },
+ {
+  "line": "BAIGAN!",
+  "city": "hyderabad",
+  "kind": "curse",
+  "lang": "hin",
+  "say": "बैंगन!",
+  "seed": 5406
+ },
+ {
+  "line": "OYE! JAANTA HAI MERA BAAP KAUN HAI?",
+  "city": "delhi",
+  "kind": "curse",
+  "lang": "hin",
+  "say": "ओए! जानता है मेरा बाप कौन है?",
+  "seed": 5435
+ },
+ {
+  "line": "ABEY OYE!",
+  "city": "delhi",
+  "kind": "curse",
+  "lang": "hin",
+  "say": "अबे ओए!",
+  "seed": 5465
+ },
+ {
+  "line": "KYA KAR RAHA HAI YAAR!",
+  "city": "delhi",
+  "kind": "curse",
+  "lang": "hin",
+  "say": "क्या कर रहा है यार!",
+  "seed": 5496
+ },
+ {
+  "line": "TERI TOH...!",
+  "city": "delhi",
+  "kind": "curse",
+  "lang": "hin",
+  "say": "तेरी तो...!",
+  "seed": 5532
+ },
+ {
+  "line": "BADTAMEEZ!",
+  "city": "delhi",
+  "kind": "curse",
+  "lang": "hin",
+  "say": "बदतमीज़!",
+  "seed": 5558
+ },
+ {
+  "line": "OYE HOYE!",
+  "city": "delhi",
+  "kind": "curse",
+  "lang": "hin",
+  "say": "ओए होए!",
+  "seed": 5592
+ },
+ {
+  "line": "BHAI SAHAB, DHANG SE!",
+  "city": "delhi",
+  "kind": "curse",
+  "lang": "hin",
+  "say": "भाई साहब, ढंग से!",
+  "seed": 5625
+ },
+ {
+  "line": "DEI!",
+  "city": "chennai",
+  "kind": "curse",
+  "lang": "tam",
+  "say": "டேய்!",
+  "seed": 5653
+ },
+ {
+  "line": "ENNA DA?!",
+  "city": "chennai",
+  "kind": "curse",
+  "lang": "tam",
+  "say": "என்ன டா?!",
+  "seed": 5686
+ },
+ {
+  "line": "PODA!",
+  "city": "chennai",
+  "kind": "curse",
+  "lang": "tam",
+  "say": "போடா!",
+  "seed": 5713
+ },
+ {
+  "line": "AIYYO!",
+  "city": "chennai",
+  "kind": "curse",
+  "lang": "tam",
+  "say": "ஐயோ!",
+  "seed": 5744
+ },
+ {
+  "line": "ENNA MACHAAN?!",
+  "city": "chennai",
+  "kind": "curse",
+  "lang": "tam",
+  "say": "என்ன மச்சான்?!",
+  "seed": 5775
+ },
+ {
+  "line": "SUMMA IRU DA!",
+  "city": "chennai",
+  "kind": "curse",
+  "lang": "tam",
+  "say": "சும்மா இரு டா!",
+  "seed": 5811
+ },
+ {
+  "line": "ITHU TOO MUCH DA!",
+  "city": "chennai",
+  "kind": "curse",
+  "lang": "tam",
+  "say": "இது டூ மச் டா!",
+  "seed": 5841
+ },
+ {
+  "line": "VADA PAAAV!",
+  "city": "mumbai",
+  "kind": "hawker",
+  "lang": "hin",
+  "say": "वड़ा पाआआव!",
+  "seed": 5869
+ },
+ {
+  "line": "BHEL PURI LELO!",
+  "city": "mumbai",
+  "kind": "hawker",
+  "lang": "hin",
+  "say": "भेल पूरी लेलोओओ!",
+  "seed": 5899
+ },
+ {
+  "line": "CHAI BOLE, CHAAAI!",
+  "city": "mumbai",
+  "kind": "hawker",
+  "lang": "hin",
+  "say": "चाय बोले, चाआआय!",
+  "seed": 5934
+ },
+ {
+  "line": "PAV BHAJI GARAM!",
+  "city": "mumbai",
+  "kind": "hawker",
+  "lang": "hin",
+  "say": "पाव भाजी गरआआम!",
+  "seed": 5961
+ },
+ {
+  "line": "NIMBU PAANI THANDA!",
+  "city": "mumbai",
+  "kind": "hawker",
+  "lang": "hin",
+  "say": "नींबू पानी ठंडाआआ!",
+  "seed": 5993
+ },
+ {
+  "line": "IRANI CHAAAI!",
+  "city": "hyderabad",
+  "kind": "hawker",
+  "lang": "hin",
+  "say": "ईरानी चाआआय!",
+  "seed": 6026
+ },
+ {
+  "line": "HALEEM GARAM HAI!",
+  "city": "hyderabad",
+  "kind": "hawker",
+  "lang": "hin",
+  "say": "हलीईईम गरम है!",
+  "seed": 6054
+ },
+ {
+  "line": "BIRYANI LELO!",
+  "city": "hyderabad",
+  "kind": "hawker",
+  "lang": "hin",
+  "say": "बिरयानी लेलोओओ!",
+  "seed": 6088
+ },
+ {
+  "line": "OSMANIA BISCUIT LELO!",
+  "city": "hyderabad",
+  "kind": "hawker",
+  "lang": "hin",
+  "say": "उस्मानिया बिस्कुट लेलोओ!",
+  "seed": 6116
+ },
+ {
+  "line": "MIRCHI BAJJI, GARAM!",
+  "city": "hyderabad",
+  "kind": "hawker",
+  "lang": "hin",
+  "say": "मिर्ची बज्जी, गरआआम!",
+  "seed": 6149
+ },
+ {
+  "line": "CHOLE BHATURE LELO!",
+  "city": "delhi",
+  "kind": "hawker",
+  "lang": "hin",
+  "say": "छोले भटूरे लेलोओओ!",
+  "seed": 6180
+ },
+ {
+  "line": "GOLGAPPE, GOLGAPPE!",
+  "city": "delhi",
+  "kind": "hawker",
+  "lang": "hin",
+  "say": "गोलगप्पे, गोलगप्पेएए!",
+  "seed": 6209
+ },
+ {
+  "line": "GARMA GARAM JALEBI!",
+  "city": "delhi",
+  "kind": "hawker",
+  "lang": "hin",
+  "say": "गरमा गरम जलेबीईई!",
+  "seed": 6240
+ },
+ {
+  "line": "MOMOS LELO, MOMOS!",
+  "city": "delhi",
+  "kind": "hawker",
+  "lang": "hin",
+  "say": "मोमोज़ लेलो, मोमोज़!",
+  "seed": 6274
+ },
+ {
+  "line": "CHAI BOLO, CHAAAI!",
+  "city": "delhi",
+  "kind": "hawker",
+  "lang": "hin",
+  "say": "चाय बोलो, चाआआय!",
+  "seed": 6305
+ },
+ {
+  "line": "KAAPI, KAAPIII!",
+  "city": "chennai",
+  "kind": "hawker",
+  "lang": "tam",
+  "say": "காபி, காபீஈஈ!",
+  "seed": 6338
+ },
+ {
+  "line": "SUNDAL, SUNDAAAL!",
+  "city": "chennai",
+  "kind": "hawker",
+  "lang": "tam",
+  "say": "சுண்டல், சுண்டாஆஆல்!",
+  "seed": 6364
+ },
+ {
+  "line": "IDLI VADAI!",
+  "city": "chennai",
+  "kind": "hawker",
+  "lang": "tam",
+  "say": "இட்லீ வடைஐ!",
+  "seed": 6398
+ },
+ {
+  "line": "MURUKKU, MURUKKU!",
+  "city": "chennai",
+  "kind": "hawker",
+  "lang": "tam",
+  "say": "முறுக்கு, முறுக்கூஊஊ!",
+  "seed": 6429
+ },
+ {
+  "line": "ELANEER, ELANEEER!",
+  "city": "chennai",
+  "kind": "hawker",
+  "lang": "tam",
+  "say": "இளநீர், இளநீஈஈர்!",
+  "seed": 6460
+ }
+]
