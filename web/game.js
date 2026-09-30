@@ -149,15 +149,31 @@ function project(p, camX, camY, camZ) {
 // testing and the Mac app (file://) are never counted. Dashboard: roadrash-shankyty.goatcounter.com
 const GOATCOUNTER = 'https://roadrash-shankyty.goatcounter.com/count';
 const analyticsOn = /^https?:$/.test(location.protocol) && !/^(localhost|127\.|\[::1\]|.*\.localhost$)/.test(location.hostname);
+const pendingEvents = [];
+// custom events show up in the dashboard as paths like "race-start/delhi"; queued until count.js loads
+function trackEvent(event, title) {
+  if (!analyticsOn) return;
+  const send = () => { try { window.goatcounter.count({ path: event, title: title || event, event: true }); } catch (e) { /* never break the game */ } };
+  if (window.goatcounter && window.goatcounter.count) send(); else pendingEvents.push(send);
+}
+// which device, OS and browser this visit used, as one combined event: device/<kind>/<os>/<browser>
+function deviceSummary() {
+  const ua = navigator.userAgent || '', touch = navigator.maxTouchPoints > 1;
+  const os = /iPhone|iPod/.test(ua) ? 'iOS' : /iPad/.test(ua) || (/Macintosh/.test(ua) && touch) ? 'iPadOS' : /Android/.test(ua) ? 'Android'
+    : /CrOS/.test(ua) ? 'ChromeOS' : /Windows/.test(ua) ? 'Windows' : /Macintosh|Mac OS X/.test(ua) ? 'macOS' : /Linux/.test(ua) ? 'Linux' : 'Other';
+  const browser = /WhatsApp/i.test(ua) ? 'WhatsApp-in-app' : /Instagram/.test(ua) ? 'Instagram-in-app' : /FBAN|FBAV|FB_IAB/.test(ua) ? 'Facebook-in-app'
+    : /SamsungBrowser/.test(ua) ? 'Samsung-Internet' : /Edg\//.test(ua) ? 'Edge' : /OPR\/|Opera/.test(ua) ? 'Opera' : /Firefox|FxiOS/.test(ua) ? 'Firefox'
+    : /CriOS|Chrome\//.test(ua) ? 'Chrome' : /Safari\//.test(ua) ? 'Safari' : 'Other';
+  const short = Math.min(screen.width, screen.height);
+  const kind = os === 'iPadOS' || (touch && short >= 600) ? 'tablet' : touch && short < 600 ? 'phone' : 'computer';
+  return `device/${kind}/${os}/${browser}`;
+}
 if (analyticsOn) {
   const tag = document.createElement('script');
   tag.async = true; tag.src = '//gc.zgo.at/count.js'; tag.dataset.goatcounter = GOATCOUNTER;
+  tag.onload = () => { const wait = setInterval(() => { if (window.goatcounter && window.goatcounter.count) { clearInterval(wait); pendingEvents.splice(0).forEach(f => f()); } }, 100); };
   document.head.appendChild(tag);
-}
-// custom events show up in the dashboard as paths like "race-start/delhi"
-function trackEvent(event, title) {
-  if (!analyticsOn) return;
-  try { if (window.goatcounter && window.goatcounter.count) window.goatcounter.count({ path: event, title: title || event, event: true }); } catch (e) { /* never break the game */ }
+  trackEvent(deviceSummary(), 'Device · OS · browser');
 }
 
 const store = {

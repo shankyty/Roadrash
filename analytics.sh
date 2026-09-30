@@ -31,6 +31,11 @@ summarise_export() {
     def ispage: . as $id | pages | index($id) != null;
     def sumby(f): group_by(f) | map({key: (.[0] | f), n: (map(.count) | add)}) | sort_by(-.n);
     def bar(n; max): "#" * ((n * 20 / (if max == 0 then 1 else max end)) | ceil);
+    def events(prefix; empty):
+      [$hits[] | . as $h | ($paths[] | select(.id == $h.path_id and .event == true and (.path | startswith(prefix)))) as $p | {path: $p.path, count: $h.count}]
+      | sumby(.path) as $ev | ($ev | map(.n) | max // 0) as $max
+      | if ($ev | length) == 0 then empty
+        else ($ev[] | "  \((.key | ltrimstr("device/") | gsub("/"; " · ")) + "                                  " | .[0:34]) \(.n | tostring | "   " + . | .[-4:])  \(bar(.n; $max))") end;
 
     ($locs | map({key: (if .region == "" then .country else .country + "-" + .region end), value: .}) | from_entries) as $locname
     | ($systems | map({key: (.id | tostring), value: .name}) | from_entries) as $sysname
@@ -63,10 +68,11 @@ summarise_export() {
       ( [$hits[] | select(.path_id | ispage)] | sumby(.ref_id)[]
         | "  \(($refname[.key | tostring] // "") | if . == "" then "direct link (WhatsApp, typed, bookmarks)" else . end)  \(.n)" ),
       "",
+      "Device · OS · browser (per visit):",
+      events("device/"; "  not recorded yet (added in the latest website update)"),
+      "",
       "Races:",
-      ( [$hits[] | . as $h | ($paths[] | select(.id == $h.path_id and .event == true)) as $p | {path: $p.path, count: $h.count}]
-        | sumby(.path) as $ev | ($ev | map(.n) | max // 0) as $max
-        | if ($ev | length) == 0 then "  none yet" else ($ev[] | "  \(.key + "                                  " | .[0:34]) \(.n | tostring | "   " + . | .[-4:])  \(bar(.n; $max))") end )
+      events("race-"; "  none yet")
   '
 }
 

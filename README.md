@@ -87,10 +87,11 @@ The app is only ad-hoc signed, not notarized. On another Mac, the first launch n
 The website uses [GoatCounter](https://www.goatcounter.com): no cookies and no personal data. The dashboard is **https://roadrash-shankyty.goatcounter.com**. As well as page views, it records these events:
 - `race-start/<city>/<track>`, for example `race-start/delhi/delhi`, each time a race begins.
 - `race-finish/<place>`, for example `race-finish/1st`, when a race ends.
+- `device/<kind>/<os>/<browser>`, for example `device/phone/iOS/WhatsApp-in-app`, once per visit. It records which device, OS and browser were used together.
 
 Nothing is sent from localhost or from the Mac app.
 
-To see a summary of who is playing (countries and states, devices, where visitors came from, races per city), download an export from the dashboard (**Settings → Export**) and run:
+To see a summary of who is playing (countries and states, device + OS + browser combinations, where visitors came from, races per city), download an export from the dashboard (**Settings → Export**) and run:
 
 ```bash
 ./analytics.sh
