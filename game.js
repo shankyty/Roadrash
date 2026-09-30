@@ -18,13 +18,13 @@ const TUK_NW = 0.27; // auto-rickshaw width, normalised to half road width
 const FONT = '"Bungee", Impact, "Arial Black", sans-serif';
 
 const TRACKS = [
-  { name: 'MUMBAI · MARINE DRIVE', theme: 'marine', length: 2600, laps: 1, rivals: 5, skill: 0.86, traffic: 34, cows: 8, seed: 11 },
-  { name: 'HYDERABAD · CHARMINAR ROAD', theme: 'hyderabad', length: 2800, laps: 1, rivals: 6, skill: 0.88, traffic: 40, cows: 12, seed: 37 },
-  { name: 'MUMBAI · BANDRA-WORLI SEA LINK', theme: 'sealink', length: 3000, laps: 1, rivals: 6, skill: 0.9, traffic: 46, cows: 0, seed: 27 },
-  { name: 'DELHI · RING ROAD', theme: 'delhi', length: 3100, laps: 1, rivals: 7, skill: 0.92, traffic: 50, cows: 16, seed: 61 },
-  { name: 'MUMBAI · WESTERN EXPRESS HIGHWAY', theme: 'express', length: 3200, laps: 1, rivals: 7, skill: 0.94, traffic: 52, cows: 14, seed: 53 },
-  { name: 'CHENNAI · MARINA BEACH ROAD', theme: 'chennai', length: 3400, laps: 1, rivals: 7, skill: 0.96, traffic: 44, cows: 16, seed: 73 },
-  { name: 'MUMBAI · JUHU BEACH ROAD', theme: 'juhu', length: 3600, laps: 1, rivals: 7, skill: 0.97, traffic: 44, cows: 18, seed: 91 },
+  { name: 'MUMBAI · MARINE DRIVE', theme: 'marine', length: 2600, laps: 1, rivals: 5, skill: 0.86, traffic: 34, cows: 8, dogs: 14, seed: 11 },
+  { name: 'HYDERABAD · CHARMINAR ROAD', theme: 'hyderabad', length: 2800, laps: 1, rivals: 6, skill: 0.88, traffic: 40, cows: 12, dogs: 18, seed: 37 },
+  { name: 'MUMBAI · BANDRA-WORLI SEA LINK', theme: 'sealink', length: 3000, laps: 1, rivals: 6, skill: 0.9, traffic: 46, cows: 0, dogs: 0, seed: 27 },
+  { name: 'DELHI · RING ROAD', theme: 'delhi', length: 3100, laps: 1, rivals: 7, skill: 0.92, traffic: 50, cows: 16, dogs: 18, seed: 61 },
+  { name: 'MUMBAI · WESTERN EXPRESS HIGHWAY', theme: 'express', length: 3200, laps: 1, rivals: 7, skill: 0.94, traffic: 52, cows: 14, dogs: 12, seed: 53 },
+  { name: 'CHENNAI · MARINA BEACH ROAD', theme: 'chennai', length: 3400, laps: 1, rivals: 7, skill: 0.96, traffic: 44, cows: 16, dogs: 20, seed: 73 },
+  { name: 'MUMBAI · JUHU BEACH ROAD', theme: 'juhu', length: 3600, laps: 1, rivals: 7, skill: 0.97, traffic: 44, cows: 18, dogs: 18, seed: 91 },
 ];
 const PRIZES = [1500, 1000, 700, 400, 200, 100, 50, 0];
 const RIVAL_NAMES = ['RAJU', 'PAPPU', 'BABLU', 'CHINTU', 'MUNNA', 'GUDDU', 'TINKU', 'BUNTY', 'SONU', 'LALLU'];
@@ -286,6 +286,8 @@ const Sfx = {
   crash() { this.noise(0.8, 0.6, 700); this.tone(90, 0.6, 'sine', 0.5, 30); this.noise(0.3, 0.3, 4000, 0.1); },
   bump() { this.tone(90, 0.12, 'sine', 0.4, 60); this.noise(0.08, 0.2, 900); },
   grunt() { this.tone(rand(170, 230), 0.22, 'sawtooth', 0.12, 110, 0, 900); },
+  bark() { this.tone(560, 0.08, 'sawtooth', 0.14, 330, 0, 1600); this.noise(0.05, 0.08, 2200); this.tone(520, 0.08, 'sawtooth', 0.12, 300, 0.14, 1600); },
+  yelp() { this.tone(900, 0.12, 'triangle', 0.16, 1500); this.tone(1300, 0.22, 'triangle', 0.12, 700, 0.12); },
   moo() { this.tone(150, 1.0, 'sawtooth', 0.14, 100, 0, 500); },
   beep(hi) { this.tone(hi ? 880 : 520, hi ? 0.4 : 0.18, 'square', 0.14, null, 0, 2500); },
   ko() { this.tone(700, 0.5, 'triangle', 0.25, 140); },
@@ -906,12 +908,78 @@ const SKYLINES = {
   chennai: { far: makeChennaiFar, near: makeChennaiNear },
 };
 
+// Indian street dogs: side view (trotting, 2 frames), rear view (chasing, 2 frames), curled up asleep.
+const DOG_COATS = [
+  { body: '#c8955a', belly: '#ecca98', dark: '#9c6c3a' },
+  { body: '#2e2a28', belly: '#4a4440', dark: '#1a1716' },
+  { body: '#ece4d4', belly: '#ffffff', dark: '#c9bca5', spots: '#8a5a3a' },
+];
+function makeDogSide(coat, frame) {
+  const c = mk(200, 136), g = c.getContext('2d');
+  g.fillStyle = 'rgba(0,0,0,.28)'; ell(g, 100, 126, 66, 6); g.fill();
+  const angles = frame ? [-0.22, 0.26, -0.26, 0.22] : [0.36, -0.26, 0.3, -0.32];
+  g.lineCap = 'round';
+  [[132, coat.dark], [60, coat.dark], [146, coat.body], [74, coat.body]].forEach(([bx, col], i) => {
+    const a = angles[i]; g.strokeStyle = col; g.lineWidth = 9;
+    g.beginPath(); g.moveTo(bx, 80); g.lineTo(bx + Math.sin(a) * 22, 100); g.lineTo(bx + Math.sin(a) * 30, 121); g.stroke();
+  });
+  // curled tail over the back
+  g.strokeStyle = coat.body; g.lineWidth = 8;
+  g.beginPath(); g.moveTo(52, 66); g.quadraticCurveTo(30, 40, 50, 30); g.quadraticCurveTo(64, 26, 60, 44); g.stroke();
+  g.fillStyle = coat.body; ell(g, 100, 72, 54, 21); g.fill();
+  g.fillStyle = coat.belly; ell(g, 104, 84, 40, 8); g.fill();
+  if (coat.spots) { g.fillStyle = coat.spots; ell(g, 84, 64, 16, 11); g.fill(); ell(g, 118, 70, 9, 7); g.fill(); }
+  // neck, head, pointed ears, snout
+  g.fillStyle = coat.body; g.beginPath(); g.moveTo(136, 60); g.lineTo(150, 38); g.lineTo(170, 52); g.lineTo(150, 82); g.closePath(); g.fill();
+  ell(g, 160, 46, 18, 14); g.fill();
+  g.fillStyle = coat.dark; g.beginPath(); g.moveTo(148, 38); g.lineTo(154, 12); g.lineTo(165, 34); g.closePath(); g.fill();
+  g.fillStyle = coat.body; g.beginPath(); g.moveTo(152, 36); g.lineTo(156, 18); g.lineTo(162, 34); g.closePath(); g.fill();
+  g.fillStyle = coat.belly; ell(g, 178, 54, 13, 7, 0.15); g.fill();
+  g.fillStyle = '#111'; ell(g, 190, 52, 4, 3.5); g.fill(); ell(g, 166, 42, 2.6, 2.6); g.fill();
+  return c;
+}
+function makeDogRear(coat, frame) {
+  const c = mk(110, 132), g = c.getContext('2d');
+  g.fillStyle = 'rgba(0,0,0,.28)'; ell(g, 55, 126, 34, 5); g.fill();
+  g.lineCap = 'round'; g.strokeStyle = coat.dark; g.lineWidth = 12;
+  g.beginPath(); g.moveTo(40, 86); g.lineTo(38, frame ? 110 : 122); g.stroke();
+  g.beginPath(); g.moveTo(70, 86); g.lineTo(72, frame ? 122 : 110); g.stroke();
+  g.fillStyle = coat.body; ell(g, 55, 36, 17, 15); g.fill();
+  g.fillStyle = coat.dark;
+  g.beginPath(); g.moveTo(40, 32); g.lineTo(42, 8); g.lineTo(52, 26); g.fill();
+  g.beginPath(); g.moveTo(70, 32); g.lineTo(68, 8); g.lineTo(58, 26); g.fill();
+  g.fillStyle = coat.body; ell(g, 55, 72, 27, 28); g.fill();
+  if (coat.spots) { g.fillStyle = coat.spots; ell(g, 46, 66, 11, 13); g.fill(); }
+  g.strokeStyle = coat.body; g.lineWidth = 8;
+  g.beginPath(); g.moveTo(55, 52); g.quadraticCurveTo(frame ? 76 : 36, 34, 55, 24); g.stroke();
+  return c;
+}
+function makeDogSleep(coat) {
+  const c = mk(190, 84), g = c.getContext('2d');
+  g.fillStyle = 'rgba(0,0,0,.25)'; ell(g, 95, 76, 78, 7); g.fill();
+  g.fillStyle = coat.body; ell(g, 90, 56, 62, 20); g.fill();
+  if (coat.spots) { g.fillStyle = coat.spots; ell(g, 76, 48, 18, 10); g.fill(); }
+  g.fillStyle = coat.belly; ell(g, 96, 68, 46, 7); g.fill();
+  g.strokeStyle = coat.body; g.lineWidth = 8; g.lineCap = 'round';
+  g.beginPath(); g.moveTo(32, 60); g.quadraticCurveTo(40, 80, 90, 74); g.stroke();
+  g.fillStyle = coat.body; ell(g, 150, 60, 20, 13); g.fill();
+  g.fillStyle = coat.belly; ell(g, 168, 64, 11, 6); g.fill();
+  g.fillStyle = '#111'; ell(g, 178, 63, 3, 2.6); g.fill();
+  g.strokeStyle = '#111'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(152, 56); g.lineTo(160, 57); g.stroke();
+  g.fillStyle = coat.dark; g.beginPath(); g.moveTo(138, 52); g.lineTo(128, 40); g.lineTo(146, 48); g.fill();
+  return c;
+}
+
 // ------------------------------------------------------------------ sprites registry
 const SP = {};
 function buildSharedSprites() {
   SP.player = makeTuk('#1e9e4a', '#ffd21f', '#151515', 'DL 1R 4207');
   SP.rivals = RIVAL_COLORS.map(c => makeTuk(c.body, c.trim, c.canopy, c.plate));
   SP.cowR = makeCow(); SP.cowL = flipped(SP.cowR);
+  SP.dogs = DOG_COATS.map(coat => {
+    const side = [makeDogSide(coat, 0), makeDogSide(coat, 1)];
+    return { right: side, left: side.map(flipped), rear: [makeDogRear(coat, 0), makeDogRear(coat, 1)], sleep: makeDogSleep(coat) };
+  });
   SP.cars = [makeCar('#e9e9ea'), makeCar('#b71c1c'), makeCar('#1f4e9c'), makeCar('#9e9e9e')];
   SP.bus = makeBus(); SP.truck = makeTruck();
   SP.palm = makePalm(); SP.palmF = flipped(SP.palm);
@@ -1050,6 +1118,13 @@ function setupRace() {
   };
   for (let i = 0; i < track.traffic; i++) addTraffic(pick(['car', 'car', 'bus', 'truck'], tr));
   for (let i = 0; i < track.cows; i++) addTraffic('cow');
+  for (let i = 0; i < (track.dogs || 0); i++) {
+    const z = startZ + 3000 + tr() * (trackLength - 8000), r = tr();
+    const mode = r < 0.35 ? 'sleep' : r < 0.75 ? 'sit' : 'cross';
+    const x = mode === 'sleep' ? rand(-0.9, 0.9) : mode === 'sit' ? pick([-1, 1], tr) * rand(1.15, 1.5) : rand(-1.2, 1.2);
+    traffic.push({ type: 'dog', label: 'DOG', z, x, speed: 0, vx: mode === 'cross' ? pick([-1, 1], tr) * rand(0.25, 0.4) : 0,
+      mode, t: tr() * 3, look: SP.dogs[Math.floor(tr() * SP.dogs.length)], tried: false, barkT: 0, img: null, nw: 0.2 });
+  }
 
   finishDist = startZ + track.laps * trackLength;
   finishOrder = []; results = null; particles = []; popups = []; messages = []; bubbles = [];
@@ -1160,6 +1235,7 @@ function honk() {
     const dz = wrapDelta(c.z - player.dist);
     if (dz < 0 || dz > 3000) continue;
     if (c.type === 'cow') { c.vx = (c.x >= player.x ? 1 : -1) * 0.7; c.scared = 2.5; }
+    else if (c.type === 'dog') { if (c.mode === 'sleep' || c.mode === 'sit') { c.mode = 'cross'; c.vx = (c.x >= player.x ? 1 : -1) * 0.9; } }
     else if (Math.abs(c.x - player.x) < 0.5) {
       let nx = c.x + (c.x >= player.x ? 0.66 : -0.66);
       if (Math.abs(nx) > 0.7) nx = c.x - Math.sign(nx) * 0.66 * 2;
@@ -1344,8 +1420,49 @@ function updateRivals(dt) {
   }
 }
 
+// Stray dogs sleep on the road, trot across it, or sit by the roadside and chase passing autos.
+function updateDog(c, dt) {
+  c.t += dt; c.barkT -= dt;
+  const dz = wrapDelta(c.z - player.dist), sp = player.speed / MAX_SPEED;
+  if (Math.abs(dz) > 2500) c.tried = false;
+  if (c.mode === 'sleep' && dz > 0 && dz < 700 && sp > 0.2 && !c.tried) {
+    c.tried = true;
+    if (Math.random() < 0.6) { c.mode = 'cross'; c.vx = (c.x >= player.x ? 1 : -1) * 0.9; }
+  }
+  if (c.mode === 'sit' && !c.tried && dz > -150 && dz < 450 && Math.abs(c.x - player.x) < 1.6 && sp > 0.25 && state === 'race') {
+    c.tried = true;
+    if (Math.random() < 0.75) { c.mode = 'chase'; c.chaseT = rand(3, 5); c.side = Math.sign(c.x - player.x) || 1; c.speed = Math.min(player.speed * 0.8, MAX_SPEED * 0.45); }
+  }
+  if (c.mode === 'cross') {
+    c.x += c.vx * dt;
+    if (Math.abs(c.x) > 1.5) { c.x = Math.sign(c.x) * 1.5; c.vx = 0; c.mode = 'sit'; }
+  } else if (c.mode === 'chase') {
+    c.chaseT -= dt;
+    // run alongside the front wheel (a little ahead of the auto) until it outpaces the dog
+    const top = MAX_SPEED * 0.45;
+    c.speed += clamp(clamp(player.speed + (220 - dz) * 2, 0, top) - c.speed, -MAX_SPEED * dt, MAX_SPEED * 0.6 * dt);
+    const tx = clamp(player.x + c.side * 0.32, -1.6, 1.6);
+    c.x += clamp(tx - c.x, -1.2 * dt, 1.2 * dt);
+    if (c.barkT <= 0 && Math.abs(dz) < 900) {
+      c.barkT = rand(0.35, 0.7); Sfx.bark();
+      const s = c.scr && c.scr.frame === frameNo ? c.scr : null;
+      popup(pick(['BHOW!', 'BHOW BHOW!', 'WOOF!', 'GRRR!']), s ? s.x : W / 2 + c.side * 190, s ? s.y : H - 210, '#fff', 20);
+    }
+    if (c.chaseT <= 0 || dz < -700) { c.mode = 'sit'; c.tx = Math.sign(c.x || 1) * 1.3; }
+  } else {
+    c.speed = Math.max(0, c.speed - MAX_SPEED * dt);
+    if (c.mode === 'sit' && c.tx !== undefined) c.x += clamp(c.tx - c.x, -0.6 * dt, 0.6 * dt);
+  }
+  c.z = (c.z + c.speed * dt + trackLength) % trackLength;
+  const frame = Math.floor(c.t * (c.mode === 'chase' ? 12 : 7)) % 2;
+  if (c.mode === 'sleep') { c.img = c.look.sleep; c.nw = 0.2; }
+  else if (c.mode === 'chase') { c.img = c.look.rear[frame]; c.nw = 0.1; }
+  else if (c.mode === 'cross') { c.img = (c.vx > 0 ? c.look.right : c.look.left)[frame]; c.nw = 0.2; }
+  else { c.img = (c.x > 0 ? c.look.left : c.look.right)[0]; c.nw = 0.2; }
+}
 function updateTraffic(dt) {
   for (const c of traffic) {
+    if (c.type === 'dog') { updateDog(c, dt); continue; }
     if (c.type === 'cow') {
       c.scared -= dt;
       if (c.pause > 0) c.pause -= dt;
@@ -1377,6 +1494,13 @@ function checkCollisions() {
     const dz = wrapDelta(c.z - player.dist);
     if (dz < -60 || dz > 230 || !overlap(player.x, pw * 0.85, c.x, c.nw * 0.85)) continue;
     if (player.speed <= c.speed) continue;
+    if (c.type === 'dog') { // the dog always leaps clear; you lose speed swerving
+      if (c.mode === 'chase') continue;
+      Sfx.yelp(); c.mode = 'cross'; c.vx = (c.x >= player.x ? 1 : -1) * 1.1; c.x += Math.sign(c.vx) * 0.25; c.tried = true;
+      player.speed *= 0.75; player.lean -= Math.sign(c.vx) * 0.4; shake = 0.12;
+      popup('KAI KAI!', W / 2 + Math.sign(c.vx) * 120, H - 250, '#fff', 22);
+      return;
+    }
     const rel = (player.speed - c.speed) / MAX_SPEED;
     if (c.type === 'cow') { Sfx.moo(); c.vx = (c.x >= player.x ? 1 : -1) * 0.8; c.scared = 2; }
     if (rel > 0.3) { crashPlayer(`SMASHED INTO A ${c.label}!`, 20 + rel * 25); player.speed = c.speed * 0.3; }
@@ -1614,7 +1738,7 @@ function render() {
         const y = cy - destH + bounce;
         if (y + destH <= seg.clip + destH * 0.5) drawTuk(car.img, cx - destW / 2, y, destW, destH, car.rot, car.atk, car.hurt);
         car.scr = { x: cx, y: cy - destH * 1.1, w: destW, frame: frameNo };
-      } else drawSprite(car.img, cx - destW / 2, cy - destH, destW, destH, seg.clip);
+      } else { drawSprite(car.img, cx - destW / 2, cy - destH, destW, destH, seg.clip); car.scr = { x: cx, y: cy - destH * 1.2, w: destW, frame: frameNo }; }
     }
     if (seg === playerSeg) drawPlayer(playerSeg, playerPct);
   }
@@ -1873,5 +1997,5 @@ function frame(now) {
 requestAnimationFrame(frame);
 // expose for debugging
 window.__rrr = { get state() { return state; }, player, get rivals() { return rivals; }, get results() { return results; }, setupRace,
-  step(n) { for (let i = 0; i < n; i++) update(STEP); render(); }, keys, Sfx, SKYLINES, THEMES, get bubbles() { return bubbles; }, setLevel(l) { level = l; unlocked = Math.max(unlocked, l); attractSetup(); } };
+  step(n) { for (let i = 0; i < n; i++) update(STEP); render(); }, keys, Sfx, SKYLINES, THEMES, SP, get traffic() { return traffic; }, get bubbles() { return bubbles; }, setLevel(l) { level = l; unlocked = Math.max(unlocked, l); attractSetup(); } };
 })();
