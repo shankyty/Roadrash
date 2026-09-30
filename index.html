@@ -4,6 +4,18 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
 <title>Road Rash: Rickshaw Rumble</title>
+<meta name="description" content="Road Rash with an auto-rickshaw! Race through Mumbai, Hyderabad, Delhi and Chennai, swing your lathi at rival autos and dodge the cows.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Road Rash: Rickshaw Rumble 🛺">
+<meta property="og:description" content="Road Rash with an auto-rickshaw! Race through Mumbai, Hyderabad, Delhi and Chennai, swing your lathi at rival autos and dodge the cows. Play free in your browser.">
+<meta property="og:url" content="https://shankyty.github.io/Roadrash/">
+<meta property="og:image" content="https://shankyty.github.io/Roadrash/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#120b1c">
+<link rel="icon" type="image/png" href="icon.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bungee&display=swap" rel="stylesheet">
 <style>
@@ -21,9 +33,16 @@
     user-select: none; -webkit-user-select: none; touch-action: none;
   }
   .tbtn.down { background: rgba(255, 200, 0, .5); }
+  .tbtn.small { width: 44px; height: 44px; font-size: 16px; }
+  #rotate {
+    display: none; position: fixed; inset: 0; z-index: 10; background: var(--bg); color: #ffd21f;
+    font: 700 20px system-ui, sans-serif; text-align: center; align-items: center; justify-content: center; padding: 24px;
+  }
+  @media (orientation: portrait) and (pointer: coarse) { #rotate { display: flex; } }
 </style>
 </head>
 <body>
+<div id="rotate">🛺<br><br>Rotate your phone to landscape to play</div>
 <div id="wrap">
   <canvas id="game" width="960" height="540"></canvas>
   <div id="touch">
@@ -35,6 +54,7 @@
     <div class="tbtn" data-key="T_down"  style="right:88px;bottom:84px">BRAKE</div>
     <div class="tbtn" data-key="T_horn"       style="right:12px;bottom:10px">HORN</div>
     <div class="tbtn" data-key="Enter"      style="right:88px;bottom:10px">OK</div>
+    <div class="tbtn small" data-key="Escape" style="right:12px;top:12px">❚❚</div>
   </div>
 </div>
 <script src="game.js"></script>
