@@ -144,6 +144,22 @@ function project(p, camX, camY, camZ) {
   p.screen.y = Math.round(H / 2 - p.screen.scale * p.camera.y * H / 2);
   p.screen.w = Math.round(p.screen.scale * ROAD_W * W / 2);
 }
+// ------------------------------------------------------------------ analytics
+// GoatCounter (no cookies, no personal data). Only on the published website, so local
+// testing and the Mac app (file://) are never counted. Dashboard: roadrash-shankyty.goatcounter.com
+const GOATCOUNTER = 'https://roadrash-shankyty.goatcounter.com/count';
+const analyticsOn = /^https?:$/.test(location.protocol) && !/^(localhost|127\.|\[::1\]|.*\.localhost$)/.test(location.hostname);
+if (analyticsOn) {
+  const tag = document.createElement('script');
+  tag.async = true; tag.src = '//gc.zgo.at/count.js'; tag.dataset.goatcounter = GOATCOUNTER;
+  document.head.appendChild(tag);
+}
+// custom events show up in the dashboard as paths like "race-start/delhi"
+function trackEvent(event, title) {
+  if (!analyticsOn) return;
+  try { if (window.goatcounter && window.goatcounter.count) window.goatcounter.count({ path: event, title: title || event, event: true }); } catch (e) { /* never break the game */ }
+}
+
 const store = {
   get(k, d) { try { const v = localStorage.getItem('rrr_' + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem('rrr_' + k, JSON.stringify(v)); } catch (e) { /* ignore */ } },
@@ -1227,6 +1243,8 @@ function wrapDelta(d) { d = ((d % trackLength) + trackLength) % trackLength; ret
 
 // ------------------------------------------------------------------ race setup
 function setupRace() {
+  const next = TRACKS[level % TRACKS.length];
+  trackEvent(`race-start/${THEMES[next.theme].city}/${next.theme}`, `Race started: ${next.name}`);
   loadTrack(level);
   resetPlayer();
   const diff = 1 + round * 0.04;
@@ -1714,6 +1732,7 @@ function buildResults() {
   const prize = PRIZES[rank - 1] || 0, bonus = player.kos * 100;
   cash += prize + bonus;
   results = { order, rank, prize, bonus, qualified: rank <= 3 };
+  trackEvent(`race-finish/${ordinal(rank)}`, `Finished ${ordinal(rank)}: ${track.name}`);
   store.set('cash', cash);
   state = 'results';
 }

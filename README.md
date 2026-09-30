@@ -82,6 +82,14 @@ The app is only ad-hoc signed, not notarized. On another Mac, the first launch n
 
 `./deploy-web.sh` publishes the committed `web/` folder to the `gh-pages` branch, which GitHub Pages serves.
 
+## Analytics
+
+The website uses [GoatCounter](https://www.goatcounter.com): no cookies and no personal data. The dashboard is **https://roadrash-shankyty.goatcounter.com**. As well as page views, it records these events:
+- `race-start/<city>/<track>`, for example `race-start/delhi/delhi`, each time a race begins.
+- `race-finish/<place>`, for example `race-finish/1st`, when a race ends.
+
+Nothing is sent from localhost or from the Mac app.
+
 ## Credits
 
 - Street ambience (trimmed, loudness-normalised loops in `web/ambience-*.js`):
