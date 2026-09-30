@@ -1,5 +1,11 @@
 # Changelog
 
+## v2.7.3: Real truck and bus horns
+
+- **Trucks** now blast a real **musical Indian truck horn** (two takes), and **buses** a real **deep air horn**, both cut from a street recording made in Jaipur. They still come from the vehicle's position on the road, and an angry driver you've just overtaken hits it twice.
+- Cars and rival autos keep their beeps.
+- Credit: "bus_india.WAV" by Anton (CC BY 4.0).
+
 ## v2.7.2: Real dogs and cows
 
 - **Dogs and cows now use real recordings** instead of synthesised sounds: two dog barks, a bark-and-growl for chasing dogs and dogs you honk at, and two field-recorded cow moos. Each animal's pitch varies slightly, so they don't all sound the same.

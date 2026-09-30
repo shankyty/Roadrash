@@ -113,5 +113,6 @@ It picks up the newest `goatcounter-export-*.zip` in this folder or in `~/Downlo
   - Dog bark: ["Dog Bark 9"](https://freesound.org/s/853723/) by **AleXZavesa**, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
   - Dog bark and growl: ["Animal Dog Bark And Growl 01"](https://freesound.org/s/625501/) by abhisheky948, CC0.
   - Cow moos: ["Cow moo #8"](https://freesound.org/s/513565/) by spurioustransients, CC0.
+- Truck and bus horns (`web/horns.js`): cut from ["bus_india.WAV"](https://freesound.org/s/22721/) by **Anton** (a busy street in Jaipur), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 - Music: original compositions, synthesised in real time by the game.
 - Engine sound: ["Auto Rickshaw - Start, Idle, Revving"](https://freesound.org/s/261051/) by **kalhan** (recorded at an NID sound-design workshop), licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). It was trimmed into a start clip plus idle and rev loops, level-adjusted and resampled (`web/sounds.js`).
