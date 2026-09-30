@@ -1136,7 +1136,7 @@ function buildSharedSprites() {
 // ------------------------------------------------------------------ world state
 let segments = [], trackLength = 0, theme = THEMES.marine, themeSprites = {}, bgLayers = {};
 let track = TRACKS[0], level = clamp(store.get('level', 0), 0, TRACKS.length - 1), cash = store.get('cash', 0), round = store.get('round', 0);
-let unlocked = clamp(Math.max(store.get('unlocked', 0), level), 0, TRACKS.length - 1);
+const unlocked = TRACKS.length - 1; // every race is open from the start
 let state = 'title', paused = false, pauseSel = 0, countdown = 0, raceTime = 0, finishTimer = 0, finishDist = 0, startZ = 0;
 let position = 0, skyOffset = 0, farOffset = 0, nearOffset = 0, shake = 0;
 let rivals = [], traffic = [], finishOrder = [], results = null;
@@ -1720,7 +1720,6 @@ function buildResults() {
 
 function advanceAfterResults() {
   if (results.qualified) {
-    unlocked = clamp(Math.max(unlocked, level + 1), 0, TRACKS.length - 1); store.set('unlocked', unlocked);
     level++;
     if (level >= TRACKS.length) { level = 0; round++; store.set('round', round); store.set('level', level); state = 'champion'; attractSetup(); return; }
     store.set('level', level);
@@ -2081,8 +2080,7 @@ function drawTitle() {
   text('\u25c0', W / 2 - 232, 425, 16, canL ? '#ffd21f' : 'rgba(255,255,255,.2)');
   text('\u25b6', W / 2 + 232, 425, 16, canR ? '#ffd21f' : 'rgba(255,255,255,.2)');
   text(TRACKS[level].name, W / 2, 425, 16, '#fff');
-  const locked = TRACKS.length - 1 - unlocked;
-  text(`Race ${level + 1} of ${TRACKS.length}${locked ? `  \u00b7  finish top 3 to unlock ${locked} more` : ''}  \u00b7  \u2190 \u2192 choose  \u00b7  Wallet ${fmtCash(cash)}${round ? `  \u00b7  Tour ${round + 1}` : ''}`, W / 2, 500, 12, '#ffcc80', 'center', 'system-ui, sans-serif');
+  text(`Race ${level + 1} of ${TRACKS.length}  \u00b7  \u2190 \u2192 choose  \u00b7  Wallet ${fmtCash(cash)}${round ? `  \u00b7  Tour ${round + 1}` : ''}`, W / 2, 500, 12, '#ffcc80', 'center', 'system-ui, sans-serif');
   text('Mind the tip-over: three wheels don\'t like sharp turns at full speed!', W / 2, 522, 12, '#ddd', 'center', 'system-ui, sans-serif');
   text('Engine: "Auto Rickshaw - Start, Idle, Revving" by kalhan \u00b7 Chennai street: Nielsvdb \u00b7 both CC BY 4.0 via freesound.org', W - 8, 534, 8, 'rgba(255,255,255,.45)', 'right', 'system-ui, sans-serif', false);
 }
@@ -2162,5 +2160,5 @@ function frame(now) {
 requestAnimationFrame(frame);
 // expose for debugging
 window.__rrr = { get state() { return state; }, player, get rivals() { return rivals; }, get results() { return results; }, setupRace,
-  step(n) { for (let i = 0; i < n; i++) update(STEP); render(); }, keys, Sfx, Music, Ambience, SKYLINES, THEMES, SP, get traffic() { return traffic; }, get bubbles() { return bubbles; }, setLevel(l) { level = l; unlocked = Math.max(unlocked, l); attractSetup(); } };
+  step(n) { for (let i = 0; i < n; i++) update(STEP); render(); }, keys, Sfx, Music, Ambience, SKYLINES, THEMES, SP, get traffic() { return traffic; }, get bubbles() { return bubbles; }, setLevel(l) { level = l; attractSetup(); } };
 })();

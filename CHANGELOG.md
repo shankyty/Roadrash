@@ -1,5 +1,10 @@
 # Changelog
 
+## v2.5.0: All tracks open
+
+- All 7 races across Mumbai, Hyderabad, Delhi and Chennai are **unlocked from the start**. Pick any of them on the title screen with ← →.
+- Finishing in the top 3 still earns prize money and takes you on to the next race when you press **Enter** on the results screen.
+
 ## v2.4.0: City music, hawkers and street sounds 🎶
 
 ### Music for every city
