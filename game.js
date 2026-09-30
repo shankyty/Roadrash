@@ -18,10 +18,13 @@ const TUK_NW = 0.27; // auto-rickshaw width, normalised to half road width
 const FONT = '"Bungee", Impact, "Arial Black", sans-serif';
 
 const TRACKS = [
-  { name: 'MARINE DRIVE', theme: 'marine', length: 2600, laps: 1, rivals: 5, skill: 0.86, traffic: 34, cows: 8, seed: 11 },
-  { name: 'BANDRA-WORLI SEA LINK', theme: 'sealink', length: 3000, laps: 1, rivals: 6, skill: 0.9, traffic: 46, cows: 0, seed: 27 },
-  { name: 'WESTERN EXPRESS HIGHWAY', theme: 'express', length: 3200, laps: 1, rivals: 7, skill: 0.94, traffic: 52, cows: 14, seed: 53 },
-  { name: 'JUHU BEACH ROAD', theme: 'juhu', length: 3600, laps: 1, rivals: 7, skill: 0.97, traffic: 44, cows: 18, seed: 91 },
+  { name: 'MUMBAI · MARINE DRIVE', theme: 'marine', length: 2600, laps: 1, rivals: 5, skill: 0.86, traffic: 34, cows: 8, seed: 11 },
+  { name: 'HYDERABAD · CHARMINAR ROAD', theme: 'hyderabad', length: 2800, laps: 1, rivals: 6, skill: 0.88, traffic: 40, cows: 12, seed: 37 },
+  { name: 'MUMBAI · BANDRA-WORLI SEA LINK', theme: 'sealink', length: 3000, laps: 1, rivals: 6, skill: 0.9, traffic: 46, cows: 0, seed: 27 },
+  { name: 'DELHI · RING ROAD', theme: 'delhi', length: 3100, laps: 1, rivals: 7, skill: 0.92, traffic: 50, cows: 16, seed: 61 },
+  { name: 'MUMBAI · WESTERN EXPRESS HIGHWAY', theme: 'express', length: 3200, laps: 1, rivals: 7, skill: 0.94, traffic: 52, cows: 14, seed: 53 },
+  { name: 'CHENNAI · MARINA BEACH ROAD', theme: 'chennai', length: 3400, laps: 1, rivals: 7, skill: 0.96, traffic: 44, cows: 16, seed: 73 },
+  { name: 'MUMBAI · JUHU BEACH ROAD', theme: 'juhu', length: 3600, laps: 1, rivals: 7, skill: 0.97, traffic: 44, cows: 18, seed: 91 },
 ];
 const PRIZES = [1500, 1000, 700, 400, 200, 100, 50, 0];
 const RIVAL_NAMES = ['RAJU', 'PAPPU', 'BABLU', 'CHINTU', 'MUNNA', 'GUDDU', 'TINKU', 'BUNTY', 'SONU', 'LALLU'];
@@ -35,10 +38,19 @@ const RIVAL_COLORS = [
   { body: '#00a896', trim: '#fff3b0', canopy: '#1a1a1a', plate: 'WB 04 KO' },
 ];
 const HIT_WORDS = ['DHISHOOM!', 'DHISHKYAON!', 'THAPPAD!', 'DHAMAKA!', 'BAM!'];
+// What a driver shouts after taking a lathi hit, in the local street slang of the race's city.
+const CURSES = {
+  mumbai: ['ABE O HERO!', 'KYA RE, DIMAAG KHARAB?', 'AYE BHIDU, SAMBHAL KE!', 'APUN KO MAARA?!', 'CHAL NIKAL!', 'WAAT LAGA DUNGA!', 'GHANTA!'],
+  hyderabad: ['KYA RE MIYAN!', 'NAKKO RE!', 'HAU, AB DEKH!', 'EK DENGA NA!', 'KAIKU MAARA?!', 'CHUP BAITH!', 'BAIGAN!'],
+  delhi: ['OYE! JAANTA HAI MERA BAAP KAUN HAI?', 'ABEY OYE!', 'KYA KAR RAHA HAI YAAR!', 'TERI TOH...!', 'BADTAMEEZ!', 'OYE HOYE!', 'BHAI SAHAB, DHANG SE!'],
+  chennai: ['DEI!', 'ENNA DA?!', 'PODA!', 'AIYYO!', 'ENNA MACHAAN?!', 'SUMMA IRU DA!', 'ITHU TOO MUCH DA!'],
+};
 
-// Every race is in Mumbai: the backdrop is always the Mumbai skyline, lit differently per time of day.
+// Each theme picks a city skyline (SKYLINES) plus sky, road colours and city-specific billboards.
+// `sea` is the band at the foot of the skyline: sea, lake or lawns depending on the city.
+const MUMBAI_ADS = [['CUTTING CHAI', '₹10 ONLY'], ['VADA PAV', 'KING']];
 const THEMES = {
-  marine: { // sunset over the Queen's Necklace
+  marine: { city: 'mumbai', ads: MUMBAI_ADS, // sunset over the Queen's Necklace
     sky: ['#2b1e5a', '#c2477a', '#ffae5a'], sun: '#ffe2a0', fog: '#c96a7a', sea: '#5a4f8a',
     far: '#7a4a7e', near: '#3b2350', lights: 0.35, density: 0.4,
     light: { road: '#5b5860', grass: '#6b6158', rumble: '#f2f2f2', lane: '#eeeeee', shoulder: '#8a8078' },
@@ -46,7 +58,7 @@ const THEMES = {
     buildings: ['#f4d35e', '#ee964b', '#8ecae6', '#f28482', '#cdb4db', '#e9edc9'],
     scenery: { palm: 4, building: 5, billboard: 2, tree: 1, chai: 1 },
   },
-  sealink: { // night on the bridge, the sea either side
+  sealink: { city: 'mumbai', ads: MUMBAI_ADS, // night on the bridge, the sea either side
     sky: ['#050816', '#141c3d', '#2c3a6b'], sun: '#f4f1de', night: true, fog: '#1d2748', sea: '#0e1a33',
     far: '#26325a', near: '#141b36', lights: 0.6, density: 0.06,
     light: { road: '#3c3d44', grass: '#10223f', rumble: '#e0e0e0', lane: '#d8d8d8', shoulder: '#6b6f78' },
@@ -54,7 +66,7 @@ const THEMES = {
     buildings: ['#455a64'],
     scenery: { billboard: 1 },
   },
-  express: { // hazy afternoon traffic
+  express: { city: 'mumbai', ads: MUMBAI_ADS, // hazy afternoon traffic
     sky: ['#8e9aa3', '#d9c9a3', '#f3e0b0'], sun: '#fff6d0', fog: '#cfc3a3', sea: '#9aa7a8',
     far: '#b3ab96', near: '#8a8070', lights: 0, density: 0.45,
     light: { road: '#5e5e5e', grass: '#7d7a45', rumble: '#f5c400', lane: '#f2f2f2', shoulder: '#a39a7c' },
@@ -62,13 +74,40 @@ const THEMES = {
     buildings: ['#e9c46a', '#f4a261', '#e76f51', '#dcd3c0', '#a8dadc', '#f1faee'],
     scenery: { tree: 3, building: 6, billboard: 3, temple: 1, chai: 1 },
   },
-  juhu: { // bright morning by the beach
+  juhu: { city: 'mumbai', ads: MUMBAI_ADS, // bright morning by the beach
     sky: ['#1e78e0', '#87cefa', '#e0f7ff'], sun: '#ffffff', fog: '#bfe3f0', sea: '#3f8fc4',
     far: '#8fb0c8', near: '#5d7d96', lights: 0, density: 0.4,
     light: { road: '#5a5a5e', grass: '#e2cf9e', rumble: '#ffffff', lane: '#f5f5f5', shoulder: '#cdb98c' },
     dark: { road: '#555559', grass: '#dcc896', rumble: '#e53935', shoulder: '#c6b284' },
     buildings: ['#ffe066', '#70c1b3', '#f25f5c', '#ffffff', '#b8f2e6', '#ffa69e'],
     scenery: { palm: 6, tree: 1, chai: 2, billboard: 1, building: 1 },
+  },
+  hyderabad: { city: 'hyderabad', // golden hour over the old city and Hussain Sagar
+    sky: ['#3d2a5c', '#e0785a', '#ffc46b'], sun: '#fff0c0', fog: '#d98a6a', sea: '#5a6f96',
+    far: '#9a6474', near: '#4a2f45', lights: 0.25, density: 0.42,
+    light: { road: '#5c5a5e', grass: '#8b7355', rumble: '#f5c400', lane: '#eeeeee', shoulder: '#a08a70' },
+    dark: { road: '#57555a', grass: '#846c50', rumble: '#1a1a1a', shoulder: '#99836a' },
+    buildings: ['#f2d7a7', '#e8b27a', '#d4a5a5', '#a3c4bc', '#f4e1c1', '#c9a0dc'],
+    scenery: { building: 5, tree: 2, billboard: 2, chai: 2 },
+    ads: [['HYDERABADI', 'BIRYANI'], ['IRANI CHAI', '& OSMANIA'], ['PEARL CITY', 'JEWELLERS']],
+  },
+  delhi: { city: 'delhi', // hazy winter morning
+    sky: ['#6f8fb0', '#c9d6e0', '#f0ede4'], sun: '#fffdf2', fog: '#d8dcdc', sea: '#6f8a4a',
+    far: '#a3acb4', near: '#6a6f78', lights: 0, density: 0.45,
+    light: { road: '#5e5e62', grass: '#6f8a4a', rumble: '#ffffff', lane: '#f2f2f2', shoulder: '#b0a890' },
+    dark: { road: '#59595d', grass: '#688345', rumble: '#c62828', shoulder: '#a8a088' },
+    buildings: ['#e9c46a', '#f4a261', '#dcd3c0', '#c97b63', '#a8dadc', '#f1faee'],
+    scenery: { tree: 4, building: 4, billboard: 2, temple: 1, chai: 1 },
+    ads: [['CHOLE', 'BHATURE'], ['DILLI', 'DARSHAN'], ['PARANTHE', 'WALI GALI']],
+  },
+  chennai: { city: 'chennai', // blazing midday on the Marina
+    sky: ['#0f6fd6', '#5fb8f5', '#fff4d6'], sun: '#fffbe6', fog: '#cfe8f0', sea: '#1f7fb0',
+    far: '#86a9bf', near: '#4f6f86', lights: 0, density: 0.42,
+    light: { road: '#5a5a5e', grass: '#e6d3a3', rumble: '#ffffff', lane: '#f5f5f5', shoulder: '#d6c291' },
+    dark: { road: '#555559', grass: '#dfcb99', rumble: '#1a1a1a', shoulder: '#cfba88' },
+    buildings: ['#ffe066', '#f28482', '#84dcc6', '#ffffff', '#ffb4a2', '#cdb4db'],
+    scenery: { palm: 5, building: 2, chai: 2, billboard: 1, temple: 1 },
+    ads: [['FILTER', 'KAAPI'], ['IDLI · DOSA', 'VADA'], ['SUPERSTAR', 'FILM TODAY!']],
   },
 };
 
@@ -104,6 +143,48 @@ const store = {
 };
 
 // ------------------------------------------------------------------ audio
+// Auto-rickshaw engine: single-cylinder two-stroke. Each firing is a pop that rings an exhaust
+// resonance and a tinny body rattle; off-throttle it misfires ("ring-ding-ding").
+const TWO_STROKE_WORKLET = `
+class TwoStroke extends AudioWorkletProcessor {
+  static get parameterDescriptors() { return [
+    { name: 'rpm', defaultValue: 0, minValue: 0, maxValue: 1 },
+    { name: 'throttle', defaultValue: 0, minValue: 0, maxValue: 1 },
+    { name: 'level', defaultValue: 0, minValue: 0, maxValue: 1 } ]; }
+  constructor() { super(); this.ph = 0; this.env = 0; this.kick = 0; this.lvl = 0; this.rpm = 0; this.thr = 0;
+    this.a1 = 0; this.a2 = 0; this.b1 = 0; this.b2 = 0; this.hp = 0; this.jit = 1; }
+  process(_, outputs, p) {
+    const out = outputs[0][0], sr = sampleRate;
+    for (let i = 0; i < out.length; i++) {
+      const tr = p.rpm.length > 1 ? p.rpm[i] : p.rpm[0], tt = p.throttle.length > 1 ? p.throttle[i] : p.throttle[0], tl = p.level.length > 1 ? p.level[i] : p.level[0];
+      this.rpm += (tr - this.rpm) * 0.0004; this.thr += (tt - this.thr) * 0.002; this.lvl += (tl - this.lvl) * 0.001;
+      const f = (24 + this.rpm * 82) * this.jit;
+      this.ph += f / sr;
+      if (this.ph >= 1) {
+        this.ph -= 1; this.jit = 0.93 + Math.random() * 0.14;
+        const misfire = Math.random() < (this.thr < 0.3 ? 0.18 + this.rpm * 0.25 : 0.03);
+        if (!misfire) { this.env = (0.75 + Math.random() * 0.5) * (0.55 + this.thr * 0.45); this.kick = 1; }
+      }
+      const noise = Math.random() * 2 - 1;
+      const x = this.env * noise * 0.6 + this.kick * 0.9;
+      this.kick = 0;
+      this.env *= Math.exp(-1 / (sr * (0.006 + (1 - this.rpm) * 0.01)));
+      // exhaust resonance (low, "phut") and body rattle (high, tinny)
+      // input gains are scaled by sin(w) so each resonator peaks near the excitation level
+      const w1 = 2 * Math.PI * (150 + this.rpm * 170) / sr, r1 = 0.9975;
+      const y1 = 2 * r1 * Math.cos(w1) * this.a1 - r1 * r1 * this.a2 + x * Math.sin(w1) * 0.7; this.a2 = this.a1; this.a1 = y1;
+      const w2 = 2 * Math.PI * (1150 + this.rpm * 500) / sr, r2 = 0.99;
+      const y2 = 2 * r2 * Math.cos(w2) * this.b1 - r2 * r2 * this.b2 + x * Math.sin(w2) * 0.35; this.b2 = this.b1; this.b1 = y2;
+      this.hp += (noise - this.hp) * 0.2;
+      let y = y1 + y2 + (noise - this.hp) * 0.01 * (0.4 + this.rpm);
+      y = Math.tanh(y * 0.3) * 0.9; // raw peaks ~3 at idle, ~6 flat out: light crunch only when revved
+      out[i] = y * this.lvl;
+    }
+    return true;
+  }
+}
+registerProcessor('two-stroke', TwoStroke);`;
+
 const Sfx = {
   ctx: null, master: null, engine: null, muted: store.get('muted', false),
   init() {
@@ -111,26 +192,40 @@ const Sfx = {
     try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return; }
     const a = this.ctx;
     this.master = a.createGain(); this.master.gain.value = this.muted ? 0 : 0.5; this.master.connect(a.destination);
-    const o1 = a.createOscillator(); o1.type = 'sawtooth';
-    const o2 = a.createOscillator(); o2.type = 'square';
-    const f = a.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 600; f.Q.value = 5;
-    const eg = a.createGain(); eg.gain.value = 0;
-    const lfo = a.createOscillator(); lfo.type = 'square';
-    const lg = a.createGain(); lg.gain.value = 0;
-    lfo.connect(lg); lg.connect(eg.gain);
-    o1.connect(f); o2.connect(f); f.connect(eg); eg.connect(this.master);
-    o1.start(); o2.start(); lfo.start();
-    this.engine = { o1, o2, f, eg, lfo, lg };
     const len = a.sampleRate; this.noiseBuf = a.createBuffer(1, len, a.sampleRate);
     const d = this.noiseBuf.getChannelData(0); for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    if (a.audioWorklet) {
+      const url = URL.createObjectURL(new Blob([TWO_STROKE_WORKLET], { type: 'application/javascript' }));
+      a.audioWorklet.addModule(url).then(() => {
+        const node = new AudioWorkletNode(a, 'two-stroke');
+        const hp = a.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 70;
+        node.connect(hp); hp.connect(this.master);
+        this.engine = { worklet: node, rpm: node.parameters.get('rpm'), throttle: node.parameters.get('throttle'), level: node.parameters.get('level') };
+      }).catch(() => this.fallbackEngine());
+    } else this.fallbackEngine();
+  },
+  // simple oscillator engine for browsers without AudioWorklet
+  fallbackEngine() {
+    const a = this.ctx;
+    const o = a.createOscillator(); o.type = 'square';
+    const f = a.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 400; f.Q.value = 2;
+    const eg = a.createGain(); eg.gain.value = 0;
+    const lfo = a.createOscillator(); lfo.type = 'square'; const lg = a.createGain(); lg.gain.value = 0;
+    lfo.connect(lg); lg.connect(eg.gain); o.connect(f); f.connect(eg); eg.connect(this.master); o.start(); lfo.start();
+    this.engine = { o, f, eg, lfo, lg };
   },
   toggleMute() { this.muted = !this.muted; store.set('muted', this.muted); if (this.master) this.master.gain.value = this.muted ? 0 : 0.5; },
-  setEngine(pct, on) {
+  setEngine(pct, on, throttle = 0) {
     const e = this.engine; if (!e) return; const t = this.ctx.currentTime;
-    e.eg.gain.setTargetAtTime(on ? 0.06 : 0, t, 0.08); e.lg.gain.setTargetAtTime(on ? 0.05 : 0, t, 0.08);
-    const f = 38 + pct * 85;
-    e.o1.frequency.setTargetAtTime(f, t, 0.06); e.o2.frequency.setTargetAtTime(f * 1.51, t, 0.06);
-    e.lfo.frequency.setTargetAtTime(9 + pct * 26, t, 0.06); e.f.frequency.setTargetAtTime(450 + pct * 900, t, 0.06);
+    if (e.worklet) {
+      e.rpm.setTargetAtTime(clamp(pct * 0.85 + throttle * 0.15, 0, 1), t, 0.05);
+      e.throttle.setTargetAtTime(throttle, t, 0.05);
+      e.level.setTargetAtTime(on ? 0.55 : 0, t, 0.1);
+      return;
+    }
+    e.eg.gain.setTargetAtTime(on ? 0.05 : 0, t, 0.08); e.lg.gain.setTargetAtTime(on ? 0.05 : 0, t, 0.08);
+    e.o.frequency.setTargetAtTime(90 + pct * 160, t, 0.06); e.lfo.frequency.setTargetAtTime(24 + pct * 80, t, 0.06);
+    e.f.frequency.setTargetAtTime(300 + pct * 700, t, 0.06);
   },
   tone(freq, dur, type = 'sine', vol = 0.3, slide = null, delay = 0, filter = null) {
     if (!this.ctx) return; const a = this.ctx, t = a.currentTime + delay;
@@ -153,6 +248,7 @@ const Sfx = {
   whoosh() { this.noise(0.14, 0.12, 3500); },
   crash() { this.noise(0.8, 0.6, 700); this.tone(90, 0.6, 'sine', 0.5, 30); this.noise(0.3, 0.3, 4000, 0.1); },
   bump() { this.tone(90, 0.12, 'sine', 0.4, 60); this.noise(0.08, 0.2, 900); },
+  grunt() { this.tone(rand(170, 230), 0.22, 'sawtooth', 0.12, 110, 0, 900); },
   moo() { this.tone(150, 1.0, 'sawtooth', 0.14, 100, 0, 500); },
   beep(hi) { this.tone(hi ? 880 : 520, hi ? 0.4 : 0.18, 'square', 0.14, null, 0, 2500); },
   ko() { this.tone(700, 0.5, 'triangle', 0.25, 140); },
@@ -413,11 +509,10 @@ function makeBuilding(r, color) {
   return c;
 }
 
+const AD_COLORS = [{ bg: '#d62828', fg: '#fff' }, { bg: '#06d6a0', fg: '#073b4c' }, { bg: '#ffd166', fg: '#7a1f00' }, { bg: '#3a0ca3', fg: '#ffd60a' }];
 const BILLBOARDS = [
-  { bg: '#d62828', fg: '#fff', lines: ['CUTTING CHAI', '₹10 ONLY'] },
   { bg: '#ffd166', fg: '#1d3557', lines: ['HORN OK', 'PLEASE'] },
   { bg: '#1d3557', fg: '#f1faee', lines: ['DRIVE SLOW', 'LIVE LONG'] },
-  { bg: '#06d6a0', fg: '#073b4c', lines: ['VADA PAV', 'KING'] },
   { bg: '#ef476f', fg: '#fff', lines: ['BOLLYWOOD', 'TONIGHT!'] },
   { bg: '#f77f00', fg: '#fff', lines: ['GHAR KA', 'KHANA'] },
   { bg: '#264653', fg: '#e9c46a', lines: ['SPEED THRILLS', 'BUT KILLS'] },
@@ -595,6 +690,185 @@ function makeMumbaiNear(t, seed) {
   return c;
 }
 
+// ---- shared skyline helpers
+const cutOut = (g, fn) => { g.save(); g.globalCompositeOperation = 'destination-out'; g.fillStyle = '#000'; fn(); g.fill(); g.restore(); };
+const archPath = (g, x, y, w, h) => { g.beginPath(); g.moveTo(x, y + h); g.lineTo(x, y + w / 2); g.arc(x + w / 2, y + w / 2, w / 2, Math.PI, 0); g.lineTo(x + w, y + h); g.closePath(); };
+const onion = (g, cx, y, rad) => { g.beginPath(); g.moveTo(cx - rad, y); g.bezierCurveTo(cx - rad * 1.3, y - rad * 1.1, cx - rad * 0.2, y - rad * 1.4, cx, y - rad * 2); g.bezierCurveTo(cx + rad * 0.2, y - rad * 1.4, cx + rad * 1.3, y - rad * 1.1, cx + rad, y); g.fill(); };
+function fillerBlocks(g, r, t, col, base, from, to, minH, maxH, skip = [], lit = 1) {
+  for (let x = from; x < to;) {
+    const w = 26 + r() * 44;
+    if (!skip.some(([a, b]) => x + w > a && x < b)) { const bh = minH + r() * (maxH - minH); g.fillStyle = col; g.fillRect(x, base - bh, w, bh + 40); litWindows(g, r, x, base - bh, w, bh, t.lights * lit); }
+    x += w + 2 + r() * 10;
+  }
+}
+function trees(g, r, col, base, from, to, n) {
+  g.fillStyle = col;
+  for (let i = 0; i < n; i++) { const x = from + r() * (to - from), rad = 10 + r() * 14; ell(g, x, base - rad * 0.6, rad * 1.3, rad); g.fill(); }
+}
+function waterBand(g, r, t, base, h, lights) {
+  g.fillStyle = t.sea; g.fillRect(0, base + 6, LAYER_W, h - base);
+  g.fillStyle = 'rgba(255,255,255,.2)'; for (let i = 0; i < 90; i++) g.fillRect(r() * LAYER_W, base + 10 + r() * (h - base - 14), 6 + r() * 16, 1);
+  if (lights) { g.fillStyle = 'rgba(255,214,120,.9)'; for (let x = 4; x < LAYER_W; x += 14) g.fillRect(x, base + 3, 3, 3); }
+}
+
+// ---- Hyderabad: Golconda Fort + HITEC City far; Charminar, Birla Mandir, Buddha in Hussain Sagar near
+function makeHyderabadFar(t, seed) {
+  const h = 230, c = mk(LAYER_W, h), g = c.getContext('2d'), r = mulberry32(seed), base = h - 30, col = t.far;
+  // Golconda: rocky hill crowned with walls, bastions and the Bala Hissar pavilion
+  const hillY = x => base - 20 - Math.max(0, Math.sin((x - 60) / 640 * Math.PI)) * 110;
+  g.fillStyle = col; g.beginPath(); g.moveTo(0, h); for (let x = 0; x <= 760; x += 8) g.lineTo(x, hillY(x)); g.lineTo(760, h); g.fill();
+  for (let x = 120; x < 700; x += 70) { const y = hillY(x); g.fillRect(x - 12, y - 22, 24, 26); for (let k = -10; k < 12; k += 7) g.fillRect(x + k, y - 28, 4, 6); g.fillRect(x + 12, y - 12, 58, 10); }
+  const py = hillY(380); g.fillRect(352, py - 60, 56, 40); for (let k = 0; k < 3; k++) cutOut(g, () => archPath(g, 358 + k * 17, py - 52, 10, 26));
+  g.fillStyle = col; g.fillRect(348, py - 64, 64, 6);
+  // HITEC City: Cyber Towers (rounded glass block) and glass towers
+  fillerBlocks(g, r, t, col, base, 800, LAYER_W, 40, 130, [[1060, 1180]], 0.6);
+  g.fillStyle = col; rr(g, 1060, base - 150, 120, 190, 50); g.fill();
+  g.fillStyle = 'rgba(255,255,255,.12)'; for (let y = base - 130; y < base; y += 12) g.fillRect(1064, y, 112, 3);
+  litWindows(g, r, 1066, base - 130, 108, 128, t.lights * 0.8);
+  g.fillStyle = col; g.fillRect(0, base, LAYER_W, h - base);
+  return c;
+}
+function makeHyderabadNear(t, seed) {
+  const h = 200, c = mk(LAYER_W, h), g = c.getContext('2d'), r = mulberry32(seed), base = h - 34, col = t.near;
+  fillerBlocks(g, r, t, col, base, 0, LAYER_W, 20, 55, [[500, 760], [1180, 1420], [1560, 1760]]);
+  // Charminar
+  const cx = 630, bw = 130;
+  g.fillStyle = col; g.fillRect(cx - bw / 2, base - 80, bw, 120); g.fillRect(cx - bw / 2 - 4, base - 84, bw + 8, 8);
+  g.fillRect(cx - bw / 2 + 8, base - 104, bw - 16, 22);
+  cutOut(g, () => archPath(g, cx - 26, base - 66, 52, 100));
+  for (let k = 0; k < 6; k++) cutOut(g, () => archPath(g, cx - bw / 2 + 14 + k * 18, base - 100, 9, 14));
+  g.fillStyle = col;
+  for (const mx of [cx - bw / 2 - 2, cx + bw / 2 + 2]) {
+    g.fillRect(mx - 8, base - 176, 16, 216);
+    for (const by of [base - 84, base - 118, base - 150]) g.fillRect(mx - 12, by, 24, 6);
+    onion(g, mx, base - 176, 10); g.fillRect(mx - 1, base - 206, 2, 12);
+  }
+  onion(g, cx, base - 104, 12);
+  // Birla Mandir on its hillock
+  g.beginPath(); g.moveTo(1560, base + 10); g.quadraticCurveTo(1660, base - 60, 1760, base + 10); g.fill();
+  for (const [dx, th] of [[-30, 36], [0, 62], [30, 36]]) { g.beginPath(); g.moveTo(1660 + dx - 12, base - 40); g.lineTo(1660 + dx, base - 40 - th); g.lineTo(1660 + dx + 12, base - 40); g.fill(); }
+  waterBand(g, r, t, base, h, t.lights > 0);
+  // Buddha statue on the Hussain Sagar islet
+  g.fillStyle = col; ell(g, 1300, base + 16, 50, 7); g.fill();
+  g.fillRect(1284, base - 8, 32, 22); g.fillRect(1290, base - 58, 20, 52); ell(g, 1300, base - 64, 8, 9); g.fill();
+  return c;
+}
+
+// ---- Delhi: Qutub Minar, Lotus Temple far; Rashtrapati Bhavan, India Gate, Red Fort, Jama Masjid near
+function makeDelhiFar(t, seed) {
+  const h = 230, c = mk(LAYER_W, h), g = c.getContext('2d'), r = mulberry32(seed), base = h - 30, col = t.far;
+  fillerBlocks(g, r, t, col, base, 0, LAYER_W, 18, 60, [[260, 360], [1020, 1200]]);
+  trees(g, r, shade(col, -0.05), base, 0, LAYER_W, 60);
+  // Qutub Minar: tapered, banded, with balconies
+  g.fillStyle = col; g.beginPath(); g.moveTo(290, base + 30); g.lineTo(300, base - 190); g.lineTo(318, base - 190); g.lineTo(328, base + 30); g.fill();
+  for (const k of [0.25, 0.48, 0.68, 0.84]) { const y = base - 190 * k, half = lerp(19, 9, k) + 4; g.fillRect(309 - half, y - 3, half * 2, 5); }
+  g.fillRect(304, base - 202, 10, 12); ell(g, 309, base - 203, 6, 4); g.fill();
+  // Lotus Temple: overlapping pointed petals
+  const lx = 1110;
+  for (const [layer, spread, hgt] of [[0, 22, 70], [1, 16, 56], [2, 10, 40]]) {
+    g.fillStyle = shade(col, 0.06 - layer * 0.04);
+    for (let i = -3; i <= 3; i++) {
+      const px = lx + i * spread, tip = base - hgt + Math.abs(i) * 6;
+      g.beginPath(); g.moveTo(px - spread * 0.8, base); g.quadraticCurveTo(px - spread * 0.6, tip + 18, px, tip); g.quadraticCurveTo(px + spread * 0.6, tip + 18, px + spread * 0.8, base); g.fill();
+    }
+  }
+  g.fillStyle = col; g.fillRect(0, base, LAYER_W, h - base);
+  return c;
+}
+function makeDelhiNear(t, seed) {
+  const h = 200, c = mk(LAYER_W, h), g = c.getContext('2d'), r = mulberry32(seed), base = h - 34, col = t.near;
+  fillerBlocks(g, r, t, col, base, 0, LAYER_W, 16, 44, [[80, 330], [480, 640], [930, 1380], [1540, 1760]]);
+  trees(g, r, shade(col, 0.04), base, 0, LAYER_W, 40);
+  g.fillStyle = col;
+  // Rashtrapati Bhavan: long colonnade, dome on a drum
+  g.fillRect(90, base - 40, 230, 80); g.fillRect(170, base - 60, 70, 22); g.beginPath(); g.arc(205, base - 60, 28, Math.PI, 0); g.fill(); g.fillRect(203, base - 98, 4, 12);
+  g.fillStyle = 'rgba(255,255,255,.12)'; for (let x = 100; x < 316; x += 9) g.fillRect(x, base - 34, 3, 30);
+  // India Gate
+  g.fillStyle = col; const ix = 560;
+  g.fillRect(ix - 58, base - 112, 116, 152); g.fillRect(ix - 64, base - 118, 128, 8); g.fillRect(ix - 40, base - 132, 80, 16); g.fillRect(ix - 26, base - 142, 52, 10);
+  g.beginPath(); g.arc(ix, base - 142, 18, Math.PI, 0); g.fill();
+  cutOut(g, () => archPath(g, ix - 26, base - 88, 52, 130));
+  // Red Fort: crenellated wall, Lahori Gate with chhatris
+  g.fillStyle = col; g.fillRect(940, base - 52, 440, 92);
+  for (let x = 942; x < 1378; x += 12) g.fillRect(x, base - 60, 7, 8);
+  g.fillRect(1120, base - 86, 80, 40);
+  cutOut(g, () => archPath(g, 1144, base - 62, 32, 100));
+  g.fillStyle = col;
+  for (const x of [1128, 1160, 1192]) { g.fillRect(x - 7, base - 102, 14, 16); g.beginPath(); g.arc(x, base - 102, 8, Math.PI, 0); g.fill(); }
+  for (const x of [950, 1370]) { g.fillRect(x - 10, base - 82, 20, 32); g.beginPath(); g.arc(x, base - 82, 11, Math.PI, 0); g.fill(); }
+  // Jama Masjid: three onion domes between two minarets
+  const jx = 1650;
+  g.fillRect(jx - 90, base - 44, 180, 84);
+  onion(g, jx, base - 44, 26); onion(g, jx - 52, base - 44, 18); onion(g, jx + 52, base - 44, 18);
+  for (const mx of [jx - 96, jx + 96]) { g.fillRect(mx - 6, base - 130, 12, 170); onion(g, mx, base - 130, 8); g.fillRect(mx - 9, base - 96, 18, 4); }
+  g.fillStyle = t.sea; g.fillRect(0, base + 4, LAYER_W, h - base);
+  g.fillStyle = shade(t.sea, 0.06); for (let x = 0; x < LAYER_W; x += 60) g.fillRect(x, base + 4, 30, h - base);
+  return c;
+}
+
+// ---- Chennai: LIC building, Chennai Central far; Kapaleeshwarar gopuram, Marina lighthouse, beach near
+function makeChennaiFar(t, seed) {
+  const h = 230, c = mk(LAYER_W, h), g = c.getContext('2d'), r = mulberry32(seed), base = h - 30, col = t.far;
+  fillerBlocks(g, r, t, col, base, 0, LAYER_W, 24, 90, [[470, 560], [1100, 1330]]);
+  g.fillStyle = col;
+  // LIC building with its antenna mast
+  g.fillRect(480, base - 150, 64, 190); g.strokeStyle = col; g.lineWidth = 3;
+  g.beginPath(); g.moveTo(512, base - 150); g.lineTo(512, base - 200); g.moveTo(502, base - 150); g.lineTo(512, base - 190); g.lineTo(522, base - 150); g.stroke();
+  g.fillStyle = 'rgba(255,255,255,.12)'; for (let y = base - 140; y < base; y += 10) g.fillRect(484, y, 56, 2);
+  // Chennai Central: long gothic front, clock tower, corner spires
+  g.fillStyle = col; const cc = 1110;
+  g.fillRect(cc, base - 60, 220, 100); g.fillRect(cc + 95, base - 130, 30, 72);
+  g.beginPath(); g.moveTo(cc + 92, base - 130); g.lineTo(cc + 110, base - 168); g.lineTo(cc + 128, base - 130); g.fill();
+  for (const dx of [0, 60, 160, 212]) { g.fillRect(cc + dx, base - 82, 8, 24); g.beginPath(); g.moveTo(cc + dx - 2, base - 82); g.lineTo(cc + dx + 4, base - 100); g.lineTo(cc + dx + 10, base - 82); g.fill(); }
+  g.fillStyle = 'rgba(255,255,255,.5)'; g.beginPath(); g.arc(cc + 110, base - 108, 6, 0, Math.PI * 2); g.fill();
+  g.fillStyle = col; g.fillRect(0, base, LAYER_W, h - base);
+  return c;
+}
+function makeChennaiNear(t, seed) {
+  const h = 200, c = mk(LAYER_W, h), g = c.getContext('2d'), r = mulberry32(seed), base = h - 34, col = t.near;
+  fillerBlocks(g, r, t, col, base, 0, LAYER_W, 16, 46, [[260, 460], [850, 950], [1440, 1580]]);
+  // Kapaleeshwarar gopuram: stepped tiers, barrel-vault crown with kalasams
+  const gopuram = (cx, bw, tw, gh) => {
+    const tiers = 9;
+    for (let i = 0; i < tiers; i++) {
+      const k = i / tiers, w = lerp(bw, tw, k), y = base - gh * (i + 1) / tiers;
+      g.fillStyle = i % 2 ? col : shade(col, 0.07); g.fillRect(cx - w / 2, y, w, gh / tiers + 1);
+      g.fillStyle = shade(col, 0.14); for (let x = cx - w / 2 + 4; x < cx + w / 2 - 4; x += 9) g.fillRect(x, y + 3, 4, gh / tiers - 6);
+    }
+    g.fillStyle = col; rr(g, cx - tw / 2 - 4, base - gh - 14, tw + 8, 16, 7); g.fill();
+    for (let k = 0; k < 5; k++) { const kx = cx - tw / 2 + 4 + k * (tw - 8) / 4; g.fillRect(kx - 2, base - gh - 22, 4, 9); ell(g, kx, base - gh - 23, 3, 3); g.fill(); }
+    g.fillRect(cx - bw / 2 - 6, base - 6, bw + 12, 46);
+    cutOut(g, () => { g.beginPath(); g.rect(cx - 12, base - 32, 24, 40); });
+  };
+  gopuram(360, 130, 56, 160); gopuram(1510, 90, 40, 104);
+  // Marina lighthouse
+  g.fillStyle = col; g.beginPath(); g.moveTo(884, base + 20); g.lineTo(892, base - 140); g.lineTo(908, base - 140); g.lineTo(916, base + 20); g.fill();
+  g.fillStyle = shade(col, 0.12); for (const k of [0.2, 0.45, 0.7]) g.fillRect(886 + k * 6, base - 160 * k, 28 - k * 12, 10);
+  g.fillStyle = col; g.fillRect(888, base - 158, 24, 18); g.beginPath(); g.arc(900, base - 158, 12, Math.PI, 0); g.fill();
+  g.fillStyle = 'rgba(255,240,180,.8)'; g.fillRect(892, base - 154, 16, 8);
+  // palms along the beach
+  g.strokeStyle = col; g.fillStyle = col;
+  for (let x = 30; x < LAYER_W; x += 90 + r() * 120) {
+    if ((x > 250 && x < 470) || (x > 840 && x < 960) || (x > 1430 && x < 1590)) continue;
+    const th = 40 + r() * 40, lean = (r() - 0.5) * 20; g.lineWidth = 4;
+    g.beginPath(); g.moveTo(x, base + 4); g.quadraticCurveTo(x + lean, base - th / 2, x + lean, base - th); g.stroke();
+    g.lineWidth = 3; for (let k = 0; k < 6; k++) { const a = -Math.PI + k * Math.PI / 5; g.beginPath(); g.moveTo(x + lean, base - th); g.quadraticCurveTo(x + lean + Math.cos(a) * 16, base - th + Math.sin(a) * 16 - 4, x + lean + Math.cos(a) * 26, base - th + Math.sin(a) * 12 + 10); g.stroke(); }
+  }
+  // sand, surf, catamarans
+  g.fillStyle = '#e8d6a8'; g.fillRect(0, base + 2, LAYER_W, 10);
+  waterBand(g, r, t, base + 6, h, false);
+  g.fillStyle = '#fff'; for (let x = 0; x < LAYER_W; x += 24) g.fillRect(x + r() * 8, base + 12, 12, 2);
+  g.fillStyle = shade(col, -0.1); for (let i = 0; i < 8; i++) { const bx = r() * LAYER_W, by = base + 20 + r() * 8; g.fillRect(bx, by, 22, 3); g.beginPath(); g.moveTo(bx + 10, by); g.lineTo(bx + 10, by - 12); g.lineTo(bx + 18, by); g.fill(); }
+  return c;
+}
+
+const SKYLINES = {
+  mumbai: { far: makeMumbaiFar, near: makeMumbaiNear },
+  hyderabad: { far: makeHyderabadFar, near: makeHyderabadNear },
+  delhi: { far: makeDelhiFar, near: makeDelhiNear },
+  chennai: { far: makeChennaiFar, near: makeChennaiNear },
+};
+
 // ------------------------------------------------------------------ sprites registry
 const SP = {};
 function buildSharedSprites() {
@@ -605,18 +879,18 @@ function buildSharedSprites() {
   SP.bus = makeBus(); SP.truck = makeTruck();
   SP.palm = makePalm(); SP.palmF = flipped(SP.palm);
   const r = mulberry32(7); SP.trees = [makeTree(r), makeTree(r), makeTree(r)];
-  SP.billboards = BILLBOARDS.map(makeBillboard);
   SP.temple = makeTemple(); SP.lampL = makeLamp(-1); SP.lampR = makeLamp(1);
   SP.chai = makeChai(); SP.milestone = makeMilestone(); SP.arch = makeArch();
 }
 
 // ------------------------------------------------------------------ world state
 let segments = [], trackLength = 0, theme = THEMES.marine, themeSprites = {}, bgLayers = {};
-let track = TRACKS[0], level = store.get('level', 0), cash = store.get('cash', 0), round = store.get('round', 0);
+let track = TRACKS[0], level = clamp(store.get('level', 0), 0, TRACKS.length - 1), cash = store.get('cash', 0), round = store.get('round', 0);
+let unlocked = clamp(Math.max(store.get('unlocked', 0), level), 0, TRACKS.length - 1);
 let state = 'title', paused = false, countdown = 0, raceTime = 0, finishTimer = 0, finishDist = 0, startZ = 0;
 let position = 0, skyOffset = 0, farOffset = 0, nearOffset = 0, shake = 0;
 let rivals = [], traffic = [], finishOrder = [], results = null;
-let particles = [], popups = [], messages = [];
+let particles = [], popups = [], messages = [], bubbles = [], frameNo = 0;
 const player = {};
 
 function resetPlayer() {
@@ -675,7 +949,7 @@ function buildTrack(tr) {
       if (kind === 'palm') s = { img: side < 0 ? SP.palm : SP.palmF, offset: side * rand(1.3, 2.6), nw: 0.45, solid: true };
       else if (kind === 'tree') s = { img: pick(SP.trees, R), offset: side * rand(1.4, 2.8), nw: 0.8, solid: true };
       else if (kind === 'building') s = { img: pick(themeSprites.buildings, R), offset: side * rand(1.7, 2.6), nw: 1.1, solid: true };
-      else if (kind === 'billboard') s = { img: pick(SP.billboards, R), offset: side * rand(1.25, 1.6), nw: 0.95, solid: true };
+      else if (kind === 'billboard') s = { img: pick(themeSprites.billboards, R), offset: side * rand(1.25, 1.6), nw: 0.95, solid: true };
       else if (kind === 'temple') s = { img: SP.temple, offset: side * rand(1.8, 2.6), nw: 1.1, solid: true };
       else s = { img: SP.chai, offset: side * rand(1.2, 1.5), nw: 0.6, solid: true };
       seg.sprites.push(s);
@@ -688,8 +962,10 @@ function loadTrack(idx) {
   track.themeDef = THEMES[track.theme];
   theme = track.themeDef;
   const r = mulberry32(track.seed * 3);
-  themeSprites = { buildings: theme.buildings.map(col => makeBuilding(r, col)) };
-  bgLayers = { far: makeMumbaiFar(theme, track.seed), near: makeMumbaiNear(theme, track.seed + 5) };
+  themeSprites = { buildings: theme.buildings.map(col => makeBuilding(r, col)),
+    billboards: [...BILLBOARDS, ...theme.ads.map((lines, i) => ({ ...AD_COLORS[i % AD_COLORS.length], lines }))].map(makeBillboard) };
+  const sky = SKYLINES[theme.city];
+  bgLayers = { far: sky.far(theme, track.seed), near: sky.near(theme, track.seed + 5) };
   buildTrack(track);
 }
 
@@ -739,17 +1015,32 @@ function setupRace() {
   for (let i = 0; i < track.cows; i++) addTraffic('cow');
 
   finishDist = startZ + track.laps * trackLength;
-  finishOrder = []; results = null; particles = []; popups = []; messages = [];
+  finishOrder = []; results = null; particles = []; popups = []; messages = []; bubbles = [];
   raceTime = 0; position = 0; countdown = 3.99;
   state = 'countdown'; lastBeep = 4;
 }
 
 // ------------------------------------------------------------------ input
+// Two mirrored layouts: one hand drives, the other swings the lathi (key direction = swing direction).
+// Touch buttons send T_* codes, which work in either layout.
+const LAYOUTS = [
+  { id: 'arrows', label: 'DRIVE: ARROWS  ·  LATHI: A / D',
+    up: ['ArrowUp'], down: ['ArrowDown'], left: ['ArrowLeft'], right: ['ArrowRight'],
+    hitL: ['KeyA'], hitR: ['KeyD'], horn: ['Space', 'KeyW', 'KeyS'] },
+  { id: 'wasd', label: 'DRIVE: W A S D  ·  LATHI: ← / →',
+    up: ['KeyW'], down: ['KeyS'], left: ['KeyA'], right: ['KeyD'],
+    hitL: ['ArrowLeft'], hitR: ['ArrowRight'], horn: ['Space', 'ArrowUp', 'ArrowDown'] },
+];
+let layoutIdx = clamp(store.get('layout', 0), 0, LAYOUTS.length - 1);
 const keys = {};
-const I = {
-  left: () => keys.ArrowLeft || keys.KeyA, right: () => keys.ArrowRight || keys.KeyD,
-  up: () => keys.ArrowUp || keys.KeyW, down: () => keys.ArrowDown || keys.KeyS,
+const held = action => keys['T_' + action] || LAYOUTS[layoutIdx][action].some(c => keys[c]);
+const I = { left: () => held('left'), right: () => held('right'), up: () => held('up'), down: () => held('down') };
+const actionFor = code => {
+  if (code.startsWith('T_')) return code.slice(2);
+  const L = LAYOUTS[layoutIdx];
+  return ['hitL', 'hitR', 'horn'].find(a => L[a].includes(code));
 };
+function toggleLayout() { layoutIdx = (layoutIdx + 1) % LAYOUTS.length; store.set('layout', layoutIdx); for (const k in keys) keys[k] = false; }
 function keyDown(code) {
   const was = keys[code]; keys[code] = true;
   Sfx.init();
@@ -763,15 +1054,22 @@ addEventListener('blur', () => { for (const k in keys) keys[k] = false; if (stat
 
 function onPress(code) {
   if (code === 'KeyM') { Sfx.toggleMute(); return; }
+  if (code === 'Tab' && (state === 'title' || paused)) { toggleLayout(); return; }
   if ((code === 'KeyP' || code === 'Escape') && (state === 'race' || state === 'countdown')) { paused = !paused; return; }
   if (paused) { if (code === 'Enter') paused = false; return; }
   if (state === 'title' && code === 'Enter') { setupRace(); return; }
+  if (state === 'title' && (code === 'ArrowLeft' || code === 'ArrowRight' || code === 'KeyA' || code === 'KeyD')) {
+    const next = clamp(level + (code === 'ArrowRight' || code === 'KeyD' ? 1 : -1), 0, unlocked);
+    if (next !== level) { level = next; store.set('level', level); attractSetup(); Sfx.beep(false); }
+    return;
+  }
   if (state === 'results' && code === 'Enter') { advanceAfterResults(); return; }
   if (state === 'champion' && code === 'Enter') { state = 'title'; attractSetup(); return; }
   if (state === 'race' && player.crash <= 0) {
-    if ((code === 'KeyZ' || code === 'KeyJ') && !player.atk) startAttack(player, -1);
-    if ((code === 'KeyX' || code === 'KeyK') && !player.atk) startAttack(player, 1);
-    if (code === 'KeyH' || code === 'Space') honk();
+    const act = actionFor(code);
+    if (act === 'hitL' && !player.atk) startAttack(player, -1);
+    if (act === 'hitR' && !player.atk) startAttack(player, 1);
+    if (act === 'horn') honk();
   }
 }
 
@@ -791,6 +1089,11 @@ function onPress(code) {
 // ------------------------------------------------------------------ gameplay helpers
 function msg(text, color = '#fff', dur = 1.6) { messages.push({ text, color, t: dur, dur }); if (messages.length > 3) messages.shift(); }
 function popup(text, x, y, color = '#ffeb3b', size = 34) { popups.push({ text, x, y, color, size, t: 0.9 }); }
+function curse(who) {
+  bubbles = bubbles.filter(b => b.who !== who);
+  bubbles.push({ who, text: pick(CURSES[theme.city] || CURSES.mumbai), t: 1.7 });
+  setTimeout(() => Sfx.grunt(), 120);
+}
 function startAttack(who, side) { who.atk = { t: 0, side, dur: 0.34, done: false }; }
 
 function honk() {
@@ -824,6 +1127,7 @@ function resolveAttack(att, side) {
   const dmg = attIsPlayer ? rand(14, 22) : rand(7, 12) * (1 + round * 0.1) * (0.8 + track.skill * 0.3);
   best.health -= dmg; best.hurt = 0.3; best.x += side * 0.12; best.speed *= 0.86;
   const word = pick(HIT_WORDS);
+  if (best.health <= 0 || Math.random() < 0.75) curse(best);
   if (best.isPlayer) { popup(word, W / 2 + side * 80, H - 300, '#ff5252', 38); shake = Math.max(shake, 0.25);
     if (best.health <= 0) crashPlayer('KNOCKED OUT!', 0, side); }
   else {
@@ -848,6 +1152,7 @@ let lastBeep = 4;
 function update(dt) {
   for (const m of messages) m.t -= dt; messages = messages.filter(m => m.t > 0);
   for (const p of popups) { p.t -= dt; p.y -= 30 * dt; } popups = popups.filter(p => p.t > 0);
+  for (const b of bubbles) b.t -= dt; bubbles = bubbles.filter(b => b.t > 0);
   for (const p of particles) { p.t -= dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += (p.g || 0) * dt; } particles = particles.filter(p => p.t > 0);
   shake = Math.max(0, shake - dt);
 
@@ -872,7 +1177,11 @@ function update(dt) {
   }
 }
 
-function updateEngine() { Sfx.setEngine(player.speed / MAX_SPEED, state !== 'title' && state !== 'champion'); }
+function updateEngine() {
+  const racing = state === 'race' || state === 'countdown';
+  const throttle = racing && player.crash <= 0 ? (I.up() ? 1 : 0) : (state === 'finished' ? 0.3 : 0.15);
+  Sfx.setEngine(player.speed / MAX_SPEED, state !== 'title' && state !== 'champion', throttle);
+}
 
 function updatePlayer(dt, controlled) {
   const seg = findSegment(player.dist);
@@ -1067,6 +1376,7 @@ function buildResults() {
 
 function advanceAfterResults() {
   if (results.qualified) {
+    unlocked = clamp(Math.max(unlocked, level + 1), 0, TRACKS.length - 1); store.set('unlocked', unlocked);
     level++;
     if (level >= TRACKS.length) { level = 0; round++; store.set('round', round); store.set('level', level); state = 'champion'; attractSetup(); return; }
     store.set('level', level);
@@ -1194,6 +1504,7 @@ function drawTuk(img, x, y, w, h, rot, atk, hurt) {
 }
 
 function render() {
+  frameNo++;
   ctx.save();
   if (shake > 0) ctx.translate(rand(-1, 1) * shake * 14, rand(-1, 1) * shake * 10);
   drawBackground();
@@ -1246,7 +1557,7 @@ function render() {
         const bounce = car.speed > 0 ? Math.sin(performance.now() / 45 + car.dist) * destH * 0.006 : 0;
         const y = cy - destH + bounce;
         if (y + destH <= seg.clip + destH * 0.5) drawTuk(car.img, cx - destW / 2, y, destW, destH, car.rot, car.atk, car.hurt);
-        car.scr = { x: cx, y: cy - destH * 1.1, w: destW };
+        car.scr = { x: cx, y: cy - destH * 1.1, w: destW, frame: frameNo };
       } else drawSprite(car.img, cx - destW / 2, cy - destH, destW, destH, seg.clip);
     }
     if (seg === playerSeg) drawPlayer(playerSeg, playerPct);
@@ -1263,6 +1574,7 @@ function render() {
   ctx.restore();
 
   drawPopups();
+  drawBubbles();
   if (state === 'title') drawTitle();
   else if (state === 'champion') drawChampion();
   else { drawHUD(); if (state === 'countdown') drawCountdown(); if (state === 'results') drawResults(); }
@@ -1343,6 +1655,23 @@ function drawHUD() {
   text('KM/H', cx, cy - 4, 9, '#ccc');
 }
 
+function drawBubbles() {
+  for (const b of bubbles) {
+    let x, y;
+    if (b.who.isPlayer) { x = W / 2 + 60; y = H - 270; }
+    else { const s = b.who.scr; if (!s || s.frame !== frameNo || s.w < 30) continue; x = s.x; y = s.y - 6; }
+    ctx.save(); ctx.globalAlpha = clamp(b.t * 3, 0, 1);
+    ctx.font = `14px ${FONT}`;
+    const tw = ctx.measureText(b.text).width, bw = tw + 22, bh = 30;
+    const bx = clamp(x - bw / 2, 8, W - bw - 8), by = y - bh - 14;
+    ctx.fillStyle = 'rgba(0,0,0,.35)'; rr(ctx, bx + 3, by + 3, bw, bh, 12); ctx.fill();
+    ctx.fillStyle = '#fffdf4'; rr(ctx, bx, by, bw, bh, 12); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(clamp(x, bx + 14, bx + bw - 14) - 8, by + bh - 1); ctx.lineTo(clamp(x, bx + 14, bx + bw - 14) + 8, by + bh - 1); ctx.lineTo(x, by + bh + 12); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 2; rr(ctx, bx, by, bw, bh, 12); ctx.stroke();
+    text(b.text, bx + bw / 2, by + bh / 2 + 1, 14, b.who.isPlayer ? '#1b5e20' : '#b71c1c', 'center', FONT, false);
+    ctx.restore();
+  }
+}
 function drawPopups() {
   for (const p of popups) {
     const k = 1 - p.t / 0.9, s = k < 0.15 ? lerp(0.4, 1.2, k / 0.15) : 1;
@@ -1363,6 +1692,34 @@ function drawCountdown() {
   text(String(c), 0, 0, 90, c === 1 ? '#66bb6a' : c === 2 ? '#ffca28' : '#ef5350'); ctx.restore();
   text(track.name, W / 2, H / 2 + 20, 24, '#ffcc80');
   text(`Finish top 3 to qualify  ·  ${rivals.length} rival autos`, W / 2, H / 2 + 52, 14, '#fff', 'center', 'system-ui, sans-serif');
+  text(LAYOUTS[layoutIdx].label, W / 2, H / 2 + 80, 14, '#ffd21f');
+}
+function keycap(x, y, label, w = 40, hot = false) {
+  ctx.fillStyle = 'rgba(0,0,0,.45)'; rr(ctx, x - w / 2, y - 16, w, 36, 7); ctx.fill();
+  ctx.fillStyle = hot ? '#ffd21f' : '#f3efe6'; rr(ctx, x - w / 2, y - 18, w, 34, 7); ctx.fill();
+  text(label, x, y - 1, label.length > 2 ? 11 : 15, '#1a1a1a', 'center', FONT, false);
+}
+// Two-hand controls diagram for the current layout.
+function drawControls(top) {
+  const L = LAYOUTS[layoutIdx], arrowsDrive = L.id === 'arrows';
+  const cap = c => ({ ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→', Space: 'SPACE' }[c] || c.replace('Key', ''));
+  const drive = cx => {
+    text('DRIVE', cx, top + 18, 14, '#8bc34a');
+    keycap(cx, top + 50, cap(L.up[0])); keycap(cx - 46, top + 90, cap(L.left[0])); keycap(cx, top + 90, cap(L.down[0])); keycap(cx + 46, top + 90, cap(L.right[0]));
+    text('gas · brake · steer', cx, top + 124, 12, '#ddd', 'center', 'system-ui, sans-serif');
+  };
+  const fight = cx => {
+    text('LATHI', cx, top + 18, 14, '#ff8a65');
+    keycap(cx - 34, top + 60, cap(L.hitL[0]), 44, true); keycap(cx + 34, top + 60, cap(L.hitR[0]), 44, true);
+    text('◀ swing', cx - 34, top + 88, 11, '#ddd', 'center', 'system-ui, sans-serif');
+    text('swing ▶', cx + 34, top + 88, 11, '#ddd', 'center', 'system-ui, sans-serif');
+    text(`horn: SPACE · ${cap(L.horn[1])} · ${cap(L.horn[2])}`, cx, top + 120, 12, '#ddd', 'center', 'system-ui, sans-serif');
+  };
+  panel(W / 2 - 300, top, 600, 176, 0.55);
+  text('LEFT HAND', W / 2 - 150, top + 2 + 150, 10, '#aaa'); text('RIGHT HAND', W / 2 + 150, top + 2 + 150, 10, '#aaa');
+  if (arrowsDrive) { fight(W / 2 - 150); drive(W / 2 + 150); } else { drive(W / 2 - 150); fight(W / 2 + 150); }
+  ctx.strokeStyle = 'rgba(255,255,255,.15)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(W / 2, top + 14); ctx.lineTo(W / 2, top + 160); ctx.stroke();
+  text(`TAB: switch hands  ·  P pause  ·  M mute`, W / 2, top + 168, 11, '#ffcc80', 'center', 'system-ui, sans-serif');
 }
 function drawTitle() {
   ctx.fillStyle = 'rgba(10,5,20,.45)'; ctx.fillRect(0, 0, W, H);
@@ -1370,22 +1727,24 @@ function drawTitle() {
   text('ROAD RASH', 0, 0, 84, '#ffd21f'); ctx.restore();
   ctx.save(); ctx.translate(W / 2, 178); ctx.rotate(-0.04);
   text('RICKSHAW RUMBLE', 0, 0, 38, '#4caf50'); ctx.restore();
-  const lines = [
-    ['↑ / W', 'Accelerate'], ['↓ / S', 'Brake'], ['← → / A D', 'Steer'],
-    ['Z / J', 'Swing lathi LEFT'], ['X / K', 'Swing lathi RIGHT'], ['H / SPACE', 'Horn (move cows & traffic)'], ['P · M', 'Pause · Mute'],
-  ];
-  panel(W / 2 - 230, 222, 460, 206, 0.55);
-  lines.forEach(([k, v], i) => { text(k, W / 2 - 30, 246 + i * 26, 14, '#ffd21f', 'right'); text(v, W / 2 - 10, 246 + i * 26, 15, '#fff', 'left', 'system-ui, sans-serif'); });
+  drawControls(222);
   const a = 0.5 + Math.sin(performance.now() / 250) * 0.5;
   ctx.globalAlpha = 0.4 + a * 0.6; text('PRESS ENTER TO RACE', W / 2, 462, 26, '#fff'); ctx.globalAlpha = 1;
-  text(`Next: ${TRACKS[level].name}   ·   Wallet ${fmtCash(cash)}${round ? `   ·   Tour ${round + 1}` : ''}`, W / 2, 500, 13, '#ffcc80', 'center', 'system-ui, sans-serif');
+  // track selector
+  const canL = level > 0, canR = level < unlocked;
+  panel(W / 2 - 250, 408, 500, 34, 0.55);
+  text('\u25c0', W / 2 - 232, 425, 16, canL ? '#ffd21f' : 'rgba(255,255,255,.2)');
+  text('\u25b6', W / 2 + 232, 425, 16, canR ? '#ffd21f' : 'rgba(255,255,255,.2)');
+  text(TRACKS[level].name, W / 2, 425, 16, '#fff');
+  const locked = TRACKS.length - 1 - unlocked;
+  text(`Race ${level + 1} of ${TRACKS.length}${locked ? `  \u00b7  finish top 3 to unlock ${locked} more` : ''}  \u00b7  \u2190 \u2192 choose  \u00b7  Wallet ${fmtCash(cash)}${round ? `  \u00b7  Tour ${round + 1}` : ''}`, W / 2, 500, 12, '#ffcc80', 'center', 'system-ui, sans-serif');
   text('Mind the tip-over: three wheels don\'t like sharp turns at full speed!', W / 2, 522, 12, '#ddd', 'center', 'system-ui, sans-serif');
 }
 function drawChampion() {
   ctx.fillStyle = 'rgba(10,5,20,.55)'; ctx.fillRect(0, 0, W, H);
   text('🏆', W / 2, 140, 80, '#fff', 'center', 'sans-serif', false);
   text('AUTO KING OF INDIA!', W / 2, 240, 48, '#ffd21f');
-  text(`You conquered all ${TRACKS.length} cities. Wallet: ${fmtCash(cash)}`, W / 2, 300, 18, '#fff', 'center', 'system-ui, sans-serif');
+  text(`You won all ${TRACKS.length} races across India. Wallet: ${fmtCash(cash)}`, W / 2, 300, 18, '#fff', 'center', 'system-ui, sans-serif');
   text('The next tour is tougher. Press ENTER', W / 2, 360, 20, '#ffcc80');
 }
 function drawResults() {
@@ -1411,7 +1770,8 @@ function drawResults() {
 }
 function drawPaused() {
   ctx.fillStyle = 'rgba(0,0,0,.5)'; ctx.fillRect(0, 0, W, H);
-  text('PAUSED', W / 2, H / 2 - 20, 60, '#fff'); text('P / ESC / ENTER to resume', W / 2, H / 2 + 30, 16, '#ddd', 'center', 'system-ui, sans-serif');
+  text('PAUSED', W / 2, 110, 60, '#fff'); text('P / ESC / ENTER to resume', W / 2, 160, 16, '#ddd', 'center', 'system-ui, sans-serif');
+  drawControls(200);
 }
 
 // ------------------------------------------------------------------ layout & loop
@@ -1436,5 +1796,5 @@ function frame(now) {
 requestAnimationFrame(frame);
 // expose for debugging
 window.__rrr = { get state() { return state; }, player, get rivals() { return rivals; }, get results() { return results; }, setupRace,
-  step(n) { for (let i = 0; i < n; i++) update(STEP); render(); }, keys };
+  step(n) { for (let i = 0; i < n; i++) update(STEP); render(); }, keys, Sfx, SKYLINES, THEMES, get bubbles() { return bubbles; }, setLevel(l) { level = l; unlocked = Math.max(unlocked, l); attractSetup(); } };
 })();
