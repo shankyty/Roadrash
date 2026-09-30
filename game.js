@@ -18,6 +18,7 @@ const ACCEL = MAX_SPEED / 6, BRAKE = -MAX_SPEED, DECEL = -MAX_SPEED / 5;
 const OFFROAD_DECEL = -MAX_SPEED / 2, OFFROAD_LIMIT = MAX_SPEED / 4, CENTRIFUGAL = 0.25;
 const KMH = 80; // top speed shown on the speedo
 const TUK_NW = 0.27; // auto-rickshaw width, normalised to half road width
+const TUK_LEN = 1060; // auto-rickshaw length in track units (the 3D model; vehicles are centred on their position)
 const FONT = '"Bungee", Impact, "Arial Black", sans-serif';
 
 const TRACKS = [
@@ -175,7 +176,7 @@ function deviceSummary() {
 //   error/<kind>/<problem>/<OS-browser>
 // with the details needed to reproduce them in the title (version, game state, OS/browser versions,
 // screen, audio state, stack). Nothing personal is sent. Also logged to the console.
-const GAME_VERSION = '2.8.1';
+const GAME_VERSION = '2.8.2';
 const safe = (f, fallback = '?') => { try { const v = f(); return v === undefined ? fallback : v; } catch (e) { return fallback; } };
 function envDetails() {
   const ua = navigator.userAgent || '';
@@ -1660,10 +1661,10 @@ function setupRace() {
   const addTraffic = (type) => {
     const z = startZ + 4000 + tr() * (trackLength - 9000);
     const lane = pick([-0.66, 0, 0.66], tr);
-    if (type === 'cow') traffic.push({ type, z, x: rand(-1.2, 1.2), speed: 0, vx: pick([-1, 1], tr) * rand(0.05, 0.12), nw: 0.42, pause: 0, scared: 0, label: 'HOLY COW' });
+    if (type === 'cow') traffic.push({ type, z, x: rand(-1.2, 1.2), speed: 0, vx: pick([-1, 1], tr) * rand(0.05, 0.12), nw: 0.42, len: 380, pause: 0, scared: 0, label: 'HOLY COW' });
     else {
-      const def = type === 'bus' ? { img: SP.bus, nw: 0.58, s: [0.28, 0.38], label: 'BUS' } : type === 'truck' ? { img: SP.truck, nw: 0.58, s: [0.25, 0.35], label: 'TRUCK' } : { img: pick(SP.cars, tr), nw: 0.38, s: [0.35, 0.5], label: 'CAR' };
-      traffic.push({ type, z, x: lane, tx: lane, img: def.img, nw: def.nw, speed: MAX_SPEED * rand(def.s[0], def.s[1]), laneT: rand(4, 12), label: def.label });
+      const def = type === 'bus' ? { img: SP.bus, nw: 0.58, len: 3200, s: [0.28, 0.38], label: 'BUS' } : type === 'truck' ? { img: SP.truck, nw: 0.58, len: 2800, s: [0.25, 0.35], label: 'TRUCK' } : { img: pick(SP.cars, tr), nw: 0.38, len: 1500, s: [0.35, 0.5], label: 'CAR' };
+      traffic.push({ type, z, x: lane, tx: lane, img: def.img, nw: def.nw, len: def.len, speed: MAX_SPEED * rand(def.s[0], def.s[1]), laneT: rand(4, 12), label: def.label });
     }
   };
   for (let i = 0; i < track.traffic; i++) addTraffic(pick(['car', 'car', 'bus', 'truck'], tr));
@@ -1673,7 +1674,7 @@ function setupRace() {
     const mode = r < 0.28 ? 'sleep' : r < 0.8 ? 'sit' : 'cross';
     const x = mode === 'sleep' ? rand(-0.9, 0.9) : mode === 'sit' ? pick([-1, 1], tr) * rand(1.15, 1.5) : rand(-1.2, 1.2);
     traffic.push({ type: 'dog', label: 'DOG', z, x, speed: 0, vx: mode === 'cross' ? pick([-1, 1], tr) * rand(0.25, 0.4) : 0,
-      mode, t: tr() * 3, look: SP.dogs[Math.floor(tr() * SP.dogs.length)], tried: false, barkT: 0, img: null, nw: 0.2 });
+      mode, t: tr() * 3, look: SP.dogs[Math.floor(tr() * SP.dogs.length)], tried: false, barkT: 0, img: null, nw: 0.2, len: 170 });
   }
 
   finishDist = startZ + track.laps * trackLength;
@@ -2006,15 +2007,15 @@ function updateRivals(dt) {
     if (engaged) tx = player.x + (r.x >= player.x ? 1 : -1) * 0.4;
     let nearest = null, nd = 1800;
     for (const c of traffic) {
-      const cdz = wrapDelta(c.z - r.dist);
-      if (cdz > 0 && cdz < nd && Math.abs(c.x - r.x) < (r.nw + c.nw) / 2 + 0.1) { nearest = c; nd = cdz; }
+      const reach = use3D ? (c.len || 0) / 2 + TUK_LEN / 2 : 0, gapZ = wrapDelta(c.z - r.dist) - reach; // bumper-to-bumper gap
+      if (gapZ > -2 * reach && gapZ < nd && Math.abs(c.x - r.x) < (r.nw + c.nw) / 2 + 0.1) { nearest = c; nd = gapZ; }
     }
     if (nearest) {
       const gap = (r.nw + nearest.nw) / 2 + 0.16;
       let side = r.x >= nearest.x ? 1 : -1;
       if (Math.abs(nearest.x + side * gap) > 0.95) side = -side;
       tx = nearest.x + side * gap;
-      if (nd < 300) r.speed = Math.min(r.speed, nearest.speed + 400);
+      if (nd < 300 && nd > -150) r.speed = Math.min(r.speed, nearest.speed + 400);
     }
     tx = clamp(tx, -0.9, 0.9);
     r.x += clamp(tx - r.x, -1.3 * dt, 1.3 * dt);
@@ -2095,11 +2096,17 @@ function updateTraffic(dt) {
 
 function checkCollisions() {
   if (player.crash > 0) return;
-  const pw = TUK_NW, seg = findSegment(player.dist);
+  // in 3D every vehicle is a solid body centred on its position, so contact happens when the bodies' ends
+  // meet (half of each length apart); the flat 2D sprites only touch just ahead of the auto
+  const pw = TUK_NW, half = use3D ? TUK_LEN / 2 : 0, seg = findSegment(player.dist + half * 0.8);
   if (Math.abs(player.x) > 1) {
     for (const s of seg.solids) {
-      const cx = s.offset + Math.sign(s.offset) * s.nw / 2;
-      if (overlap(player.x, pw * 0.7, cx, s.nw * 0.55)) {
+      if (Math.sign(s.offset) !== Math.sign(player.x)) continue;
+      // buildings and temples: their front wall is at the offset; other things are centred half their width out
+      const wall = s.kind === 'building' || s.kind === 'temple';
+      const hit = wall ? Math.abs(player.x) + pw * 0.45 > Math.abs(s.offset)
+        : overlap(player.x, pw * 0.7, s.offset + Math.sign(s.offset) * s.nw / 2, s.nw * 0.55);
+      if (hit) {
         crashPlayer('WRECKED!', 25, -Math.sign(s.offset)); player.speed = 0;
         player.x = s.offset - Math.sign(s.offset) * pw * 0.6; return;
       }
@@ -2107,7 +2114,16 @@ function checkCollisions() {
   }
   for (const c of traffic) {
     const dz = wrapDelta(c.z - player.dist);
-    if (dz < -60 || dz > 230 || !overlap(player.x, pw * 0.85, c.x, c.nw * 0.85)) continue;
+    const reach = use3D ? (c.len || 0) / 2 + half : 230;
+    if (dz < (use3D ? -reach : -60) || dz > reach || !overlap(player.x, pw * 0.85, c.x, c.nw * 0.85)) continue;
+    // alongside (3D): the auto scrapes the vehicle's side and is shoved back out into its own line
+    if (use3D && dz < reach - 260 && c.type !== 'dog') {
+      const dir = player.x >= c.x ? 1 : -1;
+      player.x = c.x + dir * (pw + c.nw) * 0.85 / 2 + dir * 0.01;
+      player.lean = dir * 0.5; player.speed *= 0.92; player.health -= 2; Sfx.bump(); shake = 0.12;
+      if (c.type === 'cow') { Animals.mooFrom(c); c.vx = -dir * 0.8; c.scared = 2; }
+      return;
+    }
     if (player.speed <= c.speed) continue;
     if (c.type === 'dog') { // the dog always leaps clear; you lose speed swerving
       if (c.mode === 'chase') continue;
@@ -2120,20 +2136,22 @@ function checkCollisions() {
     if (c.type === 'cow') { Animals.mooFrom(c); c.vx = (c.x >= player.x ? 1 : -1) * 0.8; c.scared = 2; }
     if (rel > 0.3) { crashPlayer(`SMASHED INTO A ${c.label}!`, 20 + rel * 25); player.speed = c.speed * 0.3; }
     else { player.speed = c.speed * 0.8; player.health -= 3; Sfx.bump(); shake = 0.15; }
-    player.dist -= 230 - dz;
+    player.dist -= reach - dz;
     return;
   }
+  const reachR = use3D ? TUK_LEN : 200;
   for (const r of rivals) {
     const dz = r.dist - player.dist;
-    if (Math.abs(dz) > 200 || !overlap(player.x, pw, r.x, r.nw)) continue;
+    if (Math.abs(dz) > reachR || !overlap(player.x, pw, r.x, r.nw)) continue;
     if (r.ko > 0) {
-      if (dz > 0 && player.speed / MAX_SPEED > 0.3) { crashPlayer(`TRIPPED OVER ${r.name}!`, 15); player.speed *= 0.3; player.dist -= 200 - dz; return; }
+      if (dz > 0 && player.speed / MAX_SPEED > 0.3) { crashPlayer(`TRIPPED OVER ${r.name}!`, 15); player.speed *= 0.3; player.dist -= reachR - dz; return; }
       continue;
     }
     const dx = player.x - r.x, ov = (pw + r.nw) / 2 - Math.abs(dx), dir = dx >= 0 ? 1 : -1;
-    if (Math.abs(dx) < (pw + r.nw) / 2 * 0.55) {
-      if (dz > 0 && player.speed > r.speed) { player.speed = r.speed * 0.95; player.dist -= 200 - dz; Sfx.bump(); }
-      else if (dz < 0 && r.speed > player.speed) { r.speed = player.speed * 0.95; r.dist = player.dist - 200; }
+    const nose = use3D ? Math.abs(dz) > reachR - 260 : Math.abs(dx) < (pw + r.nw) / 2 * 0.55;
+    if (nose) {
+      if (dz > 0 && player.speed > r.speed) { player.speed = r.speed * 0.95; player.dist -= reachR - dz; Sfx.bump(); }
+      else if (dz < 0 && r.speed > player.speed) { r.speed = player.speed * 0.95; r.dist = player.dist - reachR; }
     } else { player.x += dir * ov * 0.5; r.x -= dir * ov * 0.5; }
   }
 }
