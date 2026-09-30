@@ -4,7 +4,7 @@
 
 - **Curses and hawker calls are now spoken aloud** by the device's own Indian voices: **Hindi** in Mumbai, Hyderabad and Delhi, and **Tamil** in Chennai. Each line has a native-script version (for example "क्या रे मियाँ!" or "காபி! காபி!") so the voices pronounce it properly instead of reading romanised text.
 - Every rival has their own voice pitch and speed, your driver has a consistent voice, and hawkers use a sing-song street call. A fresh curse cuts in over a hawker; hawkers never talk over anyone.
-- New **Voices** slider in the sound mixer (V / pause menu / 🔊).
+- New **Voices** slider in the sound mixer (V / pause menu / 🔊). New default balance: race 35%, voices 70%, music 40%, city noise 70%.
 - If a device has no Hindi or Tamil voice, an Indian-English voice reads the line instead. Missing voices and speech errors are reported to analytics as `error/voices/...`.
 
 ## v2.6.1: Detailed problem reports
