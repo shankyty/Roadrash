@@ -33,7 +33,9 @@ One hand drives and the other swings the lathi. Press **Tab** on the title or pa
 | Swing lathi left / right | **A** / **D** (left hand) | **←** / **→** (right hand) |
 | Horn (cows and traffic move aside) | Space, W or S | Space, ↑ or ↓ |
 
-Also: **P** or **Esc** pauses, **M** mutes. In the Mac app, **⌘R** restarts to the title screen and **⌃⌘F** toggles full screen.
+**Esc** or **P** during a race opens the menu: **Resume**, **Restart race** or **Quit to main menu**. Use ↑/↓ and Enter to choose, or click an option. On the results screen, **Enter** continues and **Esc** returns to the main menu. **M** mutes.
+
+In the Mac app's **Game** menu: Pause/Resume (⌘P), Restart Race (⌘R), Quit to Main Menu (⇧⌘M), Reload Game (⇧⌘R). **⌃⌘F** toggles full screen.
 
 ## Gameplay
 

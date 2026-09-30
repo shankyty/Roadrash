@@ -47,6 +47,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKUIDelegate {
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
 
     @objc private func reloadGame(_ sender: Any?) { webView.reload() }
+    @objc private func pauseGame(_ sender: Any?) { send("pause") }
+    @objc private func restartRace(_ sender: Any?) { send("restart") }
+    @objc private func quitToMenu(_ sender: Any?) { send("menu") }
+
+    // Forwards a command to the game's window.rrrCommand (see web/game.js).
+    private func send(_ command: String) {
+        webView.evaluateJavaScript("window.rrrCommand && window.rrrCommand('\(command)')", completionHandler: nil)
+    }
 
     private func buildMenu() {
         let main = NSMenu()
@@ -63,9 +71,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKUIDelegate {
 
         let gameItem = NSMenuItem()
         let gameMenu = NSMenu(title: "Game")
-        let restart = NSMenuItem(title: "Restart to Title", action: #selector(reloadGame(_:)), keyEquivalent: "r")
-        restart.target = self
-        gameMenu.addItem(restart)
+        let items: [(String, Selector, String, NSEvent.ModifierFlags)] = [
+            ("Pause / Resume", #selector(pauseGame(_:)), "p", [.command]),
+            ("Restart Race", #selector(restartRace(_:)), "r", [.command]),
+            ("Quit to Main Menu", #selector(quitToMenu(_:)), "m", [.command, .shift]),
+            ("Reload Game", #selector(reloadGame(_:)), "r", [.command, .shift]),
+        ]
+        for (i, (title, action, key, mods)) in items.enumerated() {
+            if i == 3 { gameMenu.addItem(.separator()) }
+            let item = NSMenuItem(title: title, action: action, keyEquivalent: key)
+            item.keyEquivalentModifierMask = mods
+            item.target = self
+            gameMenu.addItem(item)
+        }
         gameItem.submenu = gameMenu
         main.addItem(gameItem)
 
