@@ -43,6 +43,14 @@ One hand drives and the other swings the lathi. Press **Tab** on the title or pa
 
 In the Mac app's **Game** menu: Pause/Resume (⌘P), Restart Race (⌘R), Quit to Main Menu (⇧⌘M), Reload Game (⇧⌘R). **⌃⌘F** toggles full screen.
 
+## 3D
+
+The world is rendered in real 3D with [Three.js](https://threejs.org) (r149, bundled in `web/lib/`, MIT licence). Every vehicle is a 3D model: your auto, the rival autos (their rounded canopies tip over when knocked out, and the lathi swings in 3D), buses, trucks and cars. Cows and dogs are 3D models with walking legs. Buildings are solid blocks with painted shopfronts. Bends and hills are real geometry, so vehicles and buildings keep their depth when you turn.
+
+- **Cameras:** a high **helicopter** view (default) and a low **chase** view. Press **C** to switch; your choice is saved.
+- **Classic renderer:** if a device has no WebGL, the original pseudo-3D renderer is used automatically. Add `?2d` to the URL to force it.
+- **Code layout:** `web/world3d.js` builds the road around the camera each frame from the track's curves and hills, and places the models. The game logic in `web/game.js` is the same for both renderers.
+
 ## Gameplay
 
 - 7 races across 4 cities, each with its own skyline:

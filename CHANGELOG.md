@@ -1,5 +1,17 @@
 # Changelog
 
+## v2.8.0: Real 3D 🎥
+
+- **The world is now truly 3D** (Three.js / WebGL), so vehicles and buildings no longer look like flat cut-outs on bends:
+  - **Your auto and the rival autos** are 3D models with rounded canopies, open sides with the driver and passengers visible, spinning wheels and their painted "HORN OK PLEASE" backs. Rivals tip over in 3D when knocked out, and the lathi swings in 3D.
+  - **Buses, trucks and cars** are 3D: the bus has its luggage rack and ladder, and the truck its blue tarpaulin and painted tailgate.
+  - **Cows and dogs** are 3D, with walking legs. Dogs curl up to sleep.
+  - **Buildings** are solid blocks with the painted shopfronts, lined up along the road.
+  - **Hoardings** are angled towards traffic, **lamp posts** are 3D, and **trees, palms and temples** stay solid from every angle.
+  - **Bends and hills** are real geometry, and **blob shadows** sit under the vehicles.
+- **Helicopter camera** by default, looking down on the race from above and behind. Press **C** for the close **chase camera**.
+- Phones and browsers without WebGL automatically keep the classic renderer (or add `?2d` to the URL).
+
 ## v2.7.3: Real truck and bus horns
 
 - **Trucks** now blast a real **musical Indian truck horn** (two takes), and **buses** a real **deep air horn**, both cut from a street recording made in Jaipur. They still come from the vehicle's position on the road, and an angry driver you've just overtaken hits it twice.
