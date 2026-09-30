@@ -887,7 +887,7 @@ function buildSharedSprites() {
 let segments = [], trackLength = 0, theme = THEMES.marine, themeSprites = {}, bgLayers = {};
 let track = TRACKS[0], level = clamp(store.get('level', 0), 0, TRACKS.length - 1), cash = store.get('cash', 0), round = store.get('round', 0);
 let unlocked = clamp(Math.max(store.get('unlocked', 0), level), 0, TRACKS.length - 1);
-let state = 'title', paused = false, countdown = 0, raceTime = 0, finishTimer = 0, finishDist = 0, startZ = 0;
+let state = 'title', paused = false, pauseSel = 0, countdown = 0, raceTime = 0, finishTimer = 0, finishDist = 0, startZ = 0;
 let position = 0, skyOffset = 0, farOffset = 0, nearOffset = 0, shake = 0;
 let rivals = [], traffic = [], finishOrder = [], results = null;
 let particles = [], popups = [], messages = [], bubbles = [], frameNo = 0;
@@ -1050,13 +1050,31 @@ function keyUp(code) { keys[code] = false; }
 // swallow every non-shortcut key so the macOS WKWebView shell never plays the "unhandled key" beep
 addEventListener('keydown', e => { if (!e.metaKey && !e.ctrlKey) e.preventDefault(); if (!e.repeat) keyDown(e.code); else keys[e.code] = true; });
 addEventListener('keyup', e => keyUp(e.code));
-addEventListener('blur', () => { for (const k in keys) keys[k] = false; if (state === 'race') paused = true; });
+addEventListener('blur', () => { for (const k in keys) keys[k] = false; if (state === 'race') openPause(); });
 
+const RACING_STATES = ['countdown', 'race', 'finished'];
+const PAUSE_MENU = [{ label: 'RESUME', cmd: 'resume' }, { label: 'RESTART RACE', cmd: 'restart' }, { label: 'QUIT TO MAIN MENU', cmd: 'menu' }];
+function openPause() { paused = true; pauseSel = 0; }
+// Commands shared by the pause menu, mouse clicks and the macOS app menu (window.rrrCommand).
+function runCommand(cmd) {
+  if (cmd === 'pause') { if (RACING_STATES.includes(state) && !paused) openPause(); else if (paused) paused = false; return; }
+  paused = false;
+  if (cmd === 'restart' && state !== 'title' && state !== 'champion') setupRace();
+  if (cmd === 'menu') { state = 'title'; results = null; messages = []; attractSetup(); }
+}
+window.rrrCommand = runCommand;
 function onPress(code) {
   if (code === 'KeyM') { Sfx.toggleMute(); return; }
   if (code === 'Tab' && (state === 'title' || paused)) { toggleLayout(); return; }
-  if ((code === 'KeyP' || code === 'Escape') && (state === 'race' || state === 'countdown')) { paused = !paused; return; }
-  if (paused) { if (code === 'Enter') paused = false; return; }
+  if (paused) {
+    if (code === 'KeyP' || code === 'Escape') { paused = false; return; }
+    if (code === 'ArrowUp' || code === 'KeyW') { pauseSel = (pauseSel + PAUSE_MENU.length - 1) % PAUSE_MENU.length; Sfx.beep(false); }
+    if (code === 'ArrowDown' || code === 'KeyS') { pauseSel = (pauseSel + 1) % PAUSE_MENU.length; Sfx.beep(false); }
+    if (code === 'Enter' || code === 'Space') runCommand(PAUSE_MENU[pauseSel].cmd);
+    return;
+  }
+  if ((code === 'KeyP' || code === 'Escape') && RACING_STATES.includes(state)) { openPause(); return; }
+  if (code === 'Escape' && (state === 'results' || state === 'champion')) { runCommand('menu'); return; }
   if (state === 'title' && code === 'Enter') { setupRace(); return; }
   if (state === 'title' && (code === 'ArrowLeft' || code === 'ArrowRight' || code === 'KeyA' || code === 'KeyD')) {
     const next = clamp(level + (code === 'ArrowRight' || code === 'KeyD' ? 1 : -1), 0, unlocked);
@@ -1578,8 +1596,7 @@ function render() {
   if (state === 'title') drawTitle();
   else if (state === 'champion') drawChampion();
   else { drawHUD(); if (state === 'countdown') drawCountdown(); if (state === 'results') drawResults(); }
-  drawMessages();
-  if (paused) drawPaused();
+  if (paused) drawPaused(); else drawMessages();
 }
 
 function drawPlayer(seg, pct) {
@@ -1616,6 +1633,7 @@ function drawHUD() {
   text(fmtTime(raceTime), 190, 34, 18, '#fff', 'right');
   text(`TRACK ${level + 1}`, 190, 58, 12, '#ffcc80', 'right');
   text(`KO ${player.kos}`, 190, 80, 12, '#ff8a80', 'right');
+  text('ESC MENU', 24, 84, 9, 'rgba(255,255,255,.55)', 'left');
 
   panel(W - 212, 12, 200, 60);
   text(fmtCash(cash), W - 24, 34, 20, '#a5d6a7', 'right');
@@ -1746,6 +1764,7 @@ function drawChampion() {
   text('AUTO KING OF INDIA!', W / 2, 240, 48, '#ffd21f');
   text(`You won all ${TRACKS.length} races across India. Wallet: ${fmtCash(cash)}`, W / 2, 300, 18, '#fff', 'center', 'system-ui, sans-serif');
   text('The next tour is tougher. Press ENTER', W / 2, 360, 20, '#ffcc80');
+  text('ESC — MAIN MENU', W / 2, 392, 13, '#ddd');
 }
 function drawResults() {
   ctx.fillStyle = 'rgba(10,5,20,.6)'; ctx.fillRect(0, 0, W, H);
@@ -1767,12 +1786,31 @@ function drawResults() {
   ctx.globalAlpha = 0.4 + a * 0.6;
   text(r.qualified ? (level + 1 >= TRACKS.length ? 'ENTER — CLAIM YOUR CROWN' : `ENTER — NEXT: ${TRACKS[level + 1].name}`) : 'ENTER — TRY AGAIN (TOP 3 NEEDED)', W / 2, by + 76, 20, '#ffd21f');
   ctx.globalAlpha = 1;
+  text('ESC — MAIN MENU', W / 2, by + 104, 13, '#ddd');
 }
+const pauseItemRect = i => ({ x: W / 2 - 170, y: 118 + i * 50, w: 340, h: 40 });
 function drawPaused() {
-  ctx.fillStyle = 'rgba(0,0,0,.5)'; ctx.fillRect(0, 0, W, H);
-  text('PAUSED', W / 2, 110, 60, '#fff'); text('P / ESC / ENTER to resume', W / 2, 160, 16, '#ddd', 'center', 'system-ui, sans-serif');
-  drawControls(200);
+  ctx.fillStyle = 'rgba(12,6,20,.86)'; ctx.fillRect(0, 0, W, H);
+  text('PAUSED', W / 2, 66, 50, '#fff');
+  PAUSE_MENU.forEach((m, i) => {
+    const r = pauseItemRect(i), sel = i === pauseSel;
+    ctx.fillStyle = sel ? '#ffd21f' : 'rgba(255,255,255,.1)'; rr(ctx, r.x, r.y, r.w, r.h, 10); ctx.fill();
+    text((sel ? '\u25b6  ' : '') + m.label, W / 2, r.y + r.h / 2 + 1, 18, sel ? '#1a1a1a' : '#fff', 'center', FONT, !sel);
+  });
+  text('\u2191 \u2193 choose  \u00b7  ENTER select  \u00b7  ESC resume  \u00b7  TAB switch hands', W / 2, 284, 12, '#ffcc80', 'center', 'system-ui, sans-serif');
+  drawControls(300);
 }
+// mouse / trackpad on the pause menu
+canvas.addEventListener('click', e => {
+  if (!paused) return;
+  const b = canvas.getBoundingClientRect(), x = (e.clientX - b.left) * W / b.width, y = (e.clientY - b.top) * H / b.height;
+  PAUSE_MENU.forEach((m, i) => { const r = pauseItemRect(i); if (x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h) runCommand(m.cmd); });
+});
+canvas.addEventListener('mousemove', e => {
+  if (!paused) return;
+  const b = canvas.getBoundingClientRect(), x = (e.clientX - b.left) * W / b.width, y = (e.clientY - b.top) * H / b.height;
+  PAUSE_MENU.forEach((m, i) => { const r = pauseItemRect(i); if (x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h) pauseSel = i; });
+});
 
 // ------------------------------------------------------------------ layout & loop
 function fit() {
