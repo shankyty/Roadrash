@@ -2,3 +2,6 @@ build/
 .DS_Store
 .claude/
 goatcounter-export-*
+ScreenRecording*
+Screen Recording*
+*.mov

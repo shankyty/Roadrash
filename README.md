@@ -6,7 +6,7 @@ Road Rash-style combat racing through Mumbai, Hyderabad, Delhi and Chennai. Inst
 
 **https://shankyty.github.io/Roadrash/**
 
-No install needed. It works on any desktop browser, and on phones and tablets with on-screen touch controls: in landscape the controls sit over the game, and in portrait they sit underneath it.
+No install needed. It works on any desktop browser, and on phones and tablets with on-screen touch controls: in landscape the buttons sit at the screen edges, and in portrait they sit underneath the game. For full screen on a phone, use **Add to Home Screen** and launch it from there.
 
 ## Install with Homebrew
 

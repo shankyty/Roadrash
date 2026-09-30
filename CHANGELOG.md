@@ -7,6 +7,9 @@
 - New **Voices** slider in the sound mixer (V / pause menu / 🔊). New default balance: race 35%, voices 70%, music 40%, city noise 70%.
 - **Other vehicles make noise:** buses and trucks rumble with a deep diesel knock, cars hum and rival autos rattle. Each gets louder as you approach, is panned to its side of the road, and shifts pitch as you close in or fall behind.
 - **Indian traffic horns:** long truck air horns, double bus blasts, car *beep-beeps* and auto bulb *pom-poms*, with random honking for atmosphere. Overtake someone closely and they'll often honk at you. All of it is on the mixer's **Race** channel.
+- **Better phone layout in landscape:** the touch buttons are pinned to the screen edges (clear of the iPhone notch) instead of covering the game. During races, the HUD moves to the top on touch devices: position, time and km/h top-left with your health bar under it, and the rival's bar top-right.
+- **Add to Home Screen:** the game now opens full screen, with no browser toolbar, when launched from the home screen (Android: landscape as well).
+- **iPhone audio interruptions:** when iOS pauses the game's audio (a phone call, screen recording or another app), players see *"Sound paused by your phone … tap to resume"*, and sound picks up again when they tap or come back to the tab.
 - If a device has no Hindi or Tamil voice, an Indian-English voice reads the line instead. Missing voices and speech errors are reported to analytics as `error/voices/...`.
 
 ## v2.6.1: Detailed problem reports

@@ -337,6 +337,11 @@ const Sfx = {
       return;
     }
     const a = this.ctx;
+    // iOS can interrupt audio (call, screen recording, another app); explain it and recover by itself
+    a.onstatechange = () => {
+      if (a.state === 'running') this.problem = null;
+      else if (a.state === 'interrupted') this.problem = 'Sound paused by your phone (call, screen recording or another app): tap to resume';
+    };
     this.master = a.createGain(); this.master.connect(a.destination);
     // three channels the player can balance: race (engine, horn, fights), music, city noise
     for (const k of ['raceBus', 'musicBus', 'cityBus']) { this[k] = a.createGain(); this[k].connect(this.master); }
@@ -643,7 +648,11 @@ if (Voice.ok) {
   Voice.loadVoices();
   try { speechSynthesis.addEventListener('voiceschanged', () => Voice.loadVoices()); } catch (e) { /* older Safari */ }
 }
-addEventListener('visibilitychange', () => { if (document.hidden) Voice.stopVoices(); });
+addEventListener('visibilitychange', () => {
+  if (document.hidden) { Voice.stopVoices(); return; }
+  // coming back to the tab: pick audio up again if the phone had paused it
+  const a = Sfx.ctx; if (a && a.state !== 'running') { const p = a.resume(); if (p && p.catch) p.catch(() => {}); }
+});
 
 // ------------------------------------------------------------------ other vehicles
 // Positional engine sound for the nearest buses, trucks, cars and rival autos (louder when close,
@@ -1619,7 +1628,8 @@ const unlockAudio = e => {
   clearTimeout(unlockCheck);
   unlockCheck = setTimeout(() => {
     if (a.state !== 'running') {
-      Sfx.problem = isIOS ? 'Sound blocked: switch off silent mode, then tap again' : 'Sound blocked by the browser: tap again or check the tab isn\'t muted';
+      Sfx.problem = a.state === 'interrupted' ? 'Sound paused by your phone (call, screen recording or another app): tap to resume'
+        : isIOS ? 'Sound blocked: switch off silent mode, then tap again' : 'Sound blocked by the browser: tap again or check the tab isn\'t muted';
       reportError('audio', `still ${a.state} after ${e && e.type || 'gesture'}`);
     } else Sfx.problem = null;
   }, 1500);
@@ -2295,19 +2305,23 @@ function bar(x, y, w, h, pct, color, label) {
   ctx.fillStyle = color; rr(ctx, x, y, Math.max(0, w * clamp(pct, 0, 1)), h, 4); ctx.fill();
 }
 
+// on touch devices the on-screen buttons sit in the bottom corners, so the HUD moves to the top
+const touchUI = () => { const t = document.getElementById('touch'); return !!t && t.classList.contains('on'); };
 function drawHUD() {
-  const rank = currentRank(), total = rivals.length + 1;
+  const rank = currentRank(), total = rivals.length + 1, touch = touchUI();
   panel(12, 12, 190, 84);
   text(`${rank}`, 24, 50, 44, rank <= 3 ? '#ffeb3b' : '#fff', 'left');
   text(`/${total}`, 24 + ctx.measureText(`${rank}`).width + 4, 58, 18, '#ddd', 'left');
   text(fmtTime(raceTime), 190, 34, 18, '#fff', 'right');
   text(`TRACK ${level + 1}`, 190, 58, 12, '#ffcc80', 'right');
   text(`KO ${player.kos}`, 190, 80, 12, '#ff8a80', 'right');
-  text('ESC MENU', 24, 84, 9, 'rgba(255,255,255,.55)', 'left');
-
-  panel(W - 212, 12, 200, 60);
-  text(fmtCash(cash), W - 24, 34, 20, '#a5d6a7', 'right');
-  text(track.name, W - 24, 58, 10, '#ffcc80', 'right');
+  if (touch) text(`${Math.round(player.speed / MAX_SPEED * KMH)} KM/H`, 24, 84, 11, '#ffd21f', 'left');
+  else {
+    text('ESC MENU', 24, 84, 9, 'rgba(255,255,255,.55)', 'left');
+    panel(W - 212, 12, 200, 60);
+    text(fmtCash(cash), W - 24, 34, 20, '#a5d6a7', 'right');
+    text(track.name, W - 24, 58, 10, '#ffcc80', 'right');
+  }
 
   // progress strip
   const px = W / 2 - 170, pw = 340, py = 26;
@@ -2320,7 +2334,8 @@ function drawHUD() {
   text('🏁', px + pw + 2, py, 14, '#fff', 'left', 'sans-serif', false);
 
   // health
-  bar(24, H - 44, 200, 14, player.health / 100, player.health > 35 ? '#66bb6a' : '#ef5350', 'YOUR AUTO');
+  if (touch) bar(24, 126, 166, 12, player.health / 100, player.health > 35 ? '#66bb6a' : '#ef5350', 'YOUR AUTO');
+  else bar(24, H - 44, 200, 14, player.health / 100, player.health > 35 ? '#66bb6a' : '#ef5350', 'YOUR AUTO');
   // tip warning
   if (Math.abs(player.lean) > 0.7 && player.crash <= 0 && state === 'race') {
     const a = 0.6 + Math.sin(performance.now() / 70) * 0.4;
@@ -2329,9 +2344,10 @@ function drawHUD() {
   // nearest rival
   let near = null, nd = 1600;
   for (const r of rivals) { const d = Math.abs(r.dist - player.dist); if (d < nd) { nd = d; near = r; } }
-  if (near) bar(W - 250, H - 110, 200, 12, near.ko > 0 ? 0 : near.health / 100, near.ko > 0 ? '#9e9e9e' : '#ffa726', near.ko > 0 ? `${near.name} (KO)` : near.name);
+  if (near) bar(touch ? W - 206 : W - 250, touch ? 116 : H - 110, touch ? 180 : 200, 12, near.ko > 0 ? 0 : near.health / 100, near.ko > 0 ? '#9e9e9e' : '#ffa726', near.ko > 0 ? `${near.name} (KO)` : near.name);
 
-  // speedometer
+  // speedometer (touch devices show km/h in the top-left panel instead)
+  if (touch) return;
   const cx = W - 80, cy = H - 26, R = 58;
   panel(cx - R - 12, cy - R - 14, R * 2 + 24, R + 36, 0.5);
   ctx.strokeStyle = 'rgba(255,255,255,.25)'; ctx.lineWidth = 8; ctx.beginPath(); ctx.arc(cx, cy, R - 6, Math.PI, 0); ctx.stroke();
