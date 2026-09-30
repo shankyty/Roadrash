@@ -51,7 +51,7 @@ In the Mac app's **Game** menu: Pause/Resume (⌘P), Restart Race (⌘R), Quit t
   - **Delhi**: Ring Road, with India Gate, Qutub Minar, Red Fort, the Lotus Temple and Jama Masjid behind.
   - **Chennai**: Marina Beach Road, with the Kapaleeshwarar gopuram, the lighthouse and Chennai Central behind.
 - All 7 races are open from the start: pick any of them on the title screen with ← →.
-- Drivers who take a lathi hit shout back in their city's street slang (Bambaiya, Dakhni, Dilli or Tamil), and the lines are **spoken aloud** by the device's Hindi or Tamil voice. Every rival has their own voice pitch.
+- Drivers who take a lathi hit shout back in their city's street slang (Bambaiya, Dakhni, Dilli or Tamil), and the lines are **spoken aloud** in Hindi or Tamil from where the speaker is on the road: panned to their side, louder when close, with Doppler as you pass. Every rival has their own voice pitch.
 - Hawkers at chai stalls and shops call out as you pass, in local lingo and out loud: *"Vada pav! Garam garam!"*, *"Irani chai, aao miyan!"*, *"Chole bhature, aa jao!"*, *"Kaapi! Kaapi!"*.
 - Each city has its own background music, all original and generated live in the browser: filmi dholak (Mumbai), qawwali (Hyderabad), bhangra (Delhi) and kuthu with a nadaswaram-style reed (Chennai). Press **N** to turn it on or off.
 - Real street and market recordings play in the background of each city, louder where the road is lined with shops.
@@ -108,5 +108,6 @@ It picks up the newest `goatcounter-export-*.zip` in this folder or in `~/Downlo
   - Delhi: ["India Streets NewDelhi City"](https://freesound.org/s/263636/) by Alcappuccino, CC0.
   - Chennai: ["Chennai (India) Traffic Ambience 01"](https://freesound.org/s/465712/) by **Nielsvdb**, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
   - Hyderabad: ["Street Ambience India"](https://freesound.org/s/509181/) by guidofm (recorded in Pune), CC0.
+- Voices: the curses and hawker calls (`web/voices.js`) were generated with Meta's [MMS-TTS](https://huggingface.co/facebook/mms-tts-hin) models, [`facebook/mms-tts-hin`](https://huggingface.co/facebook/mms-tts-hin) and [`facebook/mms-tts-tam`](https://huggingface.co/facebook/mms-tts-tam), licensed [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/) (non-commercial use). They were trimmed, EQ'd and loudness-normalised.
 - Music: original compositions, synthesised in real time by the game.
 - Engine sound: ["Auto Rickshaw - Start, Idle, Revving"](https://freesound.org/s/261051/) by **kalhan** (recorded at an NID sound-design workshop), licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). It was trimmed into a start clip plus idle and rev loops, level-adjusted and resampled (`web/sounds.js`).

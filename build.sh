@@ -23,7 +23,7 @@ rm -rf "$OBJ"
 
 echo "▸ bundling resources"
 cp macos/Info.plist "$APP/Contents/Info.plist"
-cp web/index.html web/sounds.js web/ambience-*.js web/game.js web/icon.png "$APP/Contents/Resources/web/"
+cp web/index.html web/sounds.js web/voices.js web/ambience-*.js web/game.js web/icon.png "$APP/Contents/Resources/web/"
 
 echo "▸ icon"
 TMP="$(mktemp -d)"

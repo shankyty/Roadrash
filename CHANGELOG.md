@@ -2,7 +2,9 @@
 
 ## v2.7.0: Speech bubbles talk 🗣️
 
-- **Curses and hawker calls are now spoken aloud** by the device's own Indian voices: **Hindi** in Mumbai, Hyderabad and Delhi, and **Tamil** in Chennai. Each line has a native-script version (for example "क्या रे मियाँ!" or "காபி! காபி!") so the voices pronounce it properly instead of reading romanised text.
+- **Curses and hawker calls are now spoken aloud**, in **Hindi** in Mumbai, Hyderabad and Delhi and in **Tamil** in Chennai. All 48 lines are real audio clips, generated from native-script text (for example "क्या रे मियाँ!" or "காபி! காபி!") with Meta's open MMS text-to-speech models (CC BY-NC 4.0).
+- **Voices come from where the speaker is:** a rival's curse is panned to their side of the road, and a hawker's call comes from their stall. Voices get louder and clearer as you get close, and are muffled far away. Pitch rises as you drive toward a speaker and drops as you pass (**Doppler**).
+- If the clips can't load, the device's own speech voices read the lines as a backup.
 - Every rival has their own voice pitch and speed, your driver has a consistent voice, and hawkers use a sing-song street call. A fresh curse cuts in over a hawker; hawkers never talk over anyone.
 - New **Voices** slider in the sound mixer (V / pause menu / 🔊). New default balance: race 35%, voices 70%, music 40%, city noise 70%.
 - **Other vehicles make noise:** buses and trucks rumble with a deep diesel knock, cars hum and rival autos rattle. Each gets louder as you approach, is panned to its side of the road, and shifts pitch as you close in or fall behind.
