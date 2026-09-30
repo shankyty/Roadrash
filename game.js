@@ -173,7 +173,9 @@ if (analyticsOn) {
   tag.async = true; tag.src = '//gc.zgo.at/count.js'; tag.dataset.goatcounter = GOATCOUNTER;
   tag.onload = () => { const wait = setInterval(() => { if (window.goatcounter && window.goatcounter.count) { clearInterval(wait); pendingEvents.splice(0).forEach(f => f()); } }, 100); };
   document.head.appendChild(tag);
-  trackEvent(deviceSummary(), 'Device · OS · browser');
+  // like GoatCounter's own page view, only count the device once the page is actually shown
+  const deviceOnce = () => { if (document.visibilityState === 'visible') { document.removeEventListener('visibilitychange', deviceOnce); trackEvent(deviceSummary(), 'Device · OS · browser'); } };
+  if (document.visibilityState === 'visible') deviceOnce(); else document.addEventListener('visibilitychange', deviceOnce);
 }
 
 const store = {
