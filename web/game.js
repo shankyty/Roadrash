@@ -38,6 +38,13 @@ const RIVAL_COLORS = [
   { body: '#00a896', trim: '#fff3b0', canopy: '#1a1a1a', plate: 'WB 04 KO' },
 ];
 const HIT_WORDS = ['DHISHOOM!', 'DHISHKYAON!', 'THAPPAD!', 'DHAMAKA!', 'BAM!'];
+// Roadside hawkers call out to passing autos in the city's street lingo.
+const HAWKER_CALLS = {
+  mumbai: ['VADA PAV! GARAM GARAM!', 'CUTTING CHAI, BOSS!', 'BHEL PURI LE LO!', 'PAV BHAJI, EKDUM FRESH!', 'NIMBU PAANI THANDA!'],
+  hyderabad: ['IRANI CHAI, AAO MIYAN!', 'HALEEM GARAM HAI!', 'BIRYANI KHAO NA!', 'OSMANIA BISCUIT LE LO!', 'MIRCHI BAJJI, HAU!'],
+  delhi: ['CHOLE BHATURE, AA JAO!', 'GOLGAPPE BHAIYA!', 'RABDI JALEBI, GARMA GARAM!', 'MOMOS, PAAJI!', 'CHAI PEE LO, YAAR!'],
+  chennai: ['KAAPI! KAAPI!', 'SUNDAL, SUNDAL!', 'IDLI VADAI, VAANGA!', 'MURUKKU, SAAPDUNGA!', 'ELANEER, ELANEER!'],
+};
 // What a driver shouts after taking a lathi hit, in the local street slang of the race's city.
 const CURSES = {
   mumbai: ['ABE O HERO!', 'KYA RE, DIMAAG KHARAB?', 'AYE BHIDU, SAMBHAL KE!', 'APUN KO MAARA?!', 'CHAL NIKAL!', 'WAAT LAGA DUNGA!', 'GHANTA!'],
@@ -195,6 +202,7 @@ const Sfx = {
     const len = a.sampleRate; this.noiseBuf = a.createBuffer(1, len, a.sampleRate);
     const d = this.noiseBuf.getChannelData(0); for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
     this.loadSamples();
+    Music.ensure();
     if (a.audioWorklet) {
       const url = URL.createObjectURL(new Blob([TWO_STROKE_WORKLET], { type: 'application/javascript' }));
       a.audioWorklet.addModule(url).then(() => {
@@ -292,6 +300,88 @@ const Sfx = {
   beep(hi) { this.tone(hi ? 880 : 520, hi ? 0.4 : 0.18, 'square', 0.14, null, 0, 2500); },
   ko() { this.tone(700, 0.5, 'triangle', 0.25, 140); },
   cash() { this.tone(1200, 0.08, 'square', 0.1); this.tone(1600, 0.14, 'square', 0.1, null, 0.08); },
+};
+
+// ------------------------------------------------------------------ music
+// Light background music, one original groove per city, synthesised live (16th-note sequencer).
+// Pitches are semitones above Sa (D3). Melodies loop every 32 steps, drum patterns every 16.
+const SA_HZ = 146.83;
+const SONGS = {
+  mumbai: { bpm: 104, swing: 0, lead: 'harmonium', // filmi dholak groove
+    drums: { dha: 'x.....x...x.....', na: '..x.x..x..x.x.x.', shaker: 'x.x.x.x.x.x.x.x.' },
+    melody: [[0, 0, 2], [2, 2, 2], [4, 4, 2], [6, 7, 4], [10, 4, 2], [12, 2, 2], [14, 0, 2], [16, 4, 2], [18, 7, 2], [20, 9, 2], [22, 7, 4], [26, 4, 2], [28, 2, 2], [30, 0, 2]] },
+  hyderabad: { bpm: 92, swing: 0.08, lead: 'harmonium', // qawwali: tabla, claps, harmonium in Kafi
+    drums: { ghe: 'x.....x.x.......', na: '..x.x..x..x.x..x', clap: '....x.......x.x.' },
+    melody: [[0, 7, 2], [2, 9, 2], [4, 10, 2], [6, 12, 6], [12, 10, 2], [14, 9, 2], [16, 7, 4], [20, 5, 2], [22, 7, 2], [24, 3, 2], [26, 2, 2], [28, 0, 4]] },
+  delhi: { bpm: 100, swing: 0.14, lead: 'tumbi', // bhangra: dhol chaal and a tumbi riff
+    drums: { dha: 'x.....x...x.....', na: '..x.x..xx.x.x.xx', clap: '....x.......x...' },
+    melody: [[0, 12, 1], [2, 12, 1], [3, 14, 1], [4, 12, 1], [6, 10, 1], [8, 12, 1], [10, 7, 1], [11, 9, 1], [12, 10, 1], [14, 12, 1],
+      [16, 12, 1], [18, 12, 1], [19, 14, 1], [20, 16, 1], [22, 14, 1], [24, 12, 1], [26, 10, 1], [28, 9, 1], [30, 7, 1], [31, 9, 1]] },
+  chennai: { bpm: 124, swing: 0, lead: 'nadaswaram', // kuthu beat and a reed tune in Mohanam
+    drums: { dha: 'x..x..x.x..x..x.', na: '.x.x.xx..x.x.xx.', shaker: 'xxxxxxxxxxxxxxxx' },
+    melody: [[0, 7, 2], [2, 9, 2], [4, 12, 4], [8, 9, 2], [10, 7, 2], [12, 4, 4], [16, 2, 2], [18, 4, 2], [20, 7, 2], [22, 4, 2], [24, 2, 2], [26, 0, 6]] },
+};
+const Music = {
+  on: store.get('music', true), city: null, bus: null, step: 0, next: 0, timer: null,
+  hz(semi) { return SA_HZ * Math.pow(2, semi / 12); },
+  ensure() {
+    const a = Sfx.ctx; if (!a || !Sfx.master) return false;
+    if (!this.bus) {
+      this.bus = a.createGain(); this.bus.gain.value = 0; this.bus.connect(Sfx.master);
+      // tanpura-style drone on Sa and Pa
+      const lp = a.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 700;
+      const dg = a.createGain(); dg.gain.value = 0.045; lp.connect(dg); dg.connect(this.bus);
+      for (const [semi, det] of [[-12, 0], [-5, 3], [0, -3]]) { const o = a.createOscillator(); o.type = 'sawtooth'; o.frequency.value = this.hz(semi); o.detune.value = det; o.connect(lp); o.start(); }
+      this.next = a.currentTime + 0.1;
+      this.timer = setInterval(() => this.tick(), 25);
+    }
+    return true;
+  },
+  setCity(city) { if (city !== this.city) { this.city = city; this.step = 0; if (Sfx.ctx) this.next = Sfx.ctx.currentTime + 0.1; } },
+  toggle() { this.on = !this.on; store.set('music', this.on); },
+  tick() {
+    const a = Sfx.ctx, song = SONGS[this.city]; if (!a || !song) return;
+    const vol = !this.on ? 0 : paused ? 0.1 : state === 'title' || state === 'champion' || state === 'results' ? 0.3 : 0.2;
+    this.bus.gain.setTargetAtTime(vol, a.currentTime, 0.3);
+    if (a.state !== 'running' || !this.on) { this.next = a.currentTime + 0.1; return; }
+    const stepDur = 60 / song.bpm / 4;
+    if (this.next < a.currentTime - 0.2) this.next = a.currentTime + 0.05;
+    while (this.next < a.currentTime + 0.12) {
+      const s = this.step, t = this.next + (s % 2 ? song.swing * stepDur : 0);
+      for (const [inst, pat] of Object.entries(song.drums)) if (pat[s % pat.length] === 'x') this.drum(inst, t, s);
+      for (const [at, semi, len] of song.melody) if (at === s % 32) this.note(song.lead, t, semi, len * stepDur);
+      this.next += stepDur; this.step++;
+    }
+  },
+  env(t, peak, attack, dur) { const g = Sfx.ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + attack); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); g.connect(this.bus); return g; },
+  osc(type, f, t, dur, dest, f2) { const o = Sfx.ctx.createOscillator(); o.type = type; o.frequency.setValueAtTime(f, t); if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + dur * 0.8); o.connect(dest); o.start(t); o.stop(t + dur + 0.05); return o; },
+  noise(t, dur, peak, type, freq, q = 1) {
+    const a = Sfx.ctx, n = a.createBufferSource(); n.buffer = Sfx.noiseBuf;
+    const f = a.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = q;
+    n.connect(f); f.connect(this.env(t, peak, 0.003, dur)); n.start(t, Math.random() * 0.5); n.stop(t + dur + 0.05);
+  },
+  drum(inst, t, s) {
+    const accent = s % 4 === 0 ? 1 : 0.75;
+    if (inst === 'dha') { this.osc('sine', 120, t, 0.35, this.env(t, 0.9 * accent, 0.004, 0.35), 52); this.noise(t, 0.04, 0.15, 'lowpass', 900); }
+    if (inst === 'ghe') { this.osc('sine', 72, t, 0.4, this.env(t, 0.8, 0.004, 0.4), 105); } // tabla bayan: pitch bends up
+    if (inst === 'na') { this.osc('triangle', 520 + Math.random() * 60, t, 0.1, this.env(t, 0.32 * accent, 0.002, 0.1), 470); this.noise(t, 0.025, 0.08, 'highpass', 3500); }
+    if (inst === 'clap') { for (const d of [0, 0.012, 0.024]) this.noise(t + d, 0.05, 0.25, 'bandpass', 1400, 1.2); }
+    if (inst === 'shaker') this.noise(t, 0.035, 0.05 * accent, 'highpass', 6500);
+  },
+  note(lead, t, semi, dur) {
+    const a = Sfx.ctx, f = this.hz(semi + 12);
+    if (lead === 'harmonium') {
+      const lp = a.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2000; lp.connect(this.env(t, 0.09, 0.04, dur + 0.08));
+      this.osc('sawtooth', f * 1.002, t, dur + 0.08, lp); this.osc('sawtooth', f * 0.998, t, dur + 0.08, lp); this.osc('square', f / 2, t, dur + 0.08, lp);
+    } else if (lead === 'tumbi') {
+      const hp = a.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 700; hp.connect(this.env(t, 0.13, 0.002, 0.22));
+      this.osc('sawtooth', f * 2.04, t, 0.22, hp, f * 2);
+    } else if (lead === 'nadaswaram') {
+      const bp = a.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1500; bp.Q.value = 1.1; bp.connect(this.env(t, 0.11, 0.05, dur + 0.05));
+      const o1 = this.osc('sawtooth', f * 2, t, dur + 0.05, bp), o2 = this.osc('square', f * 2, t, dur + 0.05, bp);
+      const lfo = a.createOscillator(), lg = a.createGain(); lfo.frequency.value = 5.5; lg.gain.value = 7; lfo.connect(lg); lg.connect(o1.frequency); lg.connect(o2.frequency); lfo.start(t); lfo.stop(t + dur + 0.1);
+    }
+  },
 };
 
 // ------------------------------------------------------------------ sprite painting
@@ -995,7 +1085,7 @@ let unlocked = clamp(Math.max(store.get('unlocked', 0), level), 0, TRACKS.length
 let state = 'title', paused = false, pauseSel = 0, countdown = 0, raceTime = 0, finishTimer = 0, finishDist = 0, startZ = 0;
 let position = 0, skyOffset = 0, farOffset = 0, nearOffset = 0, shake = 0;
 let rivals = [], traffic = [], finishOrder = [], results = null;
-let particles = [], popups = [], messages = [], bubbles = [], frameNo = 0;
+let particles = [], popups = [], messages = [], bubbles = [], frameNo = 0, hawkerT = 2;
 const player = {};
 
 function resetPlayer() {
@@ -1057,6 +1147,7 @@ function buildTrack(tr) {
       else if (kind === 'billboard') s = { img: pick(themeSprites.billboards, R), offset: side * rand(1.25, 1.6), nw: 0.95, solid: true };
       else if (kind === 'temple') s = { img: SP.temple, offset: side * rand(1.8, 2.6), nw: 1.1, solid: true };
       else s = { img: SP.chai, offset: side * rand(1.2, 1.5), nw: 0.6, solid: true };
+      s.kind = kind;
       seg.sprites.push(s);
     }
   }
@@ -1066,6 +1157,7 @@ function loadTrack(idx) {
   track = TRACKS[idx % TRACKS.length];
   track.themeDef = THEMES[track.theme];
   theme = track.themeDef;
+  Music.setCity(theme.city);
   const r = mulberry32(track.seed * 3);
   themeSprites = { buildings: theme.buildings.map(col => makeBuilding(r, col)),
     billboards: [...BILLBOARDS, ...theme.ads.map((lines, i) => ({ ...AD_COLORS[i % AD_COLORS.length], lines }))].map(makeBillboard) };
@@ -1120,7 +1212,7 @@ function setupRace() {
   for (let i = 0; i < track.cows; i++) addTraffic('cow');
   for (let i = 0; i < (track.dogs || 0); i++) {
     const z = startZ + 3000 + tr() * (trackLength - 8000), r = tr();
-    const mode = r < 0.35 ? 'sleep' : r < 0.75 ? 'sit' : 'cross';
+    const mode = r < 0.28 ? 'sleep' : r < 0.8 ? 'sit' : 'cross';
     const x = mode === 'sleep' ? rand(-0.9, 0.9) : mode === 'sit' ? pick([-1, 1], tr) * rand(1.15, 1.5) : rand(-1.2, 1.2);
     traffic.push({ type: 'dog', label: 'DOG', z, x, speed: 0, vx: mode === 'cross' ? pick([-1, 1], tr) * rand(0.25, 0.4) : 0,
       mode, t: tr() * 3, look: SP.dogs[Math.floor(tr() * SP.dogs.length)], tried: false, barkT: 0, img: null, nw: 0.2 });
@@ -1178,6 +1270,7 @@ function runCommand(cmd) {
 window.rrrCommand = runCommand;
 function onPress(code) {
   if (code === 'KeyM') { Sfx.toggleMute(); return; }
+  if (code === 'KeyN') { Music.toggle(); msg(Music.on ? 'MUSIC ON' : 'MUSIC OFF', '#fff', 1); return; }
   if (code === 'Tab' && (state === 'title' || paused)) { toggleLayout(); return; }
   if (paused) {
     if (code === 'KeyP' || code === 'Escape') { paused = false; return; }
@@ -1220,6 +1313,14 @@ function onPress(code) {
 // ------------------------------------------------------------------ gameplay helpers
 function msg(text, color = '#fff', dur = 1.6) { messages.push({ text, color, t: dur, dur }); if (messages.length > 3) messages.shift(); }
 function popup(text, x, y, color = '#ffeb3b', size = 34) { popups.push({ text, x, y, color, size, t: 0.9 }); }
+function updateHawkers(dt) {
+  hawkerT -= dt; if (hawkerT > 0) return;
+  hawkerT = rand(1.6, 3.2);
+  const seen = [];
+  for (let n = 3; n < 60; n++) for (const sp of segments[(findSegment(position).index + n) % segments.length].sprites)
+    if (sp.scr && sp.scr.frame === frameNo && sp.scr.w > 60 && sp.scr.x > 40 && sp.scr.x < W - 40 && !bubbles.some(b => b.who === sp)) seen.push(sp);
+  if (seen.length) bubbles.push({ who: pick(seen), text: pick(HAWKER_CALLS[theme.city] || HAWKER_CALLS.mumbai), t: 2.2, hawker: true });
+}
 function curse(who) {
   bubbles = bubbles.filter(b => b.who !== who);
   bubbles.push({ who, text: pick(CURSES[theme.city] || CURSES.mumbai), t: 1.7 });
@@ -1303,6 +1404,7 @@ function update(dt) {
     updateRivals(dt);
     updateTraffic(dt);
     if (state === 'race') checkCollisions();
+    updateHawkers(dt);
     checkFinish();
     if (state === 'finished') { finishTimer -= dt; if (finishTimer <= 0) buildResults(); }
     updateEngine();
@@ -1421,6 +1523,7 @@ function updateRivals(dt) {
 }
 
 // Stray dogs sleep on the road, trot across it, or sit by the roadside and chase passing autos.
+function startChase(c, side) { c.mode = 'chase'; c.chaseT = rand(5, 8); c.side = side; c.speed = Math.min(player.speed * 0.8, MAX_SPEED * 0.55); }
 function updateDog(c, dt) {
   c.t += dt; c.barkT -= dt;
   const dz = wrapDelta(c.z - player.dist), sp = player.speed / MAX_SPEED;
@@ -1431,7 +1534,12 @@ function updateDog(c, dt) {
   }
   if (c.mode === 'sit' && !c.tried && dz > -150 && dz < 450 && Math.abs(c.x - player.x) < 1.6 && sp > 0.25 && state === 'race') {
     c.tried = true;
-    if (Math.random() < 0.75) { c.mode = 'chase'; c.chaseT = rand(3, 5); c.side = Math.sign(c.x - player.x) || 1; c.speed = Math.min(player.speed * 0.8, MAX_SPEED * 0.45); }
+    if (Math.random() < 0.85) {
+      startChase(c, Math.sign(c.x - player.x) || 1);
+      // sometimes a second dog joins in on the other side
+      const buddy = traffic.find(o => o !== c && o.type === 'dog' && o.mode !== 'chase' && Math.abs(wrapDelta(o.z - c.z)) < 900);
+      if (buddy && Math.random() < 0.45) { buddy.tried = true; startChase(buddy, -c.side); buddy.z = (player.dist + 150 + trackLength) % trackLength; buddy.x = player.x - c.side * 0.3; }
+    }
   }
   if (c.mode === 'cross') {
     c.x += c.vx * dt;
@@ -1439,7 +1547,7 @@ function updateDog(c, dt) {
   } else if (c.mode === 'chase') {
     c.chaseT -= dt;
     // run alongside the front wheel (a little ahead of the auto) until it outpaces the dog
-    const top = MAX_SPEED * 0.45;
+    const top = MAX_SPEED * (c.chaseT > 2 ? 0.7 : 0.4); // strong sprint, then it tires
     c.speed += clamp(clamp(player.speed + (220 - dz) * 2, 0, top) - c.speed, -MAX_SPEED * dt, MAX_SPEED * 0.6 * dt);
     const tx = clamp(player.x + c.side * 0.32, -1.6, 1.6);
     c.x += clamp(tx - c.x, -1.2 * dt, 1.2 * dt);
@@ -1724,6 +1832,7 @@ function render() {
       const sx = seg.p1.screen.x + scale * s.offset * ROAD_W * W / 2;
       const ox = s.center ? -0.5 : (s.offset < 0 ? -1 : 0);
       drawSprite(s.img, sx + destW * ox, seg.p1.screen.y - destH, destW, destH, seg.clip);
+      if (s.kind === 'chai' || s.kind === 'building') s.scr = { x: sx + destW * (ox + 0.5), y: seg.p1.screen.y - destH * (s.kind === 'chai' ? 0.75 : 0.3), w: destW, frame: frameNo };
     }
     if (seg.cars.length > 1) seg.cars.sort((a, b) => b._z - a._z);
     for (const car of seg.cars) {
@@ -1845,10 +1954,10 @@ function drawBubbles() {
     const tw = ctx.measureText(b.text).width, bw = tw + 22, bh = 30;
     const bx = clamp(x - bw / 2, 8, W - bw - 8), by = y - bh - 14;
     ctx.fillStyle = 'rgba(0,0,0,.35)'; rr(ctx, bx + 3, by + 3, bw, bh, 12); ctx.fill();
-    ctx.fillStyle = '#fffdf4'; rr(ctx, bx, by, bw, bh, 12); ctx.fill();
+    ctx.fillStyle = b.hawker ? '#fff3c4' : '#fffdf4'; rr(ctx, bx, by, bw, bh, 12); ctx.fill();
     ctx.beginPath(); ctx.moveTo(clamp(x, bx + 14, bx + bw - 14) - 8, by + bh - 1); ctx.lineTo(clamp(x, bx + 14, bx + bw - 14) + 8, by + bh - 1); ctx.lineTo(x, by + bh + 12); ctx.closePath(); ctx.fill();
     ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 2; rr(ctx, bx, by, bw, bh, 12); ctx.stroke();
-    text(b.text, bx + bw / 2, by + bh / 2 + 1, 14, b.who.isPlayer ? '#1b5e20' : '#b71c1c', 'center', FONT, false);
+    text(b.text, bx + bw / 2, by + bh / 2 + 1, 14, b.hawker ? '#e65100' : b.who.isPlayer ? '#1b5e20' : '#b71c1c', 'center', FONT, false);
     ctx.restore();
   }
 }
@@ -1997,5 +2106,5 @@ function frame(now) {
 requestAnimationFrame(frame);
 // expose for debugging
 window.__rrr = { get state() { return state; }, player, get rivals() { return rivals; }, get results() { return results; }, setupRace,
-  step(n) { for (let i = 0; i < n; i++) update(STEP); render(); }, keys, Sfx, SKYLINES, THEMES, SP, get traffic() { return traffic; }, get bubbles() { return bubbles; }, setLevel(l) { level = l; unlocked = Math.max(unlocked, l); attractSetup(); } };
+  step(n) { for (let i = 0; i < n; i++) update(STEP); render(); }, keys, Sfx, Music, SKYLINES, THEMES, SP, get traffic() { return traffic; }, get bubbles() { return bubbles; }, setLevel(l) { level = l; unlocked = Math.max(unlocked, l); attractSetup(); } };
 })();
