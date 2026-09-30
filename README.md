@@ -109,5 +109,9 @@ It picks up the newest `goatcounter-export-*.zip` in this folder or in `~/Downlo
   - Chennai: ["Chennai (India) Traffic Ambience 01"](https://freesound.org/s/465712/) by **Nielsvdb**, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
   - Hyderabad: ["Street Ambience India"](https://freesound.org/s/509181/) by guidofm (recorded in Pune), CC0.
 - Voices: the curses and hawker calls (`web/voices.js`) were generated with Meta's [MMS-TTS](https://huggingface.co/facebook/mms-tts-hin) models, [`facebook/mms-tts-hin`](https://huggingface.co/facebook/mms-tts-hin) and [`facebook/mms-tts-tam`](https://huggingface.co/facebook/mms-tts-tam), licensed [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/) (non-commercial use). They were trimmed, EQ'd and loudness-normalised. To rebuild them, see [`tools/voices/`](tools/voices/): `lines.json` holds each line's text and chosen take, and `make_voices.py` regenerates `web/voices.js` exactly.
+- Animals (`web/animals.js`, trimmed and loudness-normalised):
+  - Dog bark: ["Dog Bark 9"](https://freesound.org/s/853723/) by **AleXZavesa**, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+  - Dog bark and growl: ["Animal Dog Bark And Growl 01"](https://freesound.org/s/625501/) by abhisheky948, CC0.
+  - Cow moos: ["Cow moo #8"](https://freesound.org/s/513565/) by spurioustransients, CC0.
 - Music: original compositions, synthesised in real time by the game.
 - Engine sound: ["Auto Rickshaw - Start, Idle, Revving"](https://freesound.org/s/261051/) by **kalhan** (recorded at an NID sound-design workshop), licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). It was trimmed into a start clip plus idle and rev loops, level-adjusted and resampled (`web/sounds.js`).

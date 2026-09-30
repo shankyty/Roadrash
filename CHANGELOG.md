@@ -1,5 +1,11 @@
 # Changelog
 
+## v2.7.2: Real dogs and cows
+
+- **Dogs and cows now use real recordings** instead of synthesised sounds: two dog barks, a bark-and-growl for chasing dogs and dogs you honk at, and two field-recorded cow moos. Each animal's pitch varies slightly, so they don't all sound the same.
+- They still come from where the animal is (panned, louder when close, pitch shifting as you pass) on the **City noise** channel.
+- Credits: "Dog Bark 9" by AleXZavesa (CC BY 4.0); "Animal Dog Bark And Growl 01" by abhisheky948 and "Cow moo #8" by spurioustransients (both CC0).
+
 ## v2.7.1: Louder city noise
 
 - The street and market sounds were hard to hear under the engine, horns and voices. Each city's recording is now mastered about 7 dB louder (to -16 LUFS, with a limiter), and it plays at a higher level during races, never dropping below 70% of that between shops. Overall the city noise is roughly 12 dB louder in a race.

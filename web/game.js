@@ -172,7 +172,7 @@ function deviceSummary() {
 //   error/<kind>/<problem>/<OS-browser>
 // with the details needed to reproduce them in the title (version, game state, OS/browser versions,
 // screen, audio state, stack). Nothing personal is sent. Also logged to the console.
-const GAME_VERSION = '2.7.1';
+const GAME_VERSION = '2.7.2';
 const safe = (f, fallback = '?') => { try { const v = f(); return v === undefined ? fallback : v; } catch (e) { return fallback; } };
 function envDetails() {
   const ua = navigator.userAgent || '';
@@ -191,7 +191,7 @@ function envDetails() {
   ].join(' · ');
 }
 // Which part of the game an error came from: the first stack frame whose function belongs to a component.
-const AUDIO_METHODS = 'spot|outAt|mooAt|barkAt|mooFrom|barkFrom|updateAnimals|ensureVoices|updateVehicles|honkAt|hornTone|kindOf|init|fallbackEngine|loadSamples|startEngine|setEngine|applyVol|setVol|toggleMute|tone|noise|horn|hit|whoosh|crash|bump|moo|bark|yelp|grunt|beep|ko|cash|ensure|setCity|toggle|tick|env|osc|drum|note|decode|stopAll|shopsNearby|unlockAudio';
+const AUDIO_METHODS = 'loadAnimals|playAt|spot|outAt|mooAt|barkAt|mooFrom|barkFrom|updateAnimals|ensureVoices|updateVehicles|honkAt|hornTone|kindOf|init|fallbackEngine|loadSamples|startEngine|setEngine|applyVol|setVol|toggleMute|tone|noise|horn|hit|whoosh|crash|bump|moo|bark|yelp|grunt|beep|ko|cash|ensure|setCity|toggle|tick|env|osc|drum|note|decode|stopAll|shopsNearby|unlockAudio';
 const COMPONENTS = [
   ['audio', new RegExp(`^(?:Sfx|Music|Ambience|Object)?\\.?(?:${AUDIO_METHODS})$|^(?:Sfx|Music|Ambience|TwoStroke)`)],
   ['traffic', /^(updateDog|startChase|updateTraffic|honk)$/],
@@ -329,6 +329,7 @@ const Sfx = {
     const d = this.noiseBuf.getChannelData(0); for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
     this.loadSamples();
     VoiceClips.loadClips();
+    Animals.loadAnimals();
     Music.ensure();
     Ambience.ensure();
     if (a.audioWorklet) {
@@ -595,34 +596,28 @@ const Animals = {
     if (a.createStereoPanner) { const pn = a.createStereoPanner(); pn.pan.value = pan; g.connect(pn); pn.connect(Sfx.cityBus); } else g.connect(Sfx.cityBus);
     return g;
   },
-  // "mooo": a low buzzy voice through an "oo" vowel filter, swelling up then sagging
-  mooAt(gain, pan, rate) {
-    const a = Sfx.ctx, out = this.outAt(gain * 0.9, pan); if (!out) return;
-    const t = a.currentTime, dur = rand(1.1, 1.6), f0 = rand(105, 135) * rate;
-    const env = a.createGain(); env.gain.setValueAtTime(0.0001, t); env.gain.exponentialRampToValueAtTime(1, t + 0.25);
-    env.gain.setValueAtTime(1, t + dur * 0.7); env.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    const f1 = a.createBiquadFilter(); f1.type = 'bandpass'; f1.frequency.value = 380; f1.Q.value = 3;
-    const f2 = a.createBiquadFilter(); f2.type = 'bandpass'; f2.frequency.value = 820; f2.Q.value = 4;
-    const mix = a.createGain(); mix.gain.value = 3; f1.connect(mix); f2.connect(mix); mix.connect(env); env.connect(out);
-    const o = a.createOscillator(); o.type = 'sawtooth';
-    o.frequency.setValueAtTime(f0 * 0.85, t); o.frequency.linearRampToValueAtTime(f0 * 1.12, t + dur * 0.35); o.frequency.linearRampToValueAtTime(f0 * 0.8, t + dur);
-    const vib = a.createOscillator(), vg = a.createGain(); vib.frequency.value = 5; vg.gain.value = 3; vib.connect(vg); vg.connect(o.frequency);
-    o.connect(f1); o.connect(f2); o.start(t); o.stop(t + dur + 0.05); vib.start(t); vib.stop(t + dur + 0.05);
-  },
-  // "woof": a sharp noisy onset with a falling pitch through a mouth-like band, one to three times
-  barkAt(gain, pan, rate, times = 2) {
-    const a = Sfx.ctx, out = this.outAt(gain, pan); if (!out) return;
-    const pitch = rand(0.85, 1.25) * rate;
-    for (let i = 0; i < times; i++) {
-      const t = a.currentTime + i * rand(0.16, 0.24), dur = 0.12;
-      const env = a.createGain(); env.gain.setValueAtTime(0.0001, t); env.gain.exponentialRampToValueAtTime(1, t + 0.008); env.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-      const bp = a.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 900 * pitch; bp.Q.value = 1.8;
-      bp.connect(env); env.connect(out);
-      const o = a.createOscillator(); o.type = 'sawtooth'; o.frequency.setValueAtTime(620 * pitch, t); o.frequency.exponentialRampToValueAtTime(260 * pitch, t + dur);
-      o.connect(bp); o.start(t); o.stop(t + dur + 0.02);
-      const n = a.createBufferSource(); n.buffer = Sfx.noiseBuf; const ng = a.createGain(); ng.gain.value = 0.35; n.connect(ng); ng.connect(bp);
-      n.start(t, Math.random() * 0.5); n.stop(t + 0.05);
+  // real recordings from web/animals.js (dog barks, a bark-and-growl, two cow moos)
+  bufs: {}, loaded: false,
+  loadAnimals() {
+    if (this.loaded || !Sfx.ctx) return; this.loaded = true;
+    const src = window.RRR_ANIMALS;
+    if (!src) { reportError('audio', 'animals.js missing: cows and dogs will be silent'); return; }
+    for (const [name, url] of Object.entries(src)) {
+      const bin = atob(url.slice(url.indexOf(',') + 1)), bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      Sfx.ctx.decodeAudioData(bytes.buffer, b => { this.bufs[name] = b; }, e => reportError('audio', `animal sound ${name} decode failed`, e));
     }
+  },
+  playAt(name, gain, pan, rate, delay = 0) {
+    const a = Sfx.ctx, buf = this.bufs[name], out = buf && this.outAt(gain, pan); if (!out) return;
+    const n = a.createBufferSource(); n.buffer = buf; n.playbackRate.value = rate * rand(0.94, 1.06); // every animal a little different
+    n.connect(out); n.start(a.currentTime + delay);
+  },
+  mooAt(gain, pan, rate) { this.playAt(pick(['moo1', 'moo2']), gain, pan, rate); },
+  barkAt(gain, pan, rate, times = 2) {
+    if (times >= 3) { this.playAt('growl', gain, pan, rate); return; } // riled up: bark and growl
+    this.playAt(pick(['bark1', 'bark2']), gain, pan, rate);
+    if (times === 2) this.playAt(pick(['bark1', 'bark2']), gain, pan, rate * 1.04, rand(0.28, 0.4));
   },
   mooFrom(c) { const p = this.spot(c); this.mooAt(Math.max(p.gain, 0.3), p.pan, p.rate); this.lastMoo = performance.now(); },
   barkFrom(c, times) { const p = this.spot(c); this.barkAt(p.gain, p.pan, p.rate, times || 1 + Math.floor(Math.random() * 3)); },
@@ -2506,7 +2501,7 @@ function drawTitle() {
   text(TRACKS[level].name, W / 2, 425, 16, '#fff');
   text(`Race ${level + 1} of ${TRACKS.length}  \u00b7  \u2190 \u2192 choose  \u00b7  Wallet ${fmtCash(cash)}${round ? `  \u00b7  Tour ${round + 1}` : ''}`, W / 2, 500, 12, '#ffcc80', 'center', 'system-ui, sans-serif');
   text('Mind the tip-over: three wheels don\'t like sharp turns at full speed!', W / 2, 522, 12, '#ddd', 'center', 'system-ui, sans-serif');
-  text('Engine: kalhan \u00b7 Chennai street: Nielsvdb (CC BY 4.0, freesound.org) \u00b7 Voices: Meta MMS-TTS (CC BY-NC 4.0)', W - 8, 534, 8, 'rgba(255,255,255,.45)', 'right', 'system-ui, sans-serif', false);
+  text('Engine: kalhan \u00b7 Chennai street: Nielsvdb \u00b7 Dog bark: AleXZavesa (CC BY 4.0, freesound.org) \u00b7 Voices: Meta MMS-TTS (CC BY-NC 4.0)', W - 8, 534, 8, 'rgba(255,255,255,.45)', 'right', 'system-ui, sans-serif', false);
 }
 function drawChampion() {
   ctx.fillStyle = 'rgba(10,5,20,.55)'; ctx.fillRect(0, 0, W, H);
