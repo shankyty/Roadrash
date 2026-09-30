@@ -1,0 +1,15 @@
+{
+  "name": "Road Rash: Rickshaw Rumble",
+  "short_name": "Road Rash",
+  "description": "Road Rash with an auto-rickshaw, racing through Mumbai, Hyderabad, Delhi and Chennai.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#120b1c",
+  "theme_color": "#120b1c",
+  "icons": [
+    { "src": "icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "apple-touch-icon.png", "sizes": "180x180", "type": "image/png" }
+  ]
+}

@@ -2,7 +2,12 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Road Rash">
+<link rel="manifest" href="manifest.webmanifest">
 <title>Road Rash: Rickshaw Rumble</title>
 <meta name="description" content="Road Rash with an auto-rickshaw! Race through Mumbai, Hyderabad, Delhi and Chennai, swing your lathi at rival autos and dodge the cows.">
 <meta property="og:type" content="website">
@@ -35,6 +40,12 @@
   .tbtn.down { background: rgba(255, 200, 0, .5); }
   .tbtn.small { width: 44px; height: 44px; font-size: 16px; }
   #touch .hint { display: none; }
+  /* landscape phones: pin the buttons to the screen edges (into the side strips where there's room),
+     inside the notch-safe area, so they don't cover the game's HUD */
+  @media (orientation: landscape) and (pointer: coarse) {
+    #touch.on { position: fixed; inset: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+    .tbtn { width: 60px; height: 60px; background: rgba(0, 0, 0, .28); }
+  }
   /* portrait phones (e.g. rotation lock on): picture on top, big controls underneath */
   @media (orientation: portrait) and (pointer: coarse) {
     body { align-items: flex-start; }
