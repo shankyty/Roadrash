@@ -2,6 +2,12 @@
 
 Road Rash-style combat racing through Mumbai, Hyderabad, Delhi and Chennai. Instead of a motorbike you drive an auto-rickshaw.
 
+## Play in the browser
+
+**https://shankyty.github.io/Roadrash/**
+
+No install needed. It works on any desktop browser, and on phones and tablets in landscape with on-screen touch controls.
+
 ## Install with Homebrew
 
 ```bash
@@ -67,3 +73,7 @@ The app is only ad-hoc signed, not notarized. On another Mac, the first launch n
 1. Bump `CFBundleShortVersionString` in `macos/Info.plist`, then run `./make-dmg.sh`.
 2. Create the release: `gh release create vX.Y.Z build/RoadRash.dmg`.
 3. In `Casks/roadrash.rb`, update `version` and `sha256` (from `shasum -a 256 build/RoadRash.dmg`), then push.
+
+## Deploying the web version
+
+`./deploy-web.sh` publishes the committed `web/` folder to the `gh-pages` branch, which GitHub Pages serves.

@@ -1048,7 +1048,7 @@ function keyDown(code) {
 }
 function keyUp(code) { keys[code] = false; }
 // swallow every non-shortcut key so the macOS WKWebView shell never plays the "unhandled key" beep
-addEventListener('keydown', e => { if (!e.metaKey && !e.ctrlKey) e.preventDefault(); if (!e.repeat) keyDown(e.code); else keys[e.code] = true; });
+addEventListener('keydown', e => { if (!e.metaKey && !e.ctrlKey && !/^F\d+$/.test(e.code)) e.preventDefault(); if (!e.repeat) keyDown(e.code); else keys[e.code] = true; });
 addEventListener('keyup', e => keyUp(e.code));
 addEventListener('blur', () => { for (const k in keys) keys[k] = false; if (state === 'race') openPause(); });
 
@@ -1076,8 +1076,8 @@ function onPress(code) {
   if ((code === 'KeyP' || code === 'Escape') && RACING_STATES.includes(state)) { openPause(); return; }
   if (code === 'Escape' && (state === 'results' || state === 'champion')) { runCommand('menu'); return; }
   if (state === 'title' && code === 'Enter') { setupRace(); return; }
-  if (state === 'title' && (code === 'ArrowLeft' || code === 'ArrowRight' || code === 'KeyA' || code === 'KeyD')) {
-    const next = clamp(level + (code === 'ArrowRight' || code === 'KeyD' ? 1 : -1), 0, unlocked);
+  if (state === 'title' && ['ArrowLeft', 'ArrowRight', 'KeyA', 'KeyD', 'T_left', 'T_right'].includes(code)) {
+    const next = clamp(level + (['ArrowRight', 'KeyD', 'T_right'].includes(code) ? 1 : -1), 0, unlocked);
     if (next !== level) { level = next; store.set('level', level); attractSetup(); Sfx.beep(false); }
     return;
   }
