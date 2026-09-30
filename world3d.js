@@ -181,6 +181,7 @@ window.World3D = (() => {
     // wheels: two at the back under the tub, one in front under the mudguard
     g.add(wheel(125, 80, -Wd / 2 + 40, 125, R - 190));
     g.add(wheel(125, 80, Wd / 2 - 40, 125, R - 190));
+    const pipe = cyl(16, 90, '#3a3a3a', 190, 95, R - 10); pipe.rotation.x = Math.PI / 2; g.add(pipe);   // tail pipe, under the right rear
     const fw = wheel(118, 70, 0, 118, -R + 70); g.add(fw); g.userData.frontWheel = fw;
     // painted rear of the tub (plate, HORN OK PLEASE, tail lights) and the rear window in the hood
     if (rearCanvas) g.add(facePanel(crop(rearCanvas, 10, 108, 230, 206), Wd - 40, 250, 0, 265, R + 1));
@@ -195,6 +196,15 @@ window.World3D = (() => {
     g.userData.size = { w: Wd, h: 890, l: L };
     return g;
   }
+  // amber indicator lamps at the four corners (blinked from the frame loop while the vehicle signals)
+  const indOff = lambert('#8a5a12'), indOn = lambert('#ffb020', { emissive: '#ff9800', emissiveIntensity: 1 });
+  function indicators(g, w, l, y) {
+    g.userData.ind = { '-1': [], '1': [] };
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+      const m = new T.Mesh(unitSphere, indOff); m.scale.set(60, 50, 40); m.position.set(sx * (w / 2 - 20), y, sz * (l / 2 + 6));
+      g.add(m); g.userData.ind[sx].push(m);
+    }
+  }
   function busModel(rearCanvas) {
     const g = new T.Group(), Wd = 1120, L = 3200;
     g.add(shadow(Wd, L));
@@ -207,6 +217,7 @@ window.World3D = (() => {
     for (let i = 0; i < 6; i++) g.add(rbox(300, 150, 360, bags[i % 5], (i % 2 ? 1 : -1) * 220, 1195, -L / 2 + 500 + i * 380, 50));
     for (const z of [-L / 2 + 520, L / 2 - 560]) for (const sx of [-1, 1]) g.add(wheel(190, 150, sx * (Wd / 2 - 70), 190, z));
     if (rearCanvas) g.add(rearPanel(rearCanvas, Wd * 0.9, L / 2 + 4, 0));
+    indicators(g, Wd, L, 330);
     g.userData.size = { w: Wd, h: 1300, l: L };
     return g;
   }
@@ -220,6 +231,7 @@ window.World3D = (() => {
     g.add(rbox(Wd * 0.98, 520, 1880, '#1565c0', 0, 1260, L / 2 - 950, 200));                 // tarpaulin, bulging over the load
     for (const z of [-L / 2 + 420, L / 2 - 700, L / 2 - 330]) for (const sx of [-1, 1]) g.add(wheel(195, 170, sx * (Wd / 2 - 80), 195, z));
     if (rearCanvas) g.add(rearPanel(rearCanvas, Wd * 0.9, L / 2 + 4, 0));
+    indicators(g, Wd, L, 330);
     g.userData.size = { w: Wd, h: 1500, l: L };
     return g;
   }
@@ -231,6 +243,7 @@ window.World3D = (() => {
     g.add(rbox(Wd * 0.8, 60, L * 0.44, color, 0, 610, 60, 28));                             // roof
     for (const z of [-L / 2 + 280, L / 2 - 300]) for (const sx of [-1, 1]) g.add(wheel(125, 110, sx * (Wd / 2 - 50), 125, z));
     if (rearCanvas) g.add(rearPanel(rearCanvas, Wd * 0.94, L / 2 + 3, 0));
+    indicators(g, Wd, L, 320);
     g.userData.size = { w: Wd, h: 700, l: L };
     return g;
   }
@@ -553,6 +566,66 @@ window.World3D = (() => {
     return p;
   }
 
+  // ---------------------------------------------------------------- exhaust smoke
+  // Two-stroke smoke puffs from the tail pipe, in the world (so the auto hides the ones behind it and they
+  // stay where they were puffed out). Standing: faint, almost white, hanging by the pipe and spreading.
+  // Steady speed: whitish grey, left behind on the road as a trail. Accelerating: thicker and a bit darker.
+  const SMOKE_N = 90, smoke = [];
+  let smokeTex = null, smokeT = null, smokeGap = 0, lastSpeed = 0, accel = 0;
+  function smokeTexture() {
+    if (smokeTex) return smokeTex;
+    const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d');
+    const gr = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+    gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.45, 'rgba(255,255,255,.55)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+    x.fillStyle = gr; x.fillRect(0, 0, 64, 64);
+    return (smokeTex = new T.CanvasTexture(c));
+  }
+  function updateSmoke(player, t) {
+    const dt = smokeT == null ? 0 : Math.min(0.1, Math.max(0, t - smokeT)); smokeT = t;
+    if (!smoke.length) for (let i = 0; i < SMOKE_N; i++) {
+      const sp = new T.Sprite(new T.SpriteMaterial({ map: smokeTexture(), transparent: true, depthWrite: false, opacity: 0 }));
+      sp.visible = false; sp.userData.p = { life: 0, age: 1 }; scene.add(sp); smoke.push(sp);
+    }
+    const sp = player.speed / cfg.MAX_SPEED;
+    if (dt > 0) accel += (Math.max(0, (player.speed - lastSpeed) / dt / cfg.MAX_SPEED) - accel) * Math.min(1, dt * 6);
+    lastSpeed = player.speed;
+    const hard = Math.min(1, accel * 2.5);                     // 0 cruising / idling .. 1 flooring it
+    // emit from the pipe under the right rear of the tub
+    smokeGap -= dt;
+    if (dt > 0 && player.crash <= 0 && smokeGap <= 0) {
+      smokeGap = sp < 0.05 ? 0.16 : 0.035 + (1 - sp) * 0.04 - hard * 0.015;
+      const puff = smoke.find(m => m.userData.p.age >= m.userData.p.life);
+      if (puff) {
+        const idle = sp < 0.05, q = puff.userData.p;
+        // shade: white at idle, whitish grey cruising, darker grey accelerating
+        const shade = idle ? 0.97 : 0.86 - hard * 0.3;
+        Object.assign(q, {
+          d: player.dist - 575, x: player.x + 190 / ROAD_W, h: 95, age: 0,
+          life: idle ? 1.6 : 0.9 + hard * 0.4,
+          s0: idle ? 50 : 70, s1: idle ? 260 : 300 + hard * 160,
+          op: idle ? 0.3 : 0.3 + hard * 0.25, shade,
+          rise: idle ? 35 : 20, drift: (Math.random() - 0.5) * (idle ? 70 : 90), back: idle ? 40 : 0,
+        });
+        puff.visible = true;
+      }
+    }
+    const lit = hemi.intensity / 0.95;
+    for (const m of smoke) {
+      const q = m.userData.p;
+      if (q.age >= q.life) { m.visible = false; continue; }
+      q.age += dt; const k = Math.min(1, q.age / q.life);
+      q.h += q.rise * dt * (1 - k * 0.5); q.x += q.drift / ROAD_W * dt; q.d -= q.back * dt;
+      const dd = wrapD(q.d - camAbs);
+      if (dd < 50) { m.visible = false; q.age = q.life; continue; }
+      const p = placeAt(dd, q.x);
+      m.position.set(p.x, p.y + q.h, p.z);
+      const size = q.s0 + (q.s1 - q.s0) * Math.sqrt(k); m.scale.set(size, size, 1);
+      m.material.opacity = q.op * Math.min(1, q.age * 8) * (1 - k) * (1 - k * 0.3);
+      const c = q.shade * lit; m.material.color.setRGB(c, c, c * 1.02);
+      m.visible = true;
+    }
+  }
+
   // ---------------------------------------------------------------- frame
   let lastVisible = new Set();
   function frame(state) {
@@ -619,7 +692,11 @@ window.World3D = (() => {
       }
       m.position.set(p.x, p.y, p.z); m.rotation.set(animal ? 0 : p.pitch, yaw, 0, 'YXZ');
       if (c.type === 'cow' || c.type === 'dog') walk(m, t * (c.type === 'dog' ? 14 : 6), c.type === 'dog' ? (c.mode === 'chase' || c.mode === 'cross' ? 1 : 0) : (c.pause > 0 ? 0 : Math.abs(c.vx || 0)));
-      else spinWheels(m, c.z);
+      else {
+        spinWheels(m, c.z);
+        const ind = m.userData.ind, on = c.signal && (t * 2.6) % 1 < 0.55;
+        if (ind) for (const side of ['-1', '1']) for (const lamp of ind[side]) lamp.material = on && +side === c.signal ? indOn : indOff;
+      }
       const sz = m.userData.size; screenOf(c, p, sz.h * 1.05, sz.w, frameNo);
     }
     // the player's auto
@@ -629,6 +706,7 @@ window.World3D = (() => {
     pm.visible = !(player.inv > 0 && Math.floor(player.inv * 10) % 2); visible.add(pm);
     for (const m of lastVisible) if (!visible.has(m)) m.visible = false;
     lastVisible = visible;
+    updateSmoke(player, t);
 
     renderer.render(scene, camera);
     const top = toScreen(pp.x, pp.y + 880, pp.z), bot = toScreen(pp.x, pp.y, pp.z);
@@ -658,5 +736,5 @@ window.World3D = (() => {
     return cv;
   }
 
-  return { init, setTrack, frame, forget, horizonY, setCamera, turntable, get camera() { return camMode; }, get ready() { return ready; } };
+  return { init, setTrack, frame, forget, horizonY, setCamera, turntable, get smoke() { return smoke; }, get camera() { return camMode; }, get ready() { return ready; } };
 })();
