@@ -227,7 +227,7 @@ const COMPONENTS = [
   ['ui', /^(draw(?:HUD|Title|Results|Paused|Mixer|Controls|Countdown|Champion|Bubbles|Popups|Messages|SoundHint)|text|panel|bar|keycap)$/],
   ['renderer', /^(render|drawSegment|drawBackground|drawSprite|drawTuk|drawLathi|drawPlayer|project|poly)$/],
   ['input', /^(onPress|keyDown|keyUp|runCommand|toggleLayout|openPause|openMixer)$/],
-  ['voices', /^(?:Object\.|Voice\.)?(sayLine|pickVoice|unlockVoice|loadVoices|stopVoices)$/],
+  ['voices', /^(?:Object\.|Voice\.|VoiceClips\.)?(sayLine|pickVoice|unlockVoice|loadVoices|stopVoices|loadClips|playClip|place|updateClips|stopClips)$/],
   ['analytics', /^(trackEvent|deviceSummary|envDetails)$/],
   ['game-loop', /^(update|step|frame)$/],
 ];
@@ -344,13 +344,14 @@ const Sfx = {
     };
     this.master = a.createGain(); this.master.connect(a.destination);
     // three channels the player can balance: race (engine, horn, fights), music, city noise
-    for (const k of ['raceBus', 'musicBus', 'cityBus']) { this[k] = a.createGain(); this[k].connect(this.master); }
+    for (const k of ['raceBus', 'voiceBus', 'musicBus', 'cityBus']) { this[k] = a.createGain(); this[k].connect(this.master); }
     this.applyVol();
     // iOS unlock: a silent blip started from inside the tap
     const blip = a.createBufferSource(); blip.buffer = a.createBuffer(1, 1, 22050); blip.connect(a.destination); blip.start(0);
     const len = a.sampleRate; this.noiseBuf = a.createBuffer(1, len, a.sampleRate);
     const d = this.noiseBuf.getChannelData(0); for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
     this.loadSamples();
+    VoiceClips.loadClips();
     Music.ensure();
     Ambience.ensure();
     if (a.audioWorklet) {
@@ -405,6 +406,7 @@ const Sfx = {
     this.raceBus.gain.setTargetAtTime(this.vol.race, t, 0.03);
     this.musicBus.gain.setTargetAtTime(this.vol.music, t, 0.03);
     this.cityBus.gain.setTargetAtTime(this.vol.city, t, 0.03);
+    this.voiceBus.gain.setTargetAtTime(this.vol.voices, t, 0.03);
   },
   get running() { return !!this.ctx && this.ctx.state === 'running'; },
   setEngine(pct, on, throttle = 0) {
@@ -600,6 +602,62 @@ const Ambience = {
   },
 };
 
+// ------------------------------------------------------------------ voice clips
+// Recorded (TTS-generated) lines from web/voices.js, played from the speaker's spot on the road:
+// distance gain + muffling, stereo pan, and Doppler pitch while they play. Falls back to Voice (speech).
+const VoiceClips = {
+  bufs: {}, active: [], loading: false, failed: false,
+  loadClips() {
+    if (this.loading || !Sfx.ctx) return; this.loading = true;
+    const src = window.RRR_VOICES;
+    if (!src) { this.failed = true; reportError('voices', 'voices.js missing: using speech synthesis'); return; }
+    let bad = 0;
+    for (const [line, url] of Object.entries(src)) {
+      const bin = atob(url.slice(url.indexOf(',') + 1)), bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      Sfx.ctx.decodeAudioData(bytes.buffer, b => { this.bufs[line] = b; }, e => { if (!bad++) reportError('voices', 'voice clip decode failed', e, line); });
+    }
+  },
+  // where: () => ({ dz, x, vz }) for a speaker on the road, or null for your own driver (centre, no Doppler)
+  playClip(line, { kind, rate = 1, where = null, owner = null }) {
+    const a = Sfx.ctx, buf = this.bufs[line];
+    if (!a || !buf || !Sfx.voiceBus || paused) return false;
+    if (kind === 'hawker' && this.active.some(c => c.kind === 'hawker')) return true; // one hawker at a time
+    for (const c of this.active) if (owner && c.owner === owner) { try { c.src.stop(); } catch (e) { /* ended */ } }
+    const src = a.createBufferSource(); src.buffer = buf;
+    const lp = a.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 9000;
+    const g = a.createGain(); g.gain.value = 0;
+    const pan = a.createStereoPanner ? a.createStereoPanner() : null;
+    src.connect(lp); lp.connect(g);
+    if (pan) { g.connect(pan); pan.connect(Sfx.voiceBus); } else g.connect(Sfx.voiceBus);
+    const clip = { src, lp, g, pan, rate, where, owner, kind, base: kind === 'hawker' ? 0.85 : 1 };
+    this.place(clip, true);
+    src.start();
+    this.active.push(clip);
+    src.onended = () => { this.active = this.active.filter(c => c !== clip); };
+    return true;
+  },
+  place(c, now) {
+    const a = Sfx.ctx, t = a.currentTime, tc = now ? 0.001 : 0.06;
+    let gain = c.base, pan = 0, rate = c.rate, cutoff = 9000;
+    if (c.where) {
+      const { dz, x, vz } = c.where();
+      const near = clamp(1 - Math.abs(dz) / 4200, 0, 1);
+      gain *= Math.pow(near, 1.4);
+      cutoff = 900 + 8000 * near;                                   // far away sounds muffled
+      pan = clamp((x - player.x) * 0.5, -0.9, 0.9);
+      const closing = clamp((player.speed - vz) * Math.sign(dz || 1) / MAX_SPEED, -1, 1);
+      rate *= 1 + 0.16 * closing;                                    // Doppler: up while closing in, down after passing
+    }
+    c.g.gain.setTargetAtTime(gain, t, tc);
+    c.lp.frequency.setTargetAtTime(cutoff, t, tc);
+    c.src.playbackRate.setTargetAtTime(rate, t, tc);
+    if (c.pan) c.pan.pan.setTargetAtTime(pan, t, tc);
+  },
+  updateClips() { for (const c of this.active) this.place(c, false); },
+  stopClips() { for (const c of this.active) { try { c.src.stop(); } catch (e) { /* ended */ } } this.active = []; },
+};
+
 // ------------------------------------------------------------------ voices
 // Speech bubbles are read aloud with the device's own Hindi (hi-IN) or Tamil (ta-IN) voice.
 // Falls back to an Indian-English voice reading the romanised line, and reports if nothing can speak.
@@ -618,7 +676,8 @@ const Voice = {
     this.unlocked = true;
     try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); } catch (e) { reportError('voices', 'speech unlock failed', e); }
   },
-  sayLine(line, { kind, pitch = 1, rate = 1.1 }) {
+  sayLine(line, { kind, pitch = 1, rate = 1.1, where = null, owner = null, clipRate = 1 }) {
+    if (VoiceClips.playClip(line, { kind, rate: clipRate, where, owner })) return;
     if (!this.ok || paused) return;
     const vol = Sfx.muted ? 0 : Sfx.vol.master * Sfx.vol.voices;
     if (vol < 0.02) return;
@@ -642,7 +701,7 @@ const Voice = {
       speechSynthesis.speak(u);
     } catch (e) { reportError('voices', 'speak() threw', e); }
   },
-  stopVoices() { try { if (this.ok) speechSynthesis.cancel(); } catch (e) { /* ignore */ } },
+  stopVoices() { VoiceClips.stopClips(); try { if (this.ok) speechSynthesis.cancel(); } catch (e) { /* ignore */ } },
 };
 if (Voice.ok) {
   Voice.loadVoices();
@@ -1714,12 +1773,18 @@ function updateHawkers(dt) {
   hawkerT -= dt; if (hawkerT > 0) return;
   hawkerT = rand(1.6, 3.2);
   const seen = [];
-  for (let n = 3; n < 60; n++) for (const sp of segments[(findSegment(position).index + n) % segments.length].sprites)
-    if (sp.scr && sp.scr.frame === frameNo && sp.scr.w > 60 && sp.scr.x > 40 && sp.scr.x < W - 40 && !bubbles.some(b => b.who === sp)) seen.push(sp);
+  for (let n = 3; n < 60; n++) {
+    const seg = segments[(findSegment(position).index + n) % segments.length];
+    for (const sp of seg.sprites)
+      if (sp.scr && sp.scr.frame === frameNo && sp.scr.w > 60 && sp.scr.x > 40 && sp.scr.x < W - 40 && !bubbles.some(b => b.who === sp)) seen.push({ sp, z: seg.index * SEG_LEN });
+  }
   if (!seen.length) return;
-  const line = pick(HAWKER_CALLS[theme.city] || HAWKER_CALLS.mumbai);
-  bubbles.push({ who: pick(seen), text: line, t: 2.2, hawker: true });
-  Voice.sayLine(line, { kind: 'hawker', pitch: rand(1.1, 1.5), rate: 0.95 }); // sing-song street call
+  const line = pick(HAWKER_CALLS[theme.city] || HAWKER_CALLS.mumbai), { sp, z } = pick(seen);
+  const sx = sp.offset + Math.sign(sp.offset) * sp.nw / 2; // centre of the stall
+  bubbles.push({ who: sp, text: line, t: 2.2, hawker: true });
+  // sing-song street call from the stall itself (it stands still, so you hear Doppler as you drive past)
+  Voice.sayLine(line, { kind: 'hawker', pitch: rand(1.1, 1.5), rate: 0.95, clipRate: rand(0.95, 1.15), owner: sp,
+    where: () => ({ dz: wrapDelta(z - player.dist), x: sx, vz: 0 }) });
 }
 function curse(who) {
   bubbles = bubbles.filter(b => b.who !== who);
@@ -1727,7 +1792,9 @@ function curse(who) {
   bubbles.push({ who, text: line, t: 1.7 });
   setTimeout(() => Sfx.grunt(), 120);
   // every rival has their own voice; your driver sounds the same all race
-  Voice.sayLine(line, { kind: 'curse', pitch: who.isPlayer ? 0.95 : who.voicePitch || 1, rate: who.isPlayer ? 1.15 : who.voiceRate || 1.15 });
+  Voice.sayLine(line, { kind: 'curse', pitch: who.isPlayer ? 0.95 : who.voicePitch || 1, rate: who.isPlayer ? 1.15 : who.voiceRate || 1.15,
+    owner: who, clipRate: who.isPlayer ? 1 : 0.85 + ((who.voicePitch || 1) - 0.7) * 0.55,
+    where: who.isPlayer ? null : () => ({ dz: who.dist - player.dist, x: who.x, vz: who.speed }) });
 }
 function startAttack(who, side) { who.atk = { t: 0, side, dur: 0.34, done: false }; }
 
@@ -1792,6 +1859,7 @@ function update(dt) {
   for (const p of particles) { p.t -= dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += (p.g || 0) * dt; } particles = particles.filter(p => p.t > 0);
   shake = Math.max(0, shake - dt);
   guard('audio', () => VehicleAudio.updateVehicles(dt));
+  guard('voices', () => VoiceClips.updateClips());
 
   if (state === 'title' || state === 'champion') { guard('race-rules', () => updateAttract(dt)); return; }
   if (state === 'countdown') {
@@ -2442,7 +2510,7 @@ function drawTitle() {
   text(TRACKS[level].name, W / 2, 425, 16, '#fff');
   text(`Race ${level + 1} of ${TRACKS.length}  \u00b7  \u2190 \u2192 choose  \u00b7  Wallet ${fmtCash(cash)}${round ? `  \u00b7  Tour ${round + 1}` : ''}`, W / 2, 500, 12, '#ffcc80', 'center', 'system-ui, sans-serif');
   text('Mind the tip-over: three wheels don\'t like sharp turns at full speed!', W / 2, 522, 12, '#ddd', 'center', 'system-ui, sans-serif');
-  text('Engine: "Auto Rickshaw - Start, Idle, Revving" by kalhan \u00b7 Chennai street: Nielsvdb \u00b7 both CC BY 4.0 via freesound.org', W - 8, 534, 8, 'rgba(255,255,255,.45)', 'right', 'system-ui, sans-serif', false);
+  text('Engine: kalhan \u00b7 Chennai street: Nielsvdb (CC BY 4.0, freesound.org) \u00b7 Voices: Meta MMS-TTS (CC BY-NC 4.0)', W - 8, 534, 8, 'rgba(255,255,255,.45)', 'right', 'system-ui, sans-serif', false);
 }
 function drawChampion() {
   ctx.fillStyle = 'rgba(10,5,20,.55)'; ctx.fillRect(0, 0, W, H);
@@ -2566,5 +2634,5 @@ function step(now) {
 requestAnimationFrame(frame);
 // expose for debugging
 window.__rrr = { get state() { return state; }, player, get rivals() { return rivals; }, get results() { return results; }, setupRace,
-  step(n) { for (let i = 0; i < n; i++) update(STEP); render(); }, keys, Sfx, Music, Ambience, VehicleAudio, SKYLINES, THEMES, SP, get traffic() { return traffic; }, get bubbles() { return bubbles; }, setLevel(l) { level = l; attractSetup(); } };
+  step(n) { for (let i = 0; i < n; i++) update(STEP); render(); }, keys, Sfx, Music, Ambience, VehicleAudio, VoiceClips, SKYLINES, THEMES, SP, get traffic() { return traffic; }, get bubbles() { return bubbles; }, setLevel(l) { level = l; attractSetup(); } };
 })();
