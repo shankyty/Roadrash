@@ -1,5 +1,12 @@
 # Changelog
 
+## v2.2.0: Real auto-rickshaw engine sound
+
+- The engine is now a **real recording of a Bajaj auto-rickshaw**. You hear the starter lever and the engine catching at the start of every race.
+- As you speed up, a real idle loop crossfades into a revving loop, and both pitch up with your speed.
+- The synthesised two-stroke engine is kept as a backup if the recording can't load.
+- Credit: ["Auto Rickshaw - Start, Idle, Revving"](https://freesound.org/s/261051/) by kalhan, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+
 ## v2.1.0: Pause menu
 
 - **Esc** (or **P**) during a race opens a menu with **Resume**, **Restart race** and **Quit to main menu**. Choose with ↑/↓ and Enter, or click an option.
