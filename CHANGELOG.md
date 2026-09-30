@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.1.0: Pause menu
+
+- **Esc** (or **P**) during a race opens a menu with **Resume**, **Restart race** and **Quit to main menu**. Choose with ↑/↓ and Enter, or click an option.
+- **Esc** on the results screen goes back to the main menu.
+- Mac app **Game** menu: Pause/Resume (⌘P), Restart Race (⌘R), Quit to Main Menu (⇧⌘M) and Reload Game (⇧⌘R).
+- The race HUD shows a small "ESC MENU" hint.
+- **Play in your browser:** https://shankyty.github.io/Roadrash/ works on desktop and on phones in landscape, with touch controls and a pause button.
+
 ## v2.0.0: Rickshaw Rumble goes all-India 🛺🇮🇳
 
 ### New cities
