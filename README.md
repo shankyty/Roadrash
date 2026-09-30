@@ -1,6 +1,6 @@
 # Road Rash: Rickshaw Rumble
 
-Road Rash-style combat racing through Mumbai. Instead of a motorbike you drive an auto-rickshaw.
+Road Rash-style combat racing through Mumbai, Hyderabad, Delhi and Chennai. Instead of a motorbike you drive an auto-rickshaw.
 
 ## Install with Homebrew
 
@@ -25,22 +25,26 @@ To iterate on the game in a browser: `python3 -m http.server 8765 --directory we
 
 ## Controls
 
-| Key | Action |
-| --- | --- |
-| ↑ / W | Accelerate |
-| ↓ / S | Brake |
-| ← → / A D | Steer |
-| Z / J | Swing lathi left |
-| X / K | Swing lathi right |
-| H / Space | Horn (cows and traffic move aside) |
-| P / Esc | Pause |
-| M | Mute |
-| ⌘R | Restart to title (Mac app) |
-| ⌃⌘F | Full screen (Mac app) |
+One hand drives and the other swings the lathi. Press **Tab** on the title or pause screen to switch hands (the choice is saved).
+
+| | Arrows drive (default) | WASD drive |
+| --- | --- | --- |
+| Gas / brake / steer | ↑ ↓ ← → (right hand) | W S A D (left hand) |
+| Swing lathi left / right | **A** / **D** (left hand) | **←** / **→** (right hand) |
+| Horn (cows and traffic move aside) | Space, W or S | Space, ↑ or ↓ |
+
+Also: **P** or **Esc** pauses, **M** mutes. In the Mac app, **⌘R** restarts to the title screen and **⌃⌘F** toggles full screen.
 
 ## Gameplay
 
-- 4 Mumbai races, all with the Mumbai skyline behind them: Marine Drive (sunset), Bandra-Worli Sea Link (night), Western Express Highway (hazy afternoon) and Juhu Beach Road (morning).
+- 7 races across 4 cities, each with its own skyline:
+  - **Mumbai**: Marine Drive, Bandra-Worli Sea Link (night), Western Express Highway and Juhu Beach Road, with the Gateway of India, Taj, Rajabai Tower and Sea Link behind.
+  - **Hyderabad**: Charminar Road, with Charminar, Golconda Fort, HITEC City and the Hussain Sagar Buddha behind.
+  - **Delhi**: Ring Road, with India Gate, Qutub Minar, Red Fort, the Lotus Temple and Jama Masjid behind.
+  - **Chennai**: Marina Beach Road, with the Kapaleeshwarar gopuram, the lighthouse and Chennai Central behind.
+- Pick any unlocked race on the title screen with ← →.
+- Drivers who take a lathi hit shout back in their city's street slang: Bambaiya, Dakhni, Dilli or Tamil.
+- The engine is a synthesised two-stroke: *phut-phut* at idle, a buzz when revved, and a misfiring burble off the gas.
 - Finish in the top 3 to qualify for the next race. Prize money and a ₹100 bonus for each rival you knock out go into your wallet, which is saved between sessions.
 - Rival autos catch up, ride alongside you and hit you with their own lathis. If your health runs out, you're knocked out for a few seconds.
 - Watch out for cows, buses, trucks and cars. Crashing into roadside objects wrecks you.

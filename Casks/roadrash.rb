@@ -1,10 +1,10 @@
 cask "roadrash" do
-  version "1.0.0"
-  sha256 "bd70c44ba790d9b03ddfa2e988071a2ebf9d9198b27a2cae4b0a2dbebbd643fa"
+  version "2.0.0"
+  sha256 "883c329c095d71aab66f97696751d235167ca9911cc7a1e2233ae6fedf2b7dc4"
 
   url "https://github.com/shankyty/Roadrash/releases/download/v#{version}/RoadRash.dmg"
   name "Road Rash: Rickshaw Rumble"
-  desc "Road Rash-style combat racer where you drive an auto-rickshaw through Mumbai"
+  desc "Road Rash-style combat racer where you drive an auto-rickshaw through Indian cities"
   homepage "https://github.com/shankyty/Roadrash"
 
   depends_on macos: ">= :ventura"
