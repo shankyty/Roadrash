@@ -34,15 +34,20 @@
   }
   .tbtn.down { background: rgba(255, 200, 0, .5); }
   .tbtn.small { width: 44px; height: 44px; font-size: 16px; }
-  #rotate {
-    display: none; position: fixed; inset: 0; z-index: 10; background: var(--bg); color: #ffd21f;
-    font: 700 20px system-ui, sans-serif; text-align: center; align-items: center; justify-content: center; padding: 24px;
+  #touch .hint { display: none; }
+  /* portrait phones (e.g. rotation lock on): picture on top, big controls underneath */
+  @media (orientation: portrait) and (pointer: coarse) {
+    body { align-items: flex-start; }
+    #wrap { width: 100vw; }
+    canvas { margin: 0 auto; border-radius: 0; }
+    #touch.on { position: relative; inset: auto; height: 220px; }
+    #touch .hint { display: block; position: absolute; left: 14px; right: 120px; top: 22px; text-align: left; color: rgba(255, 255, 255, .55); font: 12px system-ui; }
+    .tbtn { width: 72px; height: 72px; }
+    .tbtn.small { width: 44px; height: 44px; }
   }
-  @media (orientation: portrait) and (pointer: coarse) { #rotate { display: flex; } }
 </style>
 </head>
 <body>
-<div id="rotate">🛺<br><br>Rotate your phone to landscape to play</div>
 <div id="wrap">
   <canvas id="game" width="960" height="540"></canvas>
   <div id="touch">
@@ -54,7 +59,9 @@
     <div class="tbtn" data-key="T_down"  style="right:88px;bottom:84px">BRAKE</div>
     <div class="tbtn" data-key="T_horn"       style="right:12px;bottom:10px">HORN</div>
     <div class="tbtn" data-key="Enter"      style="right:88px;bottom:10px">OK</div>
-    <div class="tbtn small" data-key="Escape" style="right:12px;top:12px">❚❚</div>
+    <div class="tbtn small" data-key="Escape" style="right:12px;top:12px" title="Pause">❚❚</div>
+    <div class="tbtn small" data-key="KeyV" style="right:64px;top:12px" title="Sound">🔊</div>
+    <div class="hint">↻ turn your phone sideways for a bigger view</div>
   </div>
 </div>
 <script src="sounds.js"></script>
