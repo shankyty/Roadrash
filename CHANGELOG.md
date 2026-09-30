@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.6.1: Detailed problem reports
+
+- **Every runtime error is now reported** to the analytics dashboard as `error/<component>/<problem>/<OS-browser>`. The component (audio, renderer, ui, player physics, rivals and combat, traffic, hawkers, race rules, track, sprites, input and so on) is worked out from the stack trace, and it works in Chrome, Safari and Firefox.
+- **Sound problems are reported explicitly**: audio not supported, the engine recording or a city's street sound failing to load or decode, the synth engine falling back, and sound still blocked after the player taps.
+- Each report carries the details needed to track it down: game version, what the player was doing (and on which track), device plus OS and browser versions, screen, audio state and volumes, how long after load it happened, and the top of the stack.
+- **Each part of the game is isolated**: if one component breaks on a device, it's reported once and the rest of the game keeps running.
+- Players now see a short on-screen note when sound is blocked, for example *"Sound blocked: switch off silent mode, then tap again"* on iPhone.
+
 ## v2.6.0: Sound fixes, sound mixer and portrait phones
 
 ### Sound works on more devices

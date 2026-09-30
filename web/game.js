@@ -168,14 +168,80 @@ function deviceSummary() {
   const kind = os === 'iPadOS' || (touch && short >= 600) ? 'tablet' : touch && short < 600 ? 'phone' : 'computer';
   return `device/${kind}/${os}/${browser}`;
 }
-// crashes on players' devices show up in the dashboard as "error/<message>"
-let errorsReported = 0;
-function reportError(message, where) {
-  if (errorsReported++ >= 3) return;
-  trackEvent(`error/${String(message || 'unknown').replace(/\s+/g, ' ').slice(0, 80)}`, `${where || ''} ${deviceSummary()}`.trim());
+// Problems on players' devices are reported to the dashboard, grouped as
+//   error/<kind>/<problem>/<OS-browser>
+// with the details needed to reproduce them in the title (version, game state, OS/browser versions,
+// screen, audio state, stack). Nothing personal is sent. Also logged to the console.
+const GAME_VERSION = '2.6.1';
+const safe = (f, fallback = '?') => { try { const v = f(); return v === undefined ? fallback : v; } catch (e) { return fallback; } };
+function envDetails() {
+  const ua = navigator.userAgent || '';
+  const osVer = (ua.match(/Mac OS X (\d+[_.]\d+)/) || ua.match(/OS (\d+[_.]\d+)/) || ua.match(/Android (\d+(?:\.\d+)?)/) || ua.match(/Windows NT (\d+\.\d+)/) || ua.match(/CrOS \S+ ([\d.]+)/) || [])[1];
+  const brVer = (ua.match(/(?:SamsungBrowser|CriOS|FxiOS|EdgA?|OPR|Firefox|Chrome|Version)\/(\d+(?:\.\d+)?)/) || [])[1];
+  const a = safe(() => Sfx.ctx, null);
+  return [
+    `v${GAME_VERSION}`,
+    safe(() => `${state}${paused ? '(paused)' : ''} on ${THEMES[track.theme].city}/${track.theme}`),
+    `${deviceSummary().replace('device/', '').replace(/\//g, ' ')} · os ${(osVer || '?').replace('_', '.')} · browser ${brVer || '?'}`,
+    `screen ${screen.width}x${screen.height}@${Math.round(devicePixelRatio * 10) / 10}x`,
+    a ? `audio=${a.state} ${a.sampleRate}Hz` : 'audio=none',
+    `worklet=${'AudioWorkletNode' in window ? 'yes' : 'no'} iOS-session=${navigator.audioSession ? 'yes' : 'no'}`,
+    `muted=${safe(() => Sfx.muted)} vol=${safe(() => JSON.stringify(Sfx.vol))}`,
+    `${Math.round(performance.now() / 1000)}s after load`,
+  ].join(' · ');
 }
-addEventListener('error', e => reportError(e.message, `${(e.filename || '').split('/').pop()}:${e.lineno || 0}`));
-addEventListener('unhandledrejection', e => reportError(`promise: ${e.reason && e.reason.message || e.reason}`));
+// Which part of the game an error came from: the first stack frame whose function belongs to a component.
+const AUDIO_METHODS = 'init|fallbackEngine|loadSamples|startEngine|setEngine|applyVol|setVol|toggleMute|tone|noise|horn|hit|whoosh|crash|bump|moo|bark|yelp|grunt|beep|ko|cash|ensure|setCity|toggle|tick|env|osc|drum|note|decode|stopAll|shopsNearby|unlockAudio';
+const COMPONENTS = [
+  ['audio', new RegExp(`^(?:Sfx|Music|Ambience|Object)?\\.?(?:${AUDIO_METHODS})$|^(?:Sfx|Music|Ambience|TwoStroke)`)],
+  ['traffic', /^(updateDog|startChase|updateTraffic|honk)$/],
+  ['rivals-combat', /^(updateRivals|resolveAttack|startAttack|curse)$/],
+  ['player-physics', /^(updatePlayer|crashPlayer|checkCollisions)$/],
+  ['hawkers', /^(updateHawkers)$/],
+  ['race-rules', /^(checkFinish|buildResults|advanceAfterResults|setupRace|currentRank|resetPlayer|updateAttract)$/],
+  ['track', /^(buildTrack|loadTrack|addRoad|addSegment|lastY|findSegment|attractSetup)$/],
+  ['sprites', /^(make[A-Z]\w*|buildSharedSprites|flipped|litWindows|fillerBlocks|trees|waterBand|gopuram|cutOut|archPath|onion)$/],
+  ['ui', /^(draw(?:HUD|Title|Results|Paused|Mixer|Controls|Countdown|Champion|Bubbles|Popups|Messages|SoundHint)|text|panel|bar|keycap)$/],
+  ['renderer', /^(render|drawSegment|drawBackground|drawSprite|drawTuk|drawLathi|drawPlayer|project|poly)$/],
+  ['input', /^(onPress|keyDown|keyUp|runCommand|toggleLayout|openPause|openMixer)$/],
+  ['analytics', /^(trackEvent|deviceSummary|envDetails)$/],
+  ['game-loop', /^(update|step|frame)$/],
+];
+function componentOf(err) {
+  const stack = String(err && err.stack || '');
+  for (const line of stack.split('\n')) {
+    // Chrome/Edge: "at fnName (file:1:2)" · Safari/Firefox: "fnName@file:1:2"
+    const m = line.match(/^\s*at\s+(?:async\s+)?([\w$.<>]+)\s*\(/) || line.match(/^\s*([\w$.<>]+)@/);
+    if (!m) continue;
+    const fn = m[1].replace(/^(?:Object|window)\./, '');
+    for (const [name, re] of COMPONENTS) if (re.test(fn) || re.test(m[1])) return name;
+  }
+  return null;
+}
+// run one component's per-frame work; if it throws, report it (once) and keep the rest of the game going
+function guard(component, fn) {
+  try { return fn(); } catch (err) { reportError(componentOf(err) || component, err && err.message, err, `guard:${component}`); }
+}
+function guardDraw(component, fn) {
+  ctx.save();
+  try { fn(); } catch (err) { reportError(componentOf(err) || component, err && err.message, err, `guard:${component}`); }
+  ctx.restore(); ctx.globalAlpha = 1;
+}
+const reportedErrors = new Set();
+function reportError(kind, message, err, where) {
+  message = String(message || (err && err.message) || 'unknown').replace(/\s+/g, ' ').trim();
+  const key = `${kind}:${message}`;
+  if (reportedErrors.has(key) || reportedErrors.size >= 8) return;
+  reportedErrors.add(key);
+  const slug = message.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60) || 'unknown';
+  const who = deviceSummary().split('/').slice(2).join('-'); // e.g. iOS-Safari
+  const stack = err && err.stack ? String(err.stack).split('\n').slice(0, 4).map(l => l.trim().replace(/https?:\/\/[^\s)]*\//g, '')).join(' ← ') : '';
+  const title = [message, where && `at ${where}`, envDetails(), stack].filter(Boolean).join(' · ').slice(0, 900);
+  try { console.warn('[RoadRash]', `error/${kind}/${slug}`, title); } catch (e) { /* ignore */ }
+  trackEvent(`error/${kind}/${slug}/${who}`, title);
+}
+addEventListener('error', e => reportError(componentOf(e.error) || 'js', e.message, e.error, `${(e.filename || '').split('/').pop()}:${e.lineno || 0}:${e.colno || 0}`));
+addEventListener('unhandledrejection', e => reportError(componentOf(e.reason) || 'promise', e.reason && e.reason.message || e.reason, e.reason));
 if (analyticsOn) {
   const tag = document.createElement('script');
   tag.async = true; tag.src = '//gc.zgo.at/count.js'; tag.dataset.goatcounter = GOATCOUNTER;
@@ -195,6 +261,7 @@ const store = {
 // iOS: play as media so the silent switch doesn't mute the game (Safari 17+)
 try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) { /* older iOS */ }
 const VOL_DEFAULTS = { master: 1, race: 1, music: 0.8, city: 0.8 };
+const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
 // Auto-rickshaw engine: single-cylinder two-stroke. Each firing is a pop that rings an exhaust
 // resonance and a tinny body rattle; off-throttle it misfires ("ring-ding-ding").
 const TWO_STROKE_WORKLET = `
@@ -241,7 +308,10 @@ const Sfx = {
   ctx: null, master: null, engine: null, muted: store.get('muted', false), vol: { ...VOL_DEFAULTS, ...store.get('vol', {}) },
   init() {
     if (this.ctx) { if (this.ctx.state === 'suspended') this.ctx.resume(); return; }
-    try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return; }
+    try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {
+      if (!this.problem) { this.problem = 'Sound isn\'t supported in this browser'; reportError('audio', 'AudioContext unavailable', e); }
+      return;
+    }
     const a = this.ctx;
     this.master = a.createGain(); this.master.connect(a.destination);
     // three channels the player can balance: race (engine, horn, fights), music, city noise
@@ -261,7 +331,7 @@ const Sfx = {
         const hp = a.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 70;
         node.connect(hp); hp.connect(this.raceBus);
         this.engine = { worklet: node, rpm: node.parameters.get('rpm'), throttle: node.parameters.get('throttle'), level: node.parameters.get('level') };
-      }).catch(() => this.fallbackEngine());
+      }).catch(e => { reportError('audio', 'engine synth AudioWorklet failed (using fallback)', e); this.fallbackEngine(); });
     } else this.fallbackEngine();
   },
   // simple oscillator engine for browsers without AudioWorklet
@@ -277,7 +347,7 @@ const Sfx = {
   // Recorded engine (web/sounds.js): an idle loop and a rev loop, crossfaded by load and pitched by speed.
   // Until they decode (or if they fail) the synthesised two-stroke plays instead.
   loadSamples() {
-    const src = window.RRR_SOUNDS; if (!src) return;
+    const src = window.RRR_SOUNDS; if (!src) { reportError('audio', 'sounds.js missing: engine recording not loaded'); return; }
     const a = this.ctx, bufs = {};
     const decode = url => {
       const bin = atob(url.slice(url.indexOf(',') + 1)), bytes = new Uint8Array(bin.length);
@@ -288,7 +358,7 @@ const Sfx = {
       const loop = buf => { const n = a.createBufferSource(); n.buffer = buf; n.loop = true; const g = a.createGain(); g.gain.value = 0; n.connect(g); g.connect(this.raceBus); n.start(); return { n, g }; };
       const idle = loop(bufs.idle), rev = loop(bufs.rev);
       this.samples = { idleSrc: idle.n, idleGain: idle.g, revSrc: rev.n, revGain: rev.g, start: bufs.start };
-    }).catch(() => { this.samples = null; });
+    }).catch(e => { this.samples = null; reportError('audio', 'engine recording decode failed (using synth)', e); });
   },
   // kick-start at the beginning of a race; the loops fade in once it has caught
   startEngine() {
@@ -456,7 +526,9 @@ const Ambience = {
     this.city = city; this.stopAll();
     if (!this.requested[city]) {
       this.requested[city] = true;
-      const tag = document.createElement('script'); tag.src = `ambience-${city}.js`; document.head.appendChild(tag);
+      const tag = document.createElement('script'); tag.src = `ambience-${city}.js`;
+      tag.onerror = () => reportError('audio', `ambience-${city}.js failed to load`);
+      document.head.appendChild(tag);
     }
   },
   stopAll() { const a = Sfx.ctx; for (const s of this.sources) { try { s.g.gain.setTargetAtTime(0, a.currentTime, 0.3); s.n.stop(a.currentTime + 1.5); } catch (e) { /* not started */ } } this.sources = []; this.next = 0; },
@@ -470,7 +542,7 @@ const Ambience = {
     this.bufs[city] = null;
     const bin = atob(url.slice(url.indexOf(',') + 1)), bytes = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-    Sfx.ctx.decodeAudioData(bytes.buffer, b => { this.bufs[city] = b; }, () => { this.bufs[city] = false; });
+    Sfx.ctx.decodeAudioData(bytes.buffer, b => { this.bufs[city] = b; }, e => { this.bufs[city] = false; reportError('audio', `${city} street sound decode failed`, e); });
   },
   shopsNearby() {
     if (!segments.length) return 0;
@@ -1370,7 +1442,20 @@ function keyDown(code) {
   if (!was) onPress(code);
 }
 function keyUp(code) { keys[code] = false; }
-const unlockAudio = () => { Sfx.init(); if (Sfx.ctx && Sfx.ctx.state !== 'running') Sfx.ctx.resume(); };
+let unlockCheck = null;
+const unlockAudio = e => {
+  Sfx.init();
+  const a = Sfx.ctx; if (!a || a.state === 'running') return;
+  const p = a.resume(); if (p && p.catch) p.catch(err => reportError('audio', 'resume() rejected', err));
+  // the tap should have started audio; if it is still not running, sound is blocked on this device
+  clearTimeout(unlockCheck);
+  unlockCheck = setTimeout(() => {
+    if (a.state !== 'running') {
+      Sfx.problem = isIOS ? 'Sound blocked: switch off silent mode, then tap again' : 'Sound blocked by the browser: tap again or check the tab isn\'t muted';
+      reportError('audio', `still ${a.state} after ${e && e.type || 'gesture'}`);
+    } else Sfx.problem = null;
+  }, 1500);
+};
 for (const ev of ['pointerup', 'touchend', 'click', 'keydown']) addEventListener(ev, unlockAudio, { capture: true, passive: true });
 // swallow every non-shortcut key so the macOS WKWebView shell never plays the "unhandled key" beep
 addEventListener('keydown', e => { if (!e.metaKey && !e.ctrlKey && !/^F\d+$/.test(e.code)) e.preventDefault(); if (!e.repeat) keyDown(e.code); else keys[e.code] = true; });
@@ -1522,25 +1607,27 @@ function update(dt) {
   for (const p of particles) { p.t -= dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += (p.g || 0) * dt; } particles = particles.filter(p => p.t > 0);
   shake = Math.max(0, shake - dt);
 
-  if (state === 'title' || state === 'champion') { updateAttract(dt); return; }
+  if (state === 'title' || state === 'champion') { guard('race-rules', () => updateAttract(dt)); return; }
   if (state === 'countdown') {
     countdown -= dt;
     const c = Math.ceil(countdown);
     if (c < lastBeep) { lastBeep = c; if (c > 0) Sfx.beep(false); }
     if (countdown <= 0) { state = 'race'; Sfx.beep(true); msg('CHALO!', '#ffeb3b', 1.2); }
-    updateTraffic(dt); updateEngine();
+    guard('traffic', () => updateTraffic(dt)); guard('audio', updateEngine);
     return;
   }
   if (state === 'race' || state === 'finished' || state === 'results') {
     if (state === 'race') raceTime += dt;
-    updatePlayer(dt, state === 'race');
-    updateRivals(dt);
-    updateTraffic(dt);
-    if (state === 'race') checkCollisions();
-    updateHawkers(dt);
-    checkFinish();
-    if (state === 'finished') { finishTimer -= dt; if (finishTimer <= 0) buildResults(); }
-    updateEngine();
+    guard('player-physics', () => updatePlayer(dt, state === 'race'));
+    guard('rivals-combat', () => updateRivals(dt));
+    guard('traffic', () => updateTraffic(dt));
+    if (state === 'race') guard('player-physics', checkCollisions);
+    guard('hawkers', () => updateHawkers(dt));
+    guard('race-rules', () => {
+      checkFinish();
+      if (state === 'finished') { finishTimer -= dt; if (finishTimer <= 0) buildResults(); }
+    });
+    guard('audio', updateEngine);
   }
 }
 
@@ -1995,14 +2082,15 @@ function render() {
   ctx.globalAlpha = 1;
   ctx.restore();
 
-  drawPopups();
-  drawBubbles();
-  if (state === 'title') drawTitle();
-  else if (state === 'champion') drawChampion();
-  else { drawHUD(); if (state === 'countdown') drawCountdown(); if (state === 'results') drawResults(); }
-  if (paused) drawPaused(); else drawMessages();
-  if (mixer) drawMixer();
-  else drawSoundHint();
+  guardDraw('ui', drawPopups);
+  guardDraw('ui', drawBubbles);
+  guardDraw('ui', () => {
+    if (state === 'title') drawTitle();
+    else if (state === 'champion') drawChampion();
+    else { drawHUD(); if (state === 'countdown') drawCountdown(); if (state === 'results') drawResults(); }
+  });
+  guardDraw('ui', () => { if (paused) drawPaused(); else drawMessages(); });
+  guardDraw('ui', () => { if (mixer) drawMixer(); else drawSoundHint(); });
 }
 
 function drawPlayer(seg, pct) {
@@ -2196,10 +2284,10 @@ function drawResults() {
 }
 const pauseItemRect = i => ({ x: W / 2 - 170, y: 100 + i * 44, w: 340, h: 36 });
 // tell players why they might hear nothing
-const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
 function drawSoundHint() {
   let t = null;
-  if (!Sfx.running) t = '\ud83d\udd0a Tap or press any key to turn on sound';
+  if (Sfx.problem) t = '\u26a0 ' + Sfx.problem;
+  else if (!Sfx.running) t = '\ud83d\udd0a Tap or press any key to turn on sound';
   else if (Sfx.muted) t = '\ud83d\udd07 Sound muted: press M (or \ud83d\udd0a) to change';
   else if (isIOS && !navigator.audioSession && state === 'title') t = 'iPhone: no sound? Switch off silent mode';
   if (!t) return;
@@ -2275,7 +2363,7 @@ let last = performance.now(), acc = 0;
 const STEP = 1 / 60;
 function frame(now) {
   requestAnimationFrame(frame);
-  try { step(now); } catch (err) { reportError(err && err.message, 'frame'); }
+  try { step(now); } catch (err) { reportError(componentOf(err) || 'game-loop', err && err.message, err, 'frame'); }
 }
 function step(now) {
   const dt = Math.min(0.1, (now - last) / 1000); last = now;

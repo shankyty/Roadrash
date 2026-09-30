@@ -74,7 +74,7 @@ The app is only ad-hoc signed, not notarized. On another Mac, the first launch n
 
 ## Releasing a new version
 
-1. Bump `CFBundleShortVersionString` in `macos/Info.plist`, then run `./make-dmg.sh`.
+1. Bump `CFBundleShortVersionString` in `macos/Info.plist` and `GAME_VERSION` in `web/game.js`, then run `./make-dmg.sh`.
 2. Create the release: `gh release create vX.Y.Z build/RoadRash.dmg`.
 3. In `Casks/roadrash.rb`, update `version` and `sha256` (from `shasum -a 256 build/RoadRash.dmg`), then push.
 
@@ -88,6 +88,7 @@ The website uses [GoatCounter](https://www.goatcounter.com): no cookies and no p
 - `race-start/<city>/<track>`, for example `race-start/delhi/delhi`, each time a race begins.
 - `race-finish/<place>`, for example `race-finish/1st`, when a race ends.
 - `device/<kind>/<os>/<browser>`, for example `device/phone/iOS/WhatsApp-in-app`, once per visit. It records which device, OS and browser were used together.
+- `error/<component>/<problem>/<OS-browser>`, for example `error/audio/still-suspended-after-pointerup/iOS-Safari`, whenever something goes wrong on a player's device. The component is worked out from the stack trace, and is one of `audio`, `renderer`, `ui`, `player-physics`, `rivals-combat`, `traffic`, `hawkers`, `race-rules`, `track`, `sprites`, `input`, `analytics` or `game-loop`. The event's title holds the details: game version, what the player was doing, OS and browser versions, screen, audio state and volumes, and the top of the stack. Each part of the game is isolated, so a failing component is reported once and the rest keeps running. Problems are also logged to the browser console as `[RoadRash]`.
 
 Nothing is sent from localhost or from the Mac app.
 
