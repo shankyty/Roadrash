@@ -176,7 +176,18 @@ function deviceSummary() {
 //   error/<kind>/<problem>/<OS-browser>
 // with the details needed to reproduce them in the title (version, game state, OS/browser versions,
 // screen, audio state, stack). Nothing personal is sent. Also logged to the console.
-const GAME_VERSION = '2.9.2';
+const GAME_VERSION = '2.9.3';
+// 3D quality tier: mobile browsers < laptop/desktop browsers < the Mac app. 'smooth' (phones and tablets)
+// keeps the frame rate up with fewer polygons and a lower resolution; 'high' for computer browsers; 'ultra'
+// in the Mac app (loaded from file://): finest models, detail kept farther away, full Retina resolution.
+// ?quality=smooth|high|ultra overrides it.
+const QUALITY = (() => {
+  const asked = new URLSearchParams(location.search).get('quality');
+  if (['smooth', 'high', 'ultra'].includes(asked)) return asked;
+  if (location.protocol === 'file:') return 'ultra';
+  const ua = navigator.userAgent || '', touch = navigator.maxTouchPoints > 1;
+  return /Android|iPhone|iPad|iPod|Mobile/.test(ua) || (/Macintosh/.test(ua) && touch) ? 'smooth' : 'high'; // phones and tablets (incl. iPadOS)
+})();
 const safe = (f, fallback = '?') => { try { const v = f(); return v === undefined ? fallback : v; } catch (e) { return fallback; } };
 function envDetails() {
   const ua = navigator.userAgent || '';
@@ -187,7 +198,7 @@ function envDetails() {
     `v${GAME_VERSION}`,
     safe(() => `${state}${paused ? '(paused)' : ''} on ${THEMES[track.theme].city}/${track.theme}`),
     `${deviceSummary().replace('device/', '').replace(/\//g, ' ')} · os ${(osVer || '?').replace('_', '.')} · browser ${brVer || '?'}`,
-    `screen ${screen.width}x${screen.height}@${Math.round(devicePixelRatio * 10) / 10}x`,
+    `screen ${screen.width}x${screen.height}@${Math.round(devicePixelRatio * 10) / 10}x quality=${QUALITY}`,
     a ? `audio=${a.state} ${a.sampleRate}Hz` : 'audio=none',
     `worklet=${'AudioWorkletNode' in window ? 'yes' : 'no'} iOS-session=${navigator.audioSession ? 'yes' : 'no'}`,
     `muted=${safe(() => Sfx.muted)} vol=${safe(() => JSON.stringify(Sfx.vol))}`,
@@ -717,6 +728,7 @@ addEventListener('visibilitychange', () => {
 const VEHICLE_SOUND = {
   truck: { f: 30, f2: 2, lp: 230, am: [8, 0.45], gain: 0.55, horn: { notes: [196, 247], dur: 0.75, wave: 'sawtooth', cut: 1700, blasts: 1 } },
   bus: { f: 36, f2: 2, lp: 260, am: [9, 0.35], gain: 0.5, horn: { notes: [294, 370], dur: 0.35, wave: 'sawtooth', cut: 2200, blasts: 2 } },
+  tractor: { f: 24, f2: 2, lp: 200, am: [11, 0.75], gain: 0.5, horn: { notes: [220, 277], dur: 0.45, wave: 'sawtooth', cut: 1500, blasts: 1 } },
   bike: { f: 58, f2: 1.7, lp: 900, am: [28, 0.35], gain: 0.16, horn: { notes: [560, 660], dur: 0.1, wave: 'square', cut: 3600, blasts: 2 } },
   car: { f: 70, f2: 1.5, lp: 600, am: [0, 0], gain: 0.25, horn: { notes: [415, 523], dur: 0.12, wave: 'square', cut: 3000, blasts: 2 } },
   auto: { f: 34, f2: 1.5, lp: 500, am: [22, 0.6], gain: 0.22, horn: { notes: [380, 300], dur: 0.16, wave: 'square', cut: 1800, blasts: 2, bulb: true } },
@@ -958,6 +970,24 @@ function makeBike(look) {
   g.fillStyle = look.shirt; rr(g, 12, 56, 18, 46, 8); g.fill(); rr(g, 90, 56, 18, 46, 8); g.fill();
   g.fillStyle = look.helmet; ell(g, 60, 30, 22, 24); g.fill();
   g.fillStyle = 'rgba(255,255,255,.25)'; ell(g, 52, 22, 8, 6); g.fill();
+  return c;
+}
+
+// tractor trolley from behind: wheels, the painted tailboard and the load (straw bale or sugarcane ends)
+function makeTractor(look) {
+  const c = mk(300, 320), g = c.getContext('2d');
+  g.fillStyle = 'rgba(0,0,0,.35)'; ell(g, 150, 310, 146, 9); g.fill();
+  g.fillStyle = '#111'; rr(g, 20, 250, 44, 64, 8); g.fill(); rr(g, 236, 250, 44, 64, 8); g.fill();
+  g.fillStyle = '#1565c0'; g.fillRect(30, 200, 240, 60); g.strokeStyle = '#fff'; g.lineWidth = 4; g.strokeRect(34, 204, 232, 52);
+  g.fillStyle = '#ff2b2b'; for (let x = 44; x < 260; x += 44) g.fillRect(x, 240, 22, 10);
+  if (look.crop === 'hay') {
+    g.fillStyle = '#e8d9a0'; rr(g, 6, 40, 288, 170, 70); g.fill();
+    g.strokeStyle = '#6d4c41'; g.lineWidth = 3; for (let x = 40; x < 280; x += 50) { g.beginPath(); g.moveTo(x, 44); g.lineTo(x, 206); g.stroke(); }
+  } else {
+    const cols = ['#9aa83c', '#7f8f2a', '#6b3f4f', '#8c9a34'];
+    for (let row = 0; row < 5; row++) for (let i = 0; i < 9 - row; i++) { g.fillStyle = cols[(row + i) % 4]; ell(g, 42 + row * 13 + i * 27, 186 - row * 25, 13, 13); g.fill(); }
+    g.fillStyle = '#4caf50'; for (let i = 0; i < 6; i++) { ell(g, 60 + i * 36, 70 + (i % 2) * 20, 30, 22); g.fill(); }
+  }
   return c;
 }
 
@@ -1560,6 +1590,21 @@ function makeDogSleep(coat) {
 
 // ------------------------------------------------------------------ sprites registry
 const CAR_COLORS = ['#e9e9ea', '#b71c1c', '#1f4e9c', '#9e9e9e'];
+// cars on the road: the modern hatchback and the Indian classics (Maruti 800, Esteem, Ambassador incl. the
+// yellow taxi, Omni van) and the Tata Ace-style mini pickup; each has its own size (nw, len) and pace
+const CAR_LOOKS = [
+  ...CAR_COLORS.map(color => ({ model: 'hatch', color, nw: 0.38, len: 1500, s: [0.35, 0.5], label: 'CAR' })),
+  ...['#f2f2f2', '#b71c1c', '#1f4e9c', '#b0b4b8'].map(color => ({ model: 'm800', color, nw: 0.31, len: 1300, s: [0.33, 0.48], label: 'CAR' })),
+  ...['#f2f2f2', '#a7adb3', '#7b1e2b'].map(color => ({ model: 'esteem', color, nw: 0.34, len: 1600, s: [0.35, 0.5], label: 'CAR' })),
+  ...['#f5f5f0', '#1a1a1a', '#efe6c8', '#f2c200'].map(color => ({ model: 'amby', color, nw: 0.36, len: 1680, s: [0.3, 0.42], label: 'CAR' })),
+  ...['#f2f2f2', '#7b1e2b', '#b0b4b8'].map(color => ({ model: 'omni', color, nw: 0.31, len: 1330, s: [0.3, 0.42], label: 'VAN' })),
+  ...['#1565c0', '#2e7d32', '#d32f2f'].map(bed => ({ model: 'ace', color: '#f2f2f2', bed, nw: 0.33, len: 1670, s: [0.28, 0.4], label: 'MINI TRUCK' })),
+];
+// tractors towing a trolley overloaded with sugarcane or a netted bale of straw (wider than the trolley)
+const TRACTOR_LOOKS = [
+  { color: '#c62828', crop: 'cane', pagri: '#ff8f00', rim: '#f0b400' }, { color: '#1565c0', crop: 'hay', pagri: '#fdd835', rim: '#e0e0e0' },
+  { color: '#e65100', crop: 'hay', pagri: '#e53935', rim: '#f0b400' }, { color: '#2e7d32', crop: 'cane', pagri: '#fafafa', rim: '#f2c200' },
+];
 // two-wheelers: motorcycles and scooters in a few paints, riders in different shirts and helmets
 const BIKE_LOOKS = [
   { scooter: false, color: '#c62828', shirt: '#3949ab', helmet: '#111', pillion: false },
@@ -1580,6 +1625,8 @@ function buildSharedSprites() {
   });
   SP.cars = CAR_COLORS.map(makeCar);
   SP.bikes = BIKE_LOOKS.map(makeBike);
+  SP.carLooks = CAR_LOOKS.map(l => makeCar(l.model === 'ace' ? l.bed : l.color));
+  SP.tractors = TRACTOR_LOOKS.map(makeTractor);
   SP.bus = makeBus(); SP.truck = makeTruck();
   SP.palm = makePalm(); SP.palmF = flipped(SP.palm);
   const r = mulberry32(7); SP.trees = [makeTree(r), makeTree(r), makeTree(r)];
@@ -1771,7 +1818,7 @@ function loadTrack(idx) {
   const sky = SKYLINES[theme.city];
   bgLayers = { far: sky.far(theme, track.seed), near: sky.near(theme, track.seed + 5) };
   buildTrack(track);
-  if (use3D) World3D.setTrack({ segments, trackLength, theme, SP, themeSprites, CAR_COLORS, BIKE_LOOKS, DOG_COATS, MAX_SPEED, LANE_W });
+  if (use3D) World3D.setTrack({ segments, trackLength, theme, SP, themeSprites, CAR_COLORS, CAR_LOOKS, TRACTOR_LOOKS, BIKE_LOOKS, DOG_COATS, MAX_SPEED, LANE_W });
 }
 
 function findSegment(z) { return segments[Math.floor(((z % trackLength) + trackLength) % trackLength / SEG_LEN) % segments.length]; }
@@ -1815,15 +1862,19 @@ function setupRace() {
     if (type === 'cow') traffic.push({ type, z, x: rand(-h - 0.2, h + 0.2), speed: 0, vx: pick([-1, 1], tr) * rand(0.05, 0.12), nw: 0.42, len: 380, pause: 0, scared: 0, label: 'HOLY COW' });
     else {
       const def = type === 'bus' ? { img: SP.bus, nw: 0.56, len: 3200, s: [0.28, 0.38], label: 'BUS' } : type === 'truck' ? { img: SP.truck, nw: 0.56, len: 2800, s: [0.25, 0.35], label: 'TRUCK' }
-        : type === 'bike' ? { img: pick(SP.bikes, tr), nw: 0.17, len: 860, s: [0.38, 0.55], label: 'BIKE' } : { img: pick(SP.cars, tr), nw: 0.38, len: 1500, s: [0.35, 0.5], label: 'CAR' };
+        : type === 'bike' ? { img: pick(SP.bikes, tr), nw: 0.17, len: 860, s: [0.38, 0.55], label: 'BIKE' }
+        : type === 'tractor' ? (i => ({ look: TRACTOR_LOOKS[i], img: SP.tractors[i], nw: TRACTOR_LOOKS[i].crop === 'hay' ? 0.65 : 0.56, len: 3800, s: [0.14, 0.2], label: 'TRACTOR' }))(Math.floor(tr() * TRACTOR_LOOKS.length))
+        : (i => ({ ...CAR_LOOKS[i], look: CAR_LOOKS[i], img: SP.carLooks[i] }))(Math.floor(tr() * CAR_LOOKS.length));
       const lanes = findSegment(z).lanes, lane = type === 'car' || type === 'bike' ? Math.floor(tr() * lanes) : lanes - 1;
-      traffic.push({ type, dir, z, lane, x: laneX(dir, lane), img: def.img, nw: def.nw, len: def.len, speed: MAX_SPEED * rand(def.s[0], def.s[1]), label: def.label });
+      traffic.push({ type, dir, z, lane, x: laneX(dir, lane), img: def.img, look: def.look, nw: def.nw, len: def.len, speed: MAX_SPEED * rand(def.s[0], def.s[1]), label: def.label });
     }
   };
   // the mix on the road: cars and bikes most, then buses, then trucks
-  const MIX = ['car', 'car', 'car', 'car', 'bike', 'bike', 'bike', 'bike', 'bus', 'bus', 'truck']; // ~36% / 36% / 18% / 9%
-  for (let i = 0; i < track.traffic; i++) addTraffic(pick(MIX, tr));
-  for (let i = 0; i < Math.round(track.traffic * 0.8); i++) addTraffic(pick(MIX, tr), -1); // oncoming
+  const MIX = ['car', 'car', 'car', 'car', 'bike', 'bike', 'bike', 'bike', 'bus', 'bus', 'truck', 'tractor']; // ~33% / 33% / 17% / 8% / 8%
+  // dealt from a shuffled deck in exactly those proportions (random picks can come out lopsided on a track)
+  const deck = n => { const d = Array.from({ length: n }, (_, i) => MIX[i % MIX.length]); for (let i = n - 1; i > 0; i--) { const j = Math.floor(tr() * (i + 1)); [d[i], d[j]] = [d[j], d[i]]; } return d; };
+  for (const type of deck(track.traffic)) addTraffic(type);
+  for (const type of deck(Math.round(track.traffic * 0.8))) addTraffic(type, -1); // oncoming
   for (let i = 0; i < track.cows; i++) addTraffic('cow');
   crossTraffic = []; for (const j of junctions) { j.busy = false; j.spawn = [0, 0]; j.fined = false; }
   for (let i = 0; i < (track.dogs || 0); i++) {
@@ -2340,7 +2391,9 @@ const CROSS_TYPES = [
   { type: 'auto', nw: TUK_NW, len: TUK_LEN, label: 'AUTO' }, { type: 'bus', nw: 0.56, len: 3200, label: 'BUS' },
 ];
 function spawnCross(j, dirX, queued) {
-  const d = pick(CROSS_TYPES), lenX = d.len / ROAD_W;
+  let d = pick(CROSS_TYPES);
+  if (d.type === 'car') { const i = Math.floor(Math.random() * CAR_LOOKS.length); d = { ...d, ...CAR_LOOKS[i], look: CAR_LOOKS[i], img: SP.carLooks[i] }; }
+  const lenX = d.len / ROAD_W;
   const stopX = -dirX * (j.half + 0.35);
   const lineUp = crossTraffic.filter(c => c.j === j && c.dirX === dirX && c.x * dirX < stopX * dirX + 0.1);
   if (lineUp.length >= 4) return;
@@ -2348,7 +2401,7 @@ function spawnCross(j, dirX, queued) {
   const x = queued ? back * dirX : -dirX * (j.half + 13);
   if (!queued && x * dirX > back) return;
   crossTraffic.push({ j, dirX, x, z: j.zc + dirX * 600, type: d.type, nw: d.nw, len: d.len, lenX, label: d.label, cruise: rand(1.9, 2.4), speed: queued ? 0 : 2.1,
-    img: d.type === 'bus' ? SP.bus : d.type === 'auto' ? pick(SP.rivals) : d.type === 'bike' ? pick(SP.bikes) : pick(SP.cars), palette: d.type === 'auto' ? pick(RIVAL_COLORS) : null, color: pick(CAR_COLORS) });
+    img: d.img || (d.type === 'bus' ? SP.bus : d.type === 'auto' ? pick(SP.rivals) : pick(SP.bikes)), look: d.look, palette: d.type === 'auto' ? pick(RIVAL_COLORS) : null });
 }
 function dropCross(gone) {
   const out = crossTraffic.filter(gone); if (!out.length) return;
@@ -3049,7 +3102,7 @@ addEventListener('resize', fit);
 
 buildSharedSprites();
 use3D = !/[?&]2d\b/.test(location.search) && !!(window.World3D && glCanvas && bgCtx &&
-  guard('renderer', () => World3D.init(glCanvas, { W, H, ROAD_W, SEG_LEN, maxPixelRatio: 1.75 })));
+  guard('renderer', () => World3D.init(glCanvas, { W, H, ROAD_W, SEG_LEN, quality: QUALITY, maxPixelRatio: { smooth: 1.25, high: 1.75, ultra: 2 }[QUALITY] })));
 if (!use3D) disable3D(); else World3D.setCamera(store.get('camera', 'heli'));
 attractSetup();
 fit();
