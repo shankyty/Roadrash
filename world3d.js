@@ -1223,7 +1223,9 @@ vec3 nightLight(vec3 p) {
         const mir = new T.Mesh(sphGeo(), satin); mir.scale.set(70, 50, 16); mir.position.set(sx * 180, grip[1] + 150, grip[2] - 12); s.add(mir);
       }
       rider(s, look, hipY, hipZ, grip, foot);
-      if (look.pillion) rider(s, look, hipY + 30, hipZ + 250, grip, [118, foot[1] + 30, hipZ + 200], true);
+      const squeeze = look.triple ? 190 : 250;                                                          // three to a bike: packed tight
+      if (look.pillion) rider(s, look, hipY + 30, hipZ + squeeze, grip, [118, foot[1] + 30, hipZ + squeeze - 50], true);
+      if (look.triple) rider(s, look, hipY + 60, hipZ + 350, grip, [132, foot[1] + 70, hipZ + 300], true);
       return s;
     }));
     g.add(wheel(r, sc ? 62 : 52, 0, r, -wb, sc ? '#b9bec4' : '#cfd3d7', sc ? 'alloy' : 'spoke'));
@@ -1824,8 +1826,10 @@ vec3 nightLight(vec3 p) {
         m.scale.y = c.mode === 'sleep' ? 0.45 : 1;
         for (const leg of m.userData.legs) leg.visible = c.mode !== 'sleep';
       }
-      const lean = c.type === 'bike' ? (back ? 1 : -1) * sy * 1.4 : 0;           // bikes lean into lane changes
-      m.position.set(p.x, p.y, p.z); m.rotation.set(animal ? 0 : back ? -p.pitch : p.pitch, yaw, lean, 'YXZ');
+      const lean = c.type === 'bike' ? (back ? 1 : -1) * sy * (c.rash ? 2.4 : 1.4) : 0;   // bikes lean into lane changes
+      // rash bikers pop the odd wheelie (front up about the rear wheel)
+      const wp = c.rash && c.speed > 0 ? (t * 0.22 + (c.z % 997) / 997) % 1 : 1, wh = wp < 0.14 ? Math.sin(wp / 0.14 * Math.PI) * 0.32 : 0;
+      m.position.set(p.x, p.y + Math.sin(wh) * 268, p.z); m.rotation.set((animal ? 0 : back ? -p.pitch : p.pitch) + wh, yaw, lean, 'YXZ');
       if (c.type === 'cow' || c.type === 'dog') walk(m, t * (c.type === 'dog' ? 14 : 6), c.type === 'dog' ? (c.mode === 'chase' || c.mode === 'cross' ? 1 : 0) : (c.pause > 0 ? 0 : Math.abs(c.vx || 0)));
       else {
         spinWheels(m, c.z);
