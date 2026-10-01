@@ -30,9 +30,32 @@ window.World3D = (() => {
 
   // ---------------------------------------------------------------- shared resources
   const unitBox = new T.BoxGeometry(1, 1, 1);
-  const unitCyl = new T.CylinderGeometry(0.5, 0.5, 1, 14);
-  const unitCone = new T.ConeGeometry(0.5, 1, 10);
-  const unitSphere = new T.SphereGeometry(0.5, 14, 10);
+  const unitCyl = new T.CylinderGeometry(0.5, 0.5, 1, 20);
+  const unitCone = new T.ConeGeometry(0.5, 1, 12);
+  const unitSphere = new T.SphereGeometry(0.5, 20, 14);
+  // Levels of detail: every vehicle is built three times, detailed (0) for close up, medium (1) and low-poly
+  // (2) for far down the road; the farther it is, the fewer polygons. LO is the level being built, and
+  // every vehicle primitive below picks its geometry for it with q(detailed, medium, low).
+  // How far detail goes depends on the device's quality tier (set in init): 'smooth' keeps phones, tablets
+  // and weak laptops fluid; 'high' for desktop browsers; 'ultra' for the Mac app (finer curves, detail
+  // kept much farther down the road).
+  const TIERS = {
+    smooth: { lod: [3500, 9000], det: 0.7, clearcoat: false, maxK: 3 },
+    high: { lod: [7000, 18000], det: 1, clearcoat: true, maxK: 5 },
+    ultra: { lod: [14000, 32000], det: 1.6, clearcoat: true, maxK: 7 },
+  };
+  let TIER = TIERS.high, quality = 'high';
+  let LO = 0;
+  const q = (a, b, c) => LO === 0 ? a : LO === 1 ? b : c;
+  const segs = (a, b, c) => Math.max(3, Math.round(q(a, b, c) * (LO === 2 ? 1 : TIER.det)));   // segment counts, scaled by tier
+  let cyls, sphs;
+  function buildPrims() {
+    LO = 0; cyls = []; sphs = [];
+    for (LO = 0; LO < 3; LO++) { cyls.push(new T.CylinderGeometry(0.5, 0.5, 1, segs(32, 14, 8))); sphs.push(new T.SphereGeometry(0.5, segs(32, 14, 8), segs(20, 10, 6))); }
+    LO = 0;
+  }
+  buildPrims();
+  const sphGeo = () => sphs[LO];
   const unitPlane = new T.PlaneGeometry(1, 1);
   const halfTube = new T.CylinderGeometry(0.5, 0.5, 1, 20, 1, true, Math.PI / 2, Math.PI); // top half of a tube (open ends)
   const blob = new T.CircleGeometry(0.5, 20);
@@ -99,38 +122,105 @@ vec3 nightLight(vec3 p) {
     const m = new T.Mesh(unitBox, typeof color === 'object' ? color : lambert(color, extra));
     m.scale.set(w, h, l); m.position.set(x, y, z); return m;
   };
-  const cyl = (r, h, color, x = 0, y = 0, z = 0) => { const m = new T.Mesh(unitCyl, lambert(color)); m.scale.set(r * 2, h, r * 2); m.position.set(x, y, z); return m; };
-  // tyre: a lathed section with rounded shoulders (axis along Y), open in the middle where the rim sits
+  const cyl = (r, h, color, x = 0, y = 0, z = 0) => {
+    const m = new T.Mesh(cyls[LO], typeof color === 'object' ? color : lambert(color)); m.scale.set(r * 2, h, r * 2); m.position.set(x, y, z); return m;
+  };
+  const cylX = (r, h, color, x = 0, y = 0, z = 0) => { const m = cyl(r, h, color, x, y, z); m.rotation.z = Math.PI / 2; return m; };   // axis across (x)
+  const sph = (color, sx, sy, sz, x, y, z) => {
+    const m = new T.Mesh(sphGeo(), typeof color === 'object' ? color : lambert(color)); m.scale.set(sx, sy, sz); m.position.set(x, y, z); return m;
+  };
+  const torusGeos = new Map();
+  const torusX = (R, t, mat, x = 0) => {     // a ring around the x axis (rim lips)
+    const key = [R, t, LO].join(',');
+    if (!torusGeos.has(key)) torusGeos.set(key, new T.TorusGeometry(R, t, segs(8, 6, 4), segs(48, 20, 12)));
+    const m = new T.Mesh(torusGeos.get(key), mat); m.rotation.y = Math.PI / 2; m.position.x = x; return m;
+  };
+  // tyre: a lathed section with rounded shoulders and tread grooves (axis along Y), open in the middle where
+  // the rim sits (ratio: rim size against the tyre)
   const tyreGeos = new Map(), tyreMat = lambert('#1b1b1b', { side: T.DoubleSide });
-  function tyreGeo(r, w) {
-    const key = r + ',' + w;
+  function tyreGeo(r, w, ratio = 0.6) {
+    const key = [r, w, ratio, LO].join(',');
     if (!tyreGeos.has(key)) {
-      const ri = r * 0.6, sh = Math.min(w * 0.3, r * 0.2), pts = [new T.Vector2(ri, -w * 0.45)];
-      for (let i = 0; i <= 4; i++) { const a = -Math.PI / 2 + i / 8 * Math.PI; pts.push(new T.Vector2(r - sh + Math.cos(a) * sh, -w / 2 + sh + Math.sin(a) * sh)); }
-      for (let i = 0; i <= 4; i++) { const a = i / 8 * Math.PI; pts.push(new T.Vector2(r - sh + Math.cos(a) * sh, w / 2 - sh + Math.sin(a) * sh)); }
+      const ri = r * ratio, sh = Math.min(w * 0.3, r * 0.2), n = segs(6, 3, 2), pts = [new T.Vector2(ri, -w * 0.45)];
+      for (let i = 0; i <= n; i++) { const a = -Math.PI / 2 + i / n * Math.PI / 2; pts.push(new T.Vector2(r - sh + Math.cos(a) * sh, -w / 2 + sh + Math.sin(a) * sh)); }
+      if (LO === 0 && w > 60) for (const y of [-0.2, 0, 0.2]) {
+        const gy = y * w, gw = w * 0.045, d = r * 0.025;
+        pts.push(new T.Vector2(r, gy - gw), new T.Vector2(r - d, gy - gw * 0.5), new T.Vector2(r - d, gy + gw * 0.5), new T.Vector2(r, gy + gw));
+      }
+      for (let i = 0; i <= n; i++) { const a = i / n * Math.PI / 2; pts.push(new T.Vector2(r - sh + Math.cos(a) * sh, w / 2 - sh + Math.sin(a) * sh)); }
       pts.push(new T.Vector2(ri, w * 0.45));
-      tyreGeos.set(key, new T.LatheGeometry(pts, 24));
+      tyreGeos.set(key, new T.LatheGeometry(pts, segs(56, 24, 12)));
     }
     return tyreGeos.get(key);
   }
-  // wheel: tyre, a recessed rim with slots (so you can see it turn) and a hub on both faces. The rotating
-  // part is one baked child (spinWheels turns the wheel group's children about the axle).
-  const wheel = (r, w, x, y, z, rim = '#b9bec4') => {
-    const g = new T.Group();
-    g.add(baked('wheel' + [r, w, rim], () => {
-      const s = new T.Group(), slot = lambert('#202224');
-      const tyre = new T.Mesh(tyreGeo(r, w), tyreMat); tyre.rotation.z = Math.PI / 2; s.add(tyre);
-      for (const sx of [-1, 1]) {
-        const face = sx * w * 0.36;
-        const disc = cyl(r * 0.61, w * 0.08, rim, face, 0, 0); disc.rotation.z = Math.PI / 2; s.add(disc);
-        const hub = cyl(r * 0.17, w * 0.1, '#3a3a3a', face + sx * w * 0.05, 0, 0); hub.rotation.z = Math.PI / 2; s.add(hub);
-        for (let i = 0; i < 5; i++) {
-          const a = i * Math.PI * 2 / 5, h = box(w * 0.03, r * 0.22, r * 0.13, slot, face + sx * w * 0.045, Math.cos(a) * r * 0.39, Math.sin(a) * r * 0.39);
-          h.rotation.x = a; s.add(h);
+  // Wheels, by style:
+  //   alloy  cars and scooters: five double spokes with a brake disc behind them, centre cap, lug nuts
+  //   steel  buses, trucks, autos: a deep dish with hand holes, a hub dome and a ring of nuts
+  //   dual   truck rear axles: twin tyres side by side, steel outside
+  //   spoke  motorcycles: thin rim, drum hub, wire spokes laced to both sides, a disc brake
+  // Only the side facing out gets a rim face (both for a centred wheel: bikes, the auto's front wheel). The
+  // turning part is one baked child marked spin (spinWheels turns it about the axle).
+  const UPV = new T.Vector3(0, 1, 0);
+  function spokeTo(s, a, b, r, mat) {
+    const va = new T.Vector3(...a), d = new T.Vector3(...b).sub(va), len = d.length();
+    const m = new T.Mesh(cyls[LO], mat); m.scale.set(r * 2, len, r * 2);
+    m.position.copy(va).addScaledVector(d, 0.5); m.quaternion.setFromUnitVectors(UPV, d.normalize()); s.add(m);
+  }
+  const wheel = (r, w, x, y, z, rim = '#b9bec4', style = 'steel') => {
+    const g = new T.Group(), out = Math.sign(x);
+    const spin = baked('wheel' + [r, w, rim, style, out], () => {
+      const s = new T.Group(), faces = out ? [out] : [-1, 1], rimM = style === 'alloy' ? paint(rim, 80) : lambert(rim);
+      const tyres = style === 'dual' ? [[-w * 0.26, w * 0.48], [w * 0.26, w * 0.48]] : [[0, w]];
+      for (const [tx, tw] of tyres) { const t = new T.Mesh(tyreGeo(r, tw, style === 'spoke' ? 0.8 : style === 'lug' ? 0.55 : 0.6), tyreMat); t.rotation.z = Math.PI / 2; t.position.x = tx; s.add(t); }
+      if (style === 'lug') {                                                                     // tractor tyre: chevron lugs
+        const lug = lambert('#1b1b1b'), n = q(26, 16, 10);
+        for (let i = 0; i < n; i++) for (const side of [-1, 1]) {
+          const a = (i + (side > 0 ? 0.5 : 0)) / n * Math.PI * 2, m = box(w * 0.44, r * 0.08, r * 0.12, lug, side * w * 0.24, Math.cos(a) * r, Math.sin(a) * r);
+          m.rotation.set(a, side * 0.5, 0); s.add(m);
+        }
+      }
+      if (style === 'spoke') {
+        const ri = r * 0.78;
+        s.add(torusX(ri, r * 0.04, chrome));
+        s.add(cylX(r * 0.15, w * 0.95, '#9a9da0'));
+        const n = segs(28, 14, 8);
+        for (let i = 0; i < n; i++) {
+          const a = i / n * Math.PI * 2, side = i % 2 ? 1 : -1, b = a + side * 0.35;
+          spokeTo(s, [side * w * 0.36, Math.cos(b) * r * 0.13, Math.sin(b) * r * 0.13], [side * w * 0.04, Math.cos(a) * ri, Math.sin(a) * ri], q(2.2, 3, 4), chrome);
+        }
+        s.add(cylX(r * 0.42, 5, '#a8abae', -w * 0.55));                                         // disc brake
+        return s;
+      }
+      const ri = r * (style === 'lug' ? 0.55 : 0.6);
+      // rim barrel: for alloys a shallow dark back wall (the tyre's inner lip is the barrel), so the brake
+      // disc and caliper show between the spokes
+      s.add(cylX(ri * 0.98, w * (style === 'alloy' ? 0.2 : 0.8), style === 'alloy' ? '#2a2c2f' : rim));
+      for (const f of faces) {
+        const fx = f * w * (style === 'alloy' ? 0.34 : 0.24), ox = style === 'dual' ? f * w * 0.26 : 0;
+        s.add(torusX(ri, r * 0.035, rimM, ox + f * w * 0.42));                                   // rim lip
+        if (style === 'alloy') {
+          s.add(cylX(r * 0.44, w * 0.05, '#8d9093', fx - f * w * 0.22));                         // brake disc
+          const rc = (ri + r * 0.15) / 2, len = ri - r * 0.15;
+          for (let i = 0; i < 5; i++) for (const da of [-0.12, 0.12]) {
+            const a = i * Math.PI * 2 / 5 + da, sp = box(w * 0.08, len, r * 0.075, rimM, fx, Math.cos(a) * rc, Math.sin(a) * rc);
+            sp.rotation.x = a; s.add(sp);
+          }
+          s.add(cylX(r * 0.17, w * 0.12, rimM, fx + f * w * 0.02));
+          s.add(cylX(r * 0.08, w * 0.14, chrome, fx + f * w * 0.05));
+          for (let i = 0; i < 5; i++) { const a = (i + 0.5) * Math.PI * 2 / 5; s.add(cylX(r * 0.022, w * 0.06, chrome, fx + f * w * 0.08, Math.cos(a) * r * 0.12, Math.sin(a) * r * 0.12)); }
+        } else {
+          const dx = ox + fx;
+          s.add(cylX(ri * 0.96, w * 0.05, rim, dx));                                              // dish
+          for (let i = 0; i < 8; i++) { const a = (i + 0.5) * Math.PI / 4; s.add(cylX(r * 0.055, w * 0.07, '#151515', dx + f * w * 0.01, Math.cos(a) * r * 0.41, Math.sin(a) * r * 0.41)); }
+          s.add(sph(rim, w * 0.2, r * 0.46, r * 0.46, dx + f * w * 0.03, 0, 0));                 // hub dome
+          const nuts = r < 150 ? 4 : 8;
+          for (let i = 0; i < nuts; i++) { const a = i * Math.PI * 2 / nuts; s.add(cylX(r * 0.028, w * 0.12, chrome, dx + f * w * 0.07, Math.cos(a) * r * 0.18, Math.sin(a) * r * 0.18)); }
+          if (r >= 150) s.add(cylX(r * 0.07, w * 0.2, chrome, dx + f * w * 0.1));                 // hub nut cap
         }
       }
       return s;
-    }));
+    });
+    spin.userData.spin = true; g.add(spin);
     g.position.set(x, y, z); g.userData.wheel = true; return g;
   };
   // soft contact shadow the shape of the footprint (rounded rectangle, darkest in the middle), thrown a
@@ -152,9 +242,10 @@ vec3 nightLight(vec3 p) {
   const rgeoCache = new Map();
   function roundedGeo(w, h, l, r) {
     r = Math.max(1, Math.min(r, w / 2 - 0.5, h / 2 - 0.5, l / 2 - 0.5));
-    const key = [w, h, l, r].map(Math.round).join(',');
+    const k = LO === 2 ? 1 : LO === 1 ? (r < 24 ? 1 : 2) : Math.min(TIER.maxK, Math.round((r < 10 ? 1 : r < 24 ? 2 : r < 60 ? 3 : 5) * TIER.det));
+    const key = [w, h, l, r].map(Math.round).join(',') + ',' + k;
     if (rgeoCache.has(key)) return rgeoCache.get(key);
-    const k = 3, N = 2 * k + 1, geo = new T.BoxGeometry(1, 1, 1, N, N, N);
+    const N = 2 * k + 1, geo = new T.BoxGeometry(1, 1, 1, N, N, N);
     const pos = geo.attributes.position, nor = geo.attributes.normal, half = [w / 2, h / 2, l / 2];
     const d = [0, 0, 0], c = [0, 0, 0];
     for (let i = 0; i < pos.count; i++) {
@@ -174,8 +265,8 @@ vec3 nightLight(vec3 p) {
   };
   const capCache = new Map();
   const capsule = (r, len) => {
-    const key = Math.round(r) + ',' + Math.round(len);
-    if (!capCache.has(key)) capCache.set(key, new T.CapsuleGeometry(r, Math.max(1, len), 4, 10));
+    const key = Math.round(r) + ',' + Math.round(len) + ',' + LO;
+    if (!capCache.has(key)) capCache.set(key, new T.CapsuleGeometry(r, Math.max(1, len), segs(6, 3, 2), segs(18, 10, 6)));
     return capCache.get(key);
   };
   // the painted back of a vehicle (the old 2D sprite) as a panel on its rear face
@@ -291,9 +382,8 @@ vec3 nightLight(vec3 p) {
     }
     out.computeBoundingSphere(); return out;
   }
-  function baked(key, build) {
-    let parts = bakeCache.get(key);
-    if (!parts) {
+  function bakeOnce(build) {
+    {
       const src = build(), byMat = new Map(); src.updateMatrixWorld(true);
       src.traverse(o => {
         if (!o.isMesh) return;
@@ -301,12 +391,29 @@ vec3 nightLight(vec3 p) {
         if (!byMat.has(o.material)) byMat.set(o.material, []);
         byMat.get(o.material).push(geo);
       });
-      parts = [...byMat].map(([mat, gs]) => { const geo = mergeGeos(gs); gs.forEach(g => g.dispose()); return [mat, geo]; });
-      bakeCache.set(key, parts);
+      return [...byMat].map(([mat, gs]) => { const geo = mergeGeos(gs); gs.forEach(g => g.dispose()); return [mat, geo]; });
+    }
+  }
+  const lodSink = [];   // baked groups made while the current model was built (their LODs switch together)
+  function baked(key, build) {
+    let parts = bakeCache.get(key);
+    if (!parts) {
+      parts = [0, 1, 2].map(lv => { LO = lv; return bakeOnce(build); });
+      LO = 0; bakeCache.set(key, parts);
     }
     const g = new T.Group();
-    for (const [mat, geo] of parts) g.add(new T.Mesh(geo, mat));
+    g.userData.lod = parts.map((p, lv) => {
+      const lg = new T.Group(); for (const [mat, geo] of p) lg.add(new T.Mesh(geo, mat));
+      lg.visible = lv === 0; g.add(lg); return lg;
+    });
+    lodSink.push(g);
     return g;
+  }
+  function setLod(model, level) {
+    const u = model.userData;
+    if (!u.lods || u.level === level) return;
+    u.level = level;
+    for (const g of u.lods) g.userData.lod.forEach((lg, lv) => { lg.visible = lv === level; });
   }
   // Physically based paint, glass and chrome that reflect the track's sky (an environment map rebuilt per
   // track in setTrack): clear-coated paint with a sharp highlight, dark glass that mirrors the sky at
@@ -315,7 +422,7 @@ vec3 nightLight(vec3 p) {
   const envMat = m => { envMats.push(m); return nightify(m); };
   const paint = (color, gloss = 60) => {
     const key = 'paint' + color + gloss, k = Math.min(1, gloss / 60);
-    if (!matCache.has(key)) matCache.set(key, envMat(new T.MeshPhysicalMaterial({ color, metalness: 0.15 * k, roughness: 0.62 - 0.32 * k, clearcoat: k, clearcoatRoughness: 0.06 })));
+    if (!matCache.has(key)) matCache.set(key, envMat(new T.MeshPhysicalMaterial({ color, metalness: 0.15 * k, roughness: 0.62 - 0.32 * k, clearcoat: TIER.clearcoat ? k : 0, clearcoatRoughness: 0.06 })));
     return matCache.get(key);
   };
   const glass = envMat(new T.MeshPhysicalMaterial({ color: '#0f1820', metalness: 0.55, roughness: 0.04, clearcoat: 1, clearcoatRoughness: 0.02, side: T.DoubleSide }));
@@ -359,15 +466,15 @@ vec3 nightLight(vec3 p) {
     return s;
   }
   // the outline extruded across the width with rounded edges (the bevel grows the outline by bev all round)
-  function profile(pts, width, bev, mat, segs = 3) {
+  function profile(pts, width, bev, mat, bevSegs = 3) {
     const depth = Math.max(1, width - 2 * bev);
-    const geo = new T.ExtrudeGeometry(outline(pts), { depth, bevelEnabled: true, bevelSize: bev, bevelThickness: bev, bevelSegments: segs, curveSegments: 12 });
+    const geo = new T.ExtrudeGeometry(outline(pts), { depth, bevelEnabled: true, bevelSize: bev, bevelThickness: bev, bevelSegments: segs(bevSegs * 2, bevSegs, 1), curveSegments: segs(24, 10, 5) });
     geo.translate(0, 0, -depth / 2); geo.rotateY(Math.PI / 2);
     return new T.Mesh(geo, mat);
   }
   // a flat outline on the side of a body at x (side windows)
   function sidePane(pts, mat, x) {
-    const geo = new T.ShapeGeometry(outline(pts), 8); geo.rotateY(Math.PI / 2);
+    const geo = new T.ShapeGeometry(outline(pts), segs(12, 6, 3)); geo.rotateY(Math.PI / 2);
     const m = new T.Mesh(geo, mat); m.position.x = x; return m;
   }
   // a pane across the width between two outline points (top/front first), pushed out along its normal by off
@@ -471,6 +578,15 @@ vec3 nightLight(vec3 p) {
         s.add(rbox(48, 22, 20, chrome, sx * (Wd / 2 - 205), 252, -R - 8, 8));   // grille chrome ends
       }
       s.add(facePanel(plate('MH 12 CR', '#fff'), 150, 38, 0, 184, -R - 8, Math.PI));
+      // grille slats and badge, fog lamps in the air dam, wipers parked at the foot of the windscreen
+      for (const y of [240, 252, 264]) s.add(rbox(Wd * 0.4, 5, 8, chrome, 0, y, -R - 16, 2));
+      s.add(sph(chrome, 52, 26, 12, 0, 252, -R - 20));
+      for (const sx of [-1, 1]) {
+        const fb = cyl(30, 16, satin, sx * (Wd / 2 - 130), 140, -R + 2); fb.rotation.x = Math.PI / 2; s.add(fb);
+        const fog = cyl(20, 14, headGlow, sx * (Wd / 2 - 130), 140, -R - 4); fog.rotation.x = Math.PI / 2; s.add(fog);
+        const wip = rbox(230, 8, 12, satin, sx * 120 - 20, 404, -296, 3); wip.rotation.z = sx * 0.08; wip.rotation.x = 0.85; s.add(wip);
+        s.add(rbox(8, 14, 40, lambert('#ffb020'), sx * ((Wd - 10) / 2 + 2), 330, -300, 4));    // side indicator repeater
+      }
       // back: tail lamps wrapping the corners, bumper, plate
       for (const sx of [-1, 1]) {
         s.add(rbox(136, 84, 40, satin, sx * (Wd / 2 - 80), 345, R - 18, 18));            // tail lamp: dark bezel, bright lens
@@ -478,6 +594,15 @@ vec3 nightLight(vec3 p) {
         s.add(rbox(30, 60, 90, tailGlow, sx * (Wd / 2 - 12), 345, R - 40, 12));
       }
       s.add(rbox(Wd * 0.92, 44, 28, trim, 0, 160, R - 6, 14));
+      // hatch spoiler with a high-mount brake light, rear wiper, shark-fin aerial, exhaust tip, fuel flap
+      const sp = rbox(gw - 40, 20, 70, body, 0, 614, 482, 9); sp.rotation.x = -0.12; s.add(sp);
+      s.add(rbox(140, 10, 10, tailGlow, 0, 602, 545, 4));
+      const rw = rbox(200, 8, 10, satin, -30, 430, 640, 3); rw.rotation.set(0.5, 0, 0.35); s.add(rw);
+      const fin = rbox(22, 30, 80, satin, 0, 660, 380, 10); fin.rotation.x = 0.25; s.add(fin);
+      const ex = cyl(17, 70, chrome, Wd / 2 - 170, 112, R - 8); ex.rotation.x = Math.PI / 2; s.add(ex);
+      s.add(cylX(38, 3, satin, -((Wd - 10) / 2 + 1), 330, 350));
+      // brake calipers inside the front wheels (they don't turn)
+      for (const sx of [-1, 1]) s.add(rbox(24, 44, 26, '#5c5f63', sx * (Wd / 2 - 52), 128 + 36, -480 + 34, 8));
       s.add(facePanel(plate('MH 12 CR', '#fff'), 150, 38, 0, 250, R - 2));
       // sides: door shut lines, handles, mirrors, a rubbing strip
       for (const sx of [-1, 1]) {
@@ -492,11 +617,341 @@ vec3 nightLight(vec3 p) {
       }
       return s;
     }));
-    for (const z of [-480, 470]) for (const sx of [-1, 1]) g.add(wheel(128, 104, sx * (Wd / 2 - 66), 128, z));
+    for (const z of [-480, 470]) for (const sx of [-1, 1]) g.add(wheel(128, 104, sx * (Wd / 2 - 66), 128, z, '#c3c8cd', 'alloy'));
     g.add(shadow(Wd, L));
     indicators(g, Wd, L, 300, 0.7); g.userData.headY = 306;
     g.userData.size = { w: Wd, h: 700, l: L };
     return g;
+  }
+
+  // ---------------------------------------------------------------- classic Indian cars
+  // Shared shell: an extruded lower body with wheel arches, a black glasshouse under a body-coloured roof,
+  // side windows, windscreen and rear glass, dark arch liners and underbody. Outlines are in (u forward,
+  // v up); each grows by its bevel, so arches here are a bevel wider than they end up.
+  function carShell(s, body, sp) {
+    s.add(profile(sp.lower, sp.Wd - 10, sp.bev, body, 5));
+    s.add(profile(sp.glass, sp.gw, sp.gbev, satin));
+    s.add(profile(sp.roof, sp.gw + 6, sp.gbev, body));
+    for (const sx of [-1, 1]) for (const w of sp.windows) s.add(sidePane(w, glass, sx * (sp.gw / 2 + 1)));
+    s.add(slopePane(...sp.screen, sp.gw - 80, sp.gbev + 1, glass));
+    s.add(slopePane(...sp.back, sp.gw - 90, sp.gbev + 1, glass));
+    const dark = lambert('#141517');
+    for (const z of sp.axles) s.add(box(sp.Wd - 230, sp.r * 1.45, sp.r * 2.6, dark, 0, sp.r * 1.55, z));
+    s.add(box(sp.Wd - 200, 50, sp.L - 320, dark, 0, 100, 0));
+  }
+  // door shut lines, chrome handles and black door mirrors on both sides
+  function carSides(s, sp, doors, handles, mirrorZ, mirrorY, beltY) {
+    const dark = lambert('#141517');
+    for (const sx of [-1, 1]) {
+      const x = sx * ((sp.Wd - 10) / 2 + 1);
+      for (const [z, y0, y1] of doors) s.add(box(3, y1 - y0, 5, dark, x, (y0 + y1) / 2, z));
+      for (const z of handles) s.add(rbox(8, 12, 54, chrome, x, beltY - 30, z, 4));
+      s.add(rbox(50, 18, 26, satin, sx * (sp.Wd / 2 + 2), mirrorY - 14, mirrorZ, 6));
+      s.add(rbox(26, 50, 74, satin, sx * (sp.Wd / 2 + 26), mirrorY, mirrorZ - 6, 12));
+    }
+  }
+  const rectLamp = (s, w, h, x, y, z, mat, bezel = chrome) => { s.add(rbox(w + 16, h + 16, 30, bezel, x, y, z + 6, 8)); s.add(rbox(w, h, 30, mat, x, y, z, 8)); };
+  // a chrome ring facing forward (round headlamp surrounds)
+  const ringZ = (s, R, t, x, y, z) => { const m = torusX(R, t, chrome); m.rotation.set(0, 0, 0); m.position.set(x, y, z); s.add(m); };
+  const carWheels = (g, sp, rim, style) => { for (const z of sp.axles) for (const sx of [-1, 1]) g.add(wheel(sp.r, sp.tw, sx * (sp.Wd / 2 - sp.tw * 0.62), sp.r, z, rim, style)); };
+  function finishCar(g, sp, headY, ind = 0.6) {
+    g.add(shadow(sp.Wd, sp.L));
+    indicators(g, sp.Wd, sp.L, headY - 40, ind); g.userData.headY = headY;
+    g.userData.size = { w: sp.Wd, h: sp.h, l: sp.L };
+    return g;
+  }
+
+  // Maruti 800: the small, boxy, upright hatchback; square headlamps, black bumpers, 12-inch wheels
+  function m800Model(color) {
+    const sp = { Wd: 620, L: 1300, h: 620, r: 108, tw: 80, bev: 34, gw: 534, gbev: 24, axles: [-440, 515],
+      lower: [[-616, 200], [-616, 130, -580, 114], [-515, 108, 159], [440, 108, 159], [600, 114, 616, 170], [616, 250], [612, 300, 560, 310], [300, 330], [-560, 340], [-610, 340, -614, 280]],
+      glass: [[300, 320], [140, 560], [120, 578, 90, 580], [-500, 576], [-540, 574, -555, 550], [-585, 320]],
+      roof: [[120, 572], [100, 584, 80, 586], [-500, 582], [-532, 580, -545, 560], [-200, 575]],
+      windows: [[[275, 345], [146, 540], [-60, 548], [-60, 345]], [[-90, 345], [-90, 548], [-500, 548], [-528, 520], [-552, 345]]],
+      screen: [156, 536, 284, 344], back: [-582, 343, -558, 527] };
+    const R = sp.L / 2, g = new T.Group();
+    g.add(baked('m800' + color, () => {
+      const s = new T.Group(), body = paint(color), dark = lambert('#141517');
+      carShell(s, body, sp);
+      for (const sx of [-1, 1]) {
+        rectLamp(s, 104, 64, sx * (sp.Wd / 2 - 92), 238, -R - 2, headGlow);
+        s.add(rbox(44, 26, 24, lambert('#ffb020'), sx * (sp.Wd / 2 - 30), 238, -R - 2, 6));      // corner indicator
+        rectLamp(s, 66, 108, sx * (sp.Wd / 2 - 58), 262, R - 2, tailGlow, satin);
+      }
+      s.add(rbox(200, 44, 20, dark, 0, 238, -R - 4, 8));
+      for (const y of [228, 248]) s.add(rbox(190, 4, 8, chrome, 0, y, -R - 12, 2));
+      for (const z of [-R - 10, R + 10]) s.add(rbox(sp.Wd + 8, 46, 50, satin, 0, 150, z, 14));
+      s.add(facePanel(plate('DL 2C 800', '#fff'), 130, 34, 0, 150, -R - 36, Math.PI));
+      s.add(facePanel(plate('DL 2C 800', '#fff'), 130, 34, 0, 250, R + 2));
+      for (const sx of [-1, 1]) s.add(rbox(6, 8, 590, chrome, sx * (sp.gw / 2 + 4), 584, 205, 3)); // rain gutters
+      const wip = rbox(200, 8, 10, satin, -40, 350, -300, 3); wip.rotation.x = 0.6; s.add(wip);
+      carSides(s, sp, [[-300, 150, 360], [60, 150, 360]], [40], -270, 380, 360);
+      return s;
+    }));
+    carWheels(g, sp, '#c9cdd2', 'steel');
+    return finishCar(g, sp, 238);
+  }
+
+  // Maruti Esteem: a crisp 90s three-box sedan; wide wraparound lamps, slim grille, black rubbing strips
+  function esteemModel(color) {
+    const sp = { Wd: 680, L: 1600, h: 620, r: 115, tw: 92, bev: 40, gw: 571, gbev: 26, axles: [-500, 540],
+      lower: [[-760, 220], [-760, 150, -720, 130], [-540, 120, 170], [500, 120, 170], [740, 130, 760, 200], [758, 270], [745, 310, 680, 316], [360, 352], [-560, 372], [-735, 372], [-758, 360, -760, 300]],
+      glass: [[360, 340], [110, 548], [80, 566, 30, 568], [-320, 562], [-370, 558, -400, 538], [-560, 360]],
+      roof: [[110, 540], [80, 572, 30, 574], [-320, 568], [-372, 564, -398, 538], [-100, 556]],
+      windows: [[[320, 380], [124, 536], [-90, 548], [-90, 380]], [[-120, 380], [-120, 548], [-320, 546], [-380, 520], [-515, 380]]],
+      screen: [135, 527, 335, 361], back: [-544, 378, -416, 520] };
+    const R = sp.L / 2, g = new T.Group();
+    g.add(baked('esteem' + color, () => {
+      const s = new T.Group(), body = paint(color), dark = lambert('#141517');
+      carShell(s, body, sp);
+      for (const sx of [-1, 1]) {
+        const hl = rbox(176, 56, 36, headGlow, sx * (sp.Wd / 2 - 112), 292, -R + 4, 12); hl.rotation.y = -sx * 0.12; s.add(hl);
+        s.add(rbox(60, 56, 36, lambert('#ffb020'), sx * (sp.Wd / 2 - 18), 292, -R + 24, 10));
+        s.add(rbox(196, 62, 30, tailGlow, sx * (sp.Wd / 2 - 112), 340, R - 4, 10));
+        s.add(rbox(160, 8, 34, satin, sx * (sp.Wd / 2 - 112), 312, R - 4, 3));
+        s.add(rbox(14, 22, 900, satin, sx * ((sp.Wd - 10) / 2 + 3), 250, 0, 6));                   // rubbing strips
+      }
+      s.add(rbox(sp.Wd * 0.3, 40, 30, lambert('#7a1010'), 0, 340, R - 6, 8));                       // reflector panel
+      s.add(rbox(sp.Wd * 0.34, 30, 20, dark, 0, 292, -R - 4, 8)); s.add(rbox(sp.Wd * 0.36, 40, 12, chrome, 0, 292, -R - 1, 6));
+      for (const z of [-R - 4, R + 4]) s.add(rbox(sp.Wd * 0.92, 22, 26, satin, 0, 200, z, 6));
+      s.add(facePanel(plate('MH 14 ES', '#fff'), 140, 36, 0, 160, -R - 12, Math.PI));
+      s.add(facePanel(plate('MH 14 ES', '#fff'), 140, 36, 0, 262, R + 4));
+      s.add(box(sp.Wd - 120, 3, 3, dark, 0, 400, 560));                                                // boot shut line
+      const wip = rbox(230, 8, 10, satin, -40, 372, -350, 3); wip.rotation.x = 0.7; s.add(wip);
+      carSides(s, sp, [[-330, 150, 380], [100, 150, 380], [440, 260, 380]], [-60, 300], -330, 410, 380);
+      return s;
+    }));
+    carWheels(g, sp, '#c9cdd2', 'steel');
+    return finishCar(g, sp, 292);
+  }
+
+  // Hindustan Ambassador: the rounded 50s shape; humped bonnet and boot, big chrome grille, round
+  // headlamps in chrome rings, chrome bumpers with overriders, chrome hubcaps. The yellow one is a taxi.
+  function ambyModel(color) {
+    const sp = { Wd: 720, L: 1680, h: 720, r: 122, tw: 96, bev: 60, gw: 576, gbev: 40, axles: [-560, 525],
+      lower: [[-780, 230], [-780, 160, -730, 140], [-525, 128, 190], [560, 128, 190], [760, 140, 780, 220], [780, 270], [775, 335, 700, 345], [520, 362, 330, 372], [-470, 380], [-735, 384, -778, 300]],
+      glass: [[330, 360], [150, 590], [100, 636, 0, 640], [-300, 636], [-400, 630, -440, 590], [-560, 370]],
+      roof: [[150, 584], [100, 646, 0, 650], [-300, 646], [-404, 640, -440, 590], [-100, 620]],
+      windows: [[[295, 400], [168, 568], [140, 600, 60, 604], [-110, 604], [-110, 400]], [[-140, 400], [-140, 604], [-300, 602], [-380, 598, -415, 570], [-515, 400]]],
+      screen: [168, 567, 312, 383], back: [-548, 392, -452, 568] };
+    const R = sp.L / 2, g = new T.Group(), taxi = color === '#f2c200';
+    g.add(baked('amby' + color, () => {
+      const s = new T.Group(), body = paint(color), dark = lambert('#141517');
+      carShell(s, body, sp);
+      s.add(rbox(10, sp.gbev * 2 + 300, 14, chrome, 0, 470, -235, 4));                               // split windscreen bar
+      // big chrome grille with dark slats
+      s.add(rbox(sp.Wd * 0.5, 140, 24, chrome, 0, 285, -R - 6, 22));
+      for (let i = 0; i < 11; i++) s.add(rbox(10, 112, 14, dark, -150 + i * 30, 285, -R - 14, 3));
+      for (const sx of [-1, 1]) {
+        roundLamp(s, 46, sx * (sp.Wd / 2 - 92), 310, -R + 18);
+        ringZ(s, 56, 9, sx * (sp.Wd / 2 - 92), 310, -R + 6);
+        s.add(sph(lambert('#ffb020'), 40, 30, 20, sx * (sp.Wd / 2 - 100), 228, -R - 2));              // parking lamps
+        s.add(rbox(66, 104, 30, tailGlow, sx * (sp.Wd / 2 - 66), 300, R + 4, 18));
+        for (const z of [-R - 30, R + 30]) s.add(rbox(36, 90, 40, chrome, sx * 200, 205, z, 12));    // overriders
+        s.add(rbox(10, 14, sp.L * 0.84, chrome, sx * ((sp.Wd - 10) / 2 + 4), 300, 0, 5));               // side chrome strip
+      }
+      for (const z of [-R - 16, R + 16]) s.add(rbox(sp.Wd + 30, 50, 50, chrome, 0, 180, z, 20));
+      s.add(rbox(16, 10, 360, chrome, 0, 412, -560, 5));                                                // bonnet strip
+      s.add(facePanel(plate(taxi ? 'WB 04 T' : 'DL 3C AM', taxi ? '#ffd21f' : '#fff'), 150, 38, 0, 180, -R - 44, Math.PI));
+      s.add(facePanel(plate(taxi ? 'WB 04 T' : 'DL 3C AM', taxi ? '#ffd21f' : '#fff'), 150, 38, 0, 270, R + 2));
+      s.add(rbox(80, 14, 20, chrome, 0, 340, R + 2, 6));                                                // boot handle
+      if (taxi) {
+        s.add(rbox(260, 70, 60, dark, 0, 715, -60, 12));
+        s.add(facePanel(lettering('TAXI', '#111', '#ffd21f', 128, 40, 'bold 30px Arial'), 240, 60, 0, 715, -92, Math.PI));
+        s.add(facePanel(lettering('TAXI', '#111', '#ffd21f', 128, 40, 'bold 30px Arial'), 240, 60, 0, 715, -28));
+      }
+      carSides(s, sp, [[-300, 150, 400], [-50, 150, 400], [300, 200, 400]], [-90, 260], -320, 430, 400);
+      return s;
+    }));
+    carWheels(g, sp, '#e0e3e6', 'steel');
+    return finishCar(g, sp, 310, 0.7);
+  }
+
+  // Maruti Omni: the tall one-box van; stubby nose, upright windscreen, sliding door, small wheels
+  function omniModel(color) {
+    const sp = { Wd: 620, L: 1330, h: 720, r: 100, tw: 76, bev: 40, gw: 570, gbev: 30, axles: [-375, 435],
+      lower: [[-625, 220], [-625, 140, -590, 120], [-435, 112, 158], [375, 112, 158], [610, 120, 625, 190], [625, 330], [620, 372, 580, 380], [-600, 384], [-625, 380, -625, 330]],
+      glass: [[585, 370], [470, 620], [455, 650, 410, 652], [-560, 652], [-600, 650, -605, 620], [-612, 370]],
+      roof: [[470, 614], [455, 660, 410, 662], [-560, 662], [-600, 660, -605, 620], [0, 640]],
+      windows: [[[560, 410], [476, 606], [250, 614], [250, 410]], [[220, 410], [220, 614], [-180, 614], [-180, 410]], [[-210, 410], [-210, 614], [-580, 614], [-585, 410]]],
+      screen: [481, 595, 573, 395], back: [-611, 395, -606, 595] };
+    const R = sp.L / 2, g = new T.Group();
+    g.add(baked('omni' + color, () => {
+      const s = new T.Group(), body = paint(color), dark = lambert('#141517');
+      carShell(s, body, sp);
+      for (const sx of [-1, 1]) {
+        rectLamp(s, 108, 58, sx * (sp.Wd / 2 - 92), 300, -R - 2, headGlow);
+        s.add(rbox(36, 30, 24, lambert('#ffb020'), sx * (sp.Wd / 2 - 26), 300, -R - 2, 6));
+        rectLamp(s, 64, 100, sx * (sp.Wd / 2 - 52), 270, R - 2, tailGlow, satin);
+        s.add(rbox(8, 12, 420, satin, sx * ((sp.Wd - 10) / 2 + 3), 400, 30, 4));                      // sliding door rail
+      }
+      s.add(rbox(150, 30, 20, dark, 0, 300, -R - 4, 8));
+      for (const z of [-R - 8, R + 8]) s.add(rbox(sp.Wd + 6, 46, 44, satin, 0, 150, z, 14));
+      s.add(facePanel(plate('MH 02 OM', '#fff'), 130, 34, 0, 150, -R - 32, Math.PI));
+      s.add(facePanel(plate('MH 02 OM', '#fff'), 130, 34, 0, 240, R + 2));
+      s.add(rbox(70, 14, 16, chrome, 0, 340, R + 2, 6));
+      for (const sx of [-1, 1]) { const w = rbox(180, 8, 10, satin, sx * 110, 420, -R + 30, 3); w.rotation.z = sx * 0.15; s.add(w); }
+      carSides(s, sp, [[-250, 150, 410], [-220, 150, 410], [180, 150, 410]], [-210, 160], -470, 440, 410);
+      return s;
+    }));
+    carWheels(g, sp, '#c9cdd2', 'steel');
+    return finishCar(g, sp, 300);
+  }
+
+  // Mini pickup (Tata Ace style, the "chhota hathi"): a little cab-forward cab and a drop-side bed
+  // overloaded with jute sacks roped down
+  function aceModel(color, bedColor) {
+    const Wd = 660, L = 1670, R = L / 2, r = 98, g = new T.Group(), axles = [-635, 285];
+    g.add(baked('ace' + color + bedColor, () => {
+      const s = new T.Group(), body = paint(color), bed = paint(bedColor, 30), dark = lambert('#141517');
+      // cab: one extruded shape with the front wheel arch, glass on it
+      s.add(profile([[400, 150], [635, 105, 140], [790, 150], [795, 330], [790, 420, 770, 450], [690, 760], [660, 790, 620, 792], [420, 792], [400, 780, 400, 740]], Wd - 10, 40, body, 5));
+      s.add(slopePane(696, 735, 764, 475, Wd - 120, 41, glass));
+      for (const sx of [-1, 1]) s.add(sidePane([[735, 480], [684, 738], [440, 742], [440, 480]], glass, sx * ((Wd - 10) / 2 + 1)));
+      s.add(box(Wd - 230, 140, 260, dark, 0, 150, -635));
+      for (const sx of [-1, 1]) {
+        rectLamp(s, 110, 66, sx * (Wd / 2 - 92), 300, -R - 2, headGlow, satin);
+        s.add(rbox(50, 18, 26, satin, sx * (Wd / 2 + 4), 640, -720, 6));
+        s.add(rbox(26, 70, 60, satin, sx * (Wd / 2 + 30), 640, -726, 10));
+        s.add(box(3, 420, 5, dark, sx * ((Wd - 10) / 2 + 1), 520, -430));
+        s.add(rbox(8, 12, 50, chrome, sx * ((Wd - 10) / 2 + 1), 470, -470, 4));
+      }
+      s.add(rbox(240, 40, 20, dark, 0, 300, -R - 4, 8));
+      s.add(rbox(Wd + 10, 60, 50, satin, 0, 165, -R - 10, 16));
+      s.add(facePanel(plate('MH 12 GA', '#ffd21f'), 140, 36, 0, 165, -R - 38, Math.PI));
+      const wip = rbox(220, 8, 10, satin, -30, 480, -R + 70, 3); wip.rotation.x = 1.2; s.add(wip);
+      // chassis, drop-side bed, rear mudguards, tail lamps
+      s.add(box(Wd * 0.6, 60, L - 300, '#1a1a1a', 0, 230, 80));
+      const bz = (R - 360) / 2 + 180, bl = R + 360 - 20;
+      s.add(rbox(Wd, 40, bl, bed, 0, 350, bz, 8));
+      for (const sx of [-1, 1]) {
+        s.add(rbox(24, 210, bl, bed, sx * (Wd / 2 - 12), 475, bz, 6));
+        for (let i = 1; i < 4; i++) s.add(rbox(6, 210, 14, satin, sx * (Wd / 2 + 1), 475, bz - bl / 2 + i * bl / 4, 3));
+        s.add(rbox(130, 20, 260, satin, sx * (Wd / 2 - 70), 215, axles[1], 8));
+        s.add(rbox(70, 50, 24, tailGlow, sx * (Wd / 2 - 70), 290, R + 4, 8));
+      }
+      s.add(rbox(Wd, 380, 24, bed, 0, 560, -360, 6));                                                   // headboard
+      for (const sx of [-1, 0, 1]) s.add(rbox(16, 260, 16, satin, sx * (Wd / 2 - 20), 880, -360, 4));  // ladder rack
+      s.add(rbox(Wd, 16, 16, satin, 0, 1000, -360, 4));
+      s.add(rbox(Wd, 210, 24, bed, 0, 475, R - 12, 6));                                                 // tailgate
+      s.add(facePanel(lettering('HORN OK PLEASE', bedColor, '#fff', 256, 48, 'bold 30px Impact, Arial Black, sans-serif'), Wd - 80, 130, 0, 490, R + 2));
+      s.add(facePanel(plate('MH 12 GA', '#ffd21f'), 140, 36, 0, 300, R + 4));
+      // the load: jute sacks heaped well above the sides, roped over
+      const jute = lambert('#c8a165'), jute2 = lambert('#b38b52'), rope = lambert('#e0c080');
+      const rows = q(5, 4, 2), cols = 3;
+      for (let layer = 0; layer < 3; layer++) for (let i = 0; i < rows - layer; i++) for (let j = 0; j < cols - (layer > 1 ? 1 : 0); j++) {
+        const z = bz - bl / 2 + 140 + (i + layer * 0.5) * (bl - 280) / Math.max(1, rows - 1), x = (j - (cols - (layer > 1 ? 1 : 0) - 1) / 2) * 200;
+        const sk = rbox(200, 120, 230, (i + j + layer) % 2 ? jute : jute2, x, 430 + layer * 115, z, 50);
+        sk.rotation.y = ((i * 7 + j * 3 + layer) % 5 - 2) * 0.06; s.add(sk);
+      }
+      for (let i = 0; i < 3; i++) s.add(rbox(Wd + 20, 10, 12, rope, 0, 790, bz - 300 + i * 300, 4));
+      return s;
+    }));
+    g.add(wheel(r, 78, -(Wd / 2 - 50), r, axles[0], '#c9cdd2'));
+    g.add(wheel(r, 78, Wd / 2 - 50, r, axles[0], '#c9cdd2'));
+    for (const sx of [-1, 1]) g.add(wheel(r, 78, sx * (Wd / 2 - 70), r, axles[1], '#c9cdd2'));
+    g.add(shadow(Wd, L));
+    indicators(g, Wd, L, 260, 0.6); g.userData.headY = 300;
+    g.userData.size = { w: Wd, h: 1010, l: L };
+    return g;
+  }
+
+  // ---------------------------------------------------------------- tractor and trolley
+  // a half-ring mudguard over a big wheel (extruded across the width)
+  function fender(R0, R1, width, mat) {
+    const sh = new T.Shape(); sh.absarc(0, 0, R1, Math.PI, 0, true); sh.absarc(0, 0, R0, 0, Math.PI, false);
+    const b = 10, depth = width - 2 * b;
+    const geo = new T.ExtrudeGeometry(sh, { depth, bevelEnabled: true, bevelSize: b, bevelThickness: b, bevelSegments: segs(3, 2, 1), curveSegments: segs(32, 14, 8) });
+    geo.translate(0, 0, -depth / 2); geo.rotateY(Math.PI / 2);
+    return new T.Mesh(geo, mat);
+  }
+  // Tractor (Mahindra / Swaraj style) towing a trolley overloaded with the local crop: sugarcane piled
+  // high and hanging out the back, or a huge netted bale of wheat straw (bhusa) bulging over the sides.
+  function tractorModel(look) {
+    const L = 3800, R = L / 2, Wt = 880, Wb = look.crop === 'hay' ? 1300 : 1100, g = new T.Group();
+    const zRear = -R + 1140, zFront = -R + 360, trolleyZ = [-160, 1500], tz = (trolleyZ[0] + trolleyZ[1]) / 2, tl = trolleyZ[1] - trolleyZ[0];
+    g.add(baked('tractor' + look.color + look.crop, () => {
+      const s = new T.Group(), body = paint(look.color, 40), dark = lambert('#141517'), engine = lambert('#3a3d40'), wood = lambert('#6d4c41');
+      // tractor: engine block, bonnet, grille with headlamps, exhaust stack, fenders, seat, steering wheel
+      s.add(rbox(300, 260, 760, engine, 0, 430, -R + 520, 30));
+      s.add(rbox(380, 300, 780, body, 0, 690, -R + 470, 80));
+      s.add(rbox(340, 250, 24, dark, 0, 650, -R + 70, 10));
+      for (let i = 0; i < 6; i++) s.add(rbox(320, 10, 10, chrome, 0, 560 + i * 38, -R + 56, 3));
+      for (const sx of [-1, 1]) roundLamp(s, 40, sx * 130, 760, -R + 60);
+      s.add(rbox(240, 50, 300, dark, 0, 860, -R + 450, 20));                                                // bonnet top vent
+      spokeTo(s, [140, 820, -R + 700], [140, 1180, -R + 700], 26, satin);                                   // exhaust stack
+      s.add(cyl(32, 40, satin, 140, 1190, -R + 700));
+      s.add(rbox(240, 200, 300, engine, 0, 620, zRear - 40, 30));                                            // gearbox under the seat
+      for (const sx of [-1, 1]) {
+        const f = fender(345, 380, 230, body); f.position.set(sx * (Wt / 2 - 95), 330, zRear); s.add(f);
+        s.add(rbox(230, 14, 320, body, sx * (Wt / 2 - 95), 720, zRear + 80, 6));                             // fender flat top
+        s.add(rbox(180, 30, 220, satin, sx * 260, 470, zRear - 380, 8));                                     // footboards
+      }
+      s.add(rbox(300, 60, 260, dark, 0, 870, zRear + 40, 24));                                               // seat
+      s.add(rbox(300, 200, 50, dark, 0, 980, zRear + 170, 20));
+      spokeTo(s, [0, 760, zRear - 400], [0, 1060, zRear - 300], 14, satin);                                  // steering column
+      const sw = torusX(110, 12, satin); sw.rotation.set(-0.5, Math.PI / 2, 0); sw.position.set(0, 1070, zRear - 300); s.add(sw);
+      rider(s, { shirt: '#f5f5f5', helmet: look.pagri, bare: true }, 900, zRear + 40, [100, 1060, zRear - 300], [250, 500, zRear - 380]);
+      // hitch and trolley: chassis, wooden floor, painted sides, tail reflectors
+      s.add(box(80, 60, 520, satin, 0, 420, trolleyZ[0] - 140));
+      s.add(rbox(900, 60, tl, satin, 0, 420, tz, 10));
+      s.add(rbox(1060, 50, tl, wood, 0, 475, tz, 8));
+      for (const sx of [-1, 1]) {
+        s.add(rbox(30, 240, tl, paint('#1565c0', 20), sx * 515, 620, tz, 8));
+        s.add(facePanel(painted('trolley', 512, 96, (x, w, h) => {
+          x.fillStyle = '#1565c0'; x.fillRect(0, 0, w, h); x.strokeStyle = '#fff'; x.lineWidth = 8; x.strokeRect(6, 6, w - 12, h - 12);
+          x.fillStyle = '#ffd21f'; for (let i = 40; i < w; i += 80) { x.beginPath(); x.arc(i, h / 2, 14, 0, 7); x.fill(); }
+        }), tl - 80, 200, sx * 532, 620, tz, sx * Math.PI / 2));
+        s.add(rbox(90, 40, 20, tailGlow, sx * 440, 560, trolleyZ[1] + 14, 6));
+      }
+      s.add(rbox(1060, 240, 30, paint('#1565c0', 20), 0, 620, trolleyZ[0] + 15, 8));
+      s.add(rbox(1060, 240, 30, paint('#1565c0', 20), 0, 620, trolleyZ[1] - 15, 8));
+      for (let i = 0; i < 5; i++) s.add(rbox(80, 30, 8, i % 2 ? lambert('#f5f5f5') : tailGlow, -320 + i * 160, 700, trolleyZ[1] + 4, 4));
+      // the load
+      if (look.crop === 'hay') {
+        const straw = lambert('#e8d9a0'), straw2 = lambert('#d8c27a'), net = lambert('#6d4c41');
+        s.add(rbox(Wb, 900, tl + 200, straw, 0, 1150, tz + 60, 320));
+        for (let i = 0; i < q(10, 5, 0); i++) {
+          const a = i * 2.39, z = tz - tl / 2 + 120 + (i * 173) % (tl - 100);
+          s.add(sph(straw2, 220, 120, 260, Math.cos(a) > 0 ? Wb / 2 - 40 : -Wb / 2 + 40, 900 + (i * 97) % 450, z));   // tufts poking out
+        }
+        for (let i = 0; i < 6; i++) s.add(rbox(Wb + 24, 12, 14, net, 0, 1150, tz - tl / 2 + 60 + i * (tl + 80) / 5, 5));  // netting / ropes
+        for (const x of [-Wb / 4, Wb / 4]) s.add(rbox(14, 12, tl + 220, net, x, 1605, tz + 60, 5));
+      } else {
+        const canes = [lambert('#9aa83c'), lambert('#7f8f2a'), lambert('#6b3f4f'), lambert('#8c9a34')], leaf = lambert('#4caf50'), leaf2 = lambert('#2e7d32');
+        const len = 2000, z0 = trolleyZ[0] + 60 + len / 2;
+        if (LO === 2) s.add(rbox(Wb, 640, len, canes[0], 0, 1020, z0, 160));
+        else {
+          const per = [18, 17, 16, 15, 13, 11, 9, 6].map(n => Math.round(n * (LO ? 0.5 : 1)));   // heaped well over the sides
+          per.forEach((n, layer) => {
+            const rr = Wb / per[0] / 2;
+            for (let i = 0; i < n; i++) {
+              const x = (i - (n - 1) / 2) * rr * 2, k = layer * 31 + i * 7;
+              const c = cyl(rr * 0.95, len + (k % 5) * 60, canes[k % 4], x, 800 + layer * rr * 1.7, z0 + (k % 7 - 3) * 25);
+              c.rotation.x = Math.PI / 2; s.add(c);
+            }
+          });
+        }
+        for (let i = 0; i < q(9, 5, 3); i++) s.add(sph(i % 2 ? leaf : leaf2, 300, 160, 420, -400 + i * 100, 950 + (i % 3) * 110, z0 + len / 2 - 60));    // leafy tops
+        for (let i = 0; i < 3; i++) s.add(rbox(Wb * 0.6, 12, 14, lambert('#e0c080'), 0, 1200, z0 - 600 + i * 500, 4));
+      }
+      return s;
+    }));
+    for (const sx of [-1, 1]) {
+      g.add(wheel(330, 210, sx * (Wt / 2 - 95), 330, zRear, look.rim, 'lug'));
+      g.add(wheel(170, 120, sx * (Wt / 2 - 160), 170, zFront, look.rim, 'lug'));
+      g.add(wheel(200, 140, sx * 470, 200, tz + 200, '#5a5d60'));
+    }
+    g.add(shadow(Math.max(Wt, Wb), L));
+    g.userData.headY = 760;
+    g.userData.size = { w: Wb, h: look.crop === 'hay' ? 1600 : 1400, l: L };
+    return g;
+  }
+  // all the car looks traffic uses: the modern hatchback and the classics
+  function carModelFor(look) {
+    if (!look) return carModel('#e9e9ea');
+    return look.model === 'm800' ? m800Model(look.color) : look.model === 'esteem' ? esteemModel(look.color) : look.model === 'amby' ? ambyModel(look.color)
+      : look.model === 'omni' ? omniModel(look.color) : look.model === 'ace' ? aceModel(look.color, look.bed) : carModel(look.color);
   }
 
   // State transport bus: red lower body with a cream belt, a band of sliding windows with frames, a cream
@@ -536,6 +991,14 @@ vec3 nightLight(vec3 p) {
       s.add(rbox(Wd + 20, 90, 70, dark, 0, 245, -R - 10, 25));
       s.add(facePanel(plate('MH 01 BS', '#ffd21f'), 190, 48, 0, 330, -R - 8, Math.PI));
       s.add(rbox(Wd + 20, 90, 70, dark, 0, 245, R + 10, 25));
+      // big mirrors on arms out front, a roof hatch, amber side markers
+      for (const sx of [-1, 1]) {
+        spokeTo(s, [sx * (Wd / 2 - 10), 1060, -R + 30], [sx * (Wd / 2 + 110), 1010, -R - 110], 9, satin);
+        s.add(rbox(28, 230, 90, satin, sx * (Wd / 2 + 118), 900, -R - 118, 12));
+        s.add(rbox(6, 210, 76, glass, sx * (Wd / 2 + 118) + sx * -16, 900, -R - 118, 3));
+        for (let i = 0; i < 4; i++) s.add(rbox(10, 22, 44, lambert('#ffa000'), sx * (Wd / 2 + 2), 250, -R + 900 + i * 600, 5));
+      }
+      s.add(rbox(240, 30, 200, '#9e9e9e', 0, 1195, -R + 170, 12));
       // roof rack and luggage
       s.add(rbox(Wd * 0.9, 20, L * 0.8, '#555', 0, 1195, 0, 8));
       for (const sx of [-1, 1]) s.add(rbox(16, 50, L * 0.8, chrome, sx * Wd * 0.45, 1215, 0, 6));
@@ -580,6 +1043,14 @@ vec3 nightLight(vec3 p) {
       s.add(rbox(Wd + 30, 130, 90, dark, 0, 330, -R - 20, 25));
       s.add(facePanel(hazard(), Wd + 10, 100, 0, 330, -R - 66, Math.PI));
       s.add(facePanel(plate('MH 04 TK', '#ffd21f'), 190, 48, 0, 450, -R - 14, Math.PI));
+      // air horns and amber marker lamps on the roof, wipers, grab handles by the doors
+      for (const sx of [-1, 1]) {
+        spokeTo(s, [sx * 160, 1290, -R + 260], [sx * 160, 1290, -R + 60], 20, chrome);
+        s.add(sph(chrome, 70, 70, 30, sx * 160, 1290, -R + 50));
+        const w = rbox(260, 10, 10, satin, sx * 210, 870, -R - 6, 3); w.rotation.z = sx * 0.35; s.add(w);
+        spokeTo(s, [sx * (Wd / 2 + 8), 560, -R + 640], [sx * (Wd / 2 + 8), 900, -R + 640], 9, chrome);
+      }
+      for (let i = 0; i < 5; i++) s.add(sph(lambert('#ffa000', { emissive: '#7a4a00', emissiveIntensity: 0.4 }), 40, 30, 30, -360 + i * 180, 1268, -R - 6));
       // fuel tank and tool box between the axles
       const tank = cyl(110, 480, '#a7abb0', -(Wd / 2 - 150), 330, -R + 1050); tank.rotation.x = Math.PI / 2; s.add(tank);
       s.add(rbox(200, 200, 380, '#37474f', Wd / 2 - 130, 330, -R + 1050, 12));
@@ -593,6 +1064,10 @@ vec3 nightLight(vec3 p) {
       }
       s.add(rbox(Wd, 650, 50, bodyC, 0, 825, R - 25, 12));
       s.add(rbox(Wd + 16, 40, bl, '#d32f2f', 0, 1155, bz, 12));
+      for (const sx of [-1, 1]) {
+        for (let i = 0; i < 7; i++) s.add(rbox(14, 40, 24, chrome, sx * (Wd / 2 + 10), 1110, bz - bl / 2 + 150 + i * 285, 5));    // rope hooks
+        for (const y of [300, 370]) s.add(rbox(16, 26, 360, satin, sx * (Wd / 2 - 10), y, 330, 8));                         // side guard
+      }
       // tarpaulin bulging over the load, tied down with ropes
       s.add(rbox(Wd * 0.97, 420, bl - 60, lambert('#1565c0'), 0, 1270, bz + 10, 190));
       for (let i = 0; i < 5; i++) {
@@ -610,7 +1085,10 @@ vec3 nightLight(vec3 p) {
       }
       return s;
     }));
-    for (const z of axles) for (const sx of [-1, 1]) g.add(wheel(195, 170, sx * (Wd / 2 - 56), 195, z, '#9e1b1b'));
+    for (const sx of [-1, 1]) {
+      g.add(wheel(195, 170, sx * (Wd / 2 - 56), 195, axles[0], '#9e1b1b'));
+      for (const z of axles.slice(1)) g.add(wheel(195, 240, sx * (Wd / 2 - 90), 195, z, '#9e1b1b', 'dual'));
+    }
     g.add(shadow(Wd, L));
     indicators(g, Wd, L, 450); g.userData.headY = 560;
     g.userData.size = { w: Wd, h: 1500, l: L };
@@ -631,8 +1109,11 @@ vec3 nightLight(vec3 p) {
     const lean = pillion ? 10 : -40, neck = [0, hipY + 270, hipZ + lean];
     s.add(limb([0, hipY + 50, hipZ + 10], neck, 92, shirt));                                        // torso
     const helmet = pillion ? lambert('#2b2b2b') : paint(look.helmet, 90);
-    const h = new T.Mesh(unitSphere, helmet); h.scale.set(150, 160, 175); h.position.set(0, hipY + 360, hipZ + lean - 10); s.add(h);
-    if (!pillion) { const v = new T.Mesh(unitSphere, glass); v.scale.set(120, 70, 60); v.position.set(0, hipY + 360, hipZ + lean - 80); s.add(v); }
+    if (look.bare) {                                                                               // bare head in a pagri
+      s.add(sph(skin, 118, 140, 128, 0, hipY + 345, hipZ + lean - 10));
+      s.add(sph(paint(look.helmet, 20), 150, 90, 150, 0, hipY + 405, hipZ + lean - 5));
+    } else { const h = new T.Mesh(sphGeo(), helmet); h.scale.set(150, 160, 175); h.position.set(0, hipY + 360, hipZ + lean - 10); s.add(h); }
+    if (!pillion && !look.bare) { const v = new T.Mesh(sphGeo(), glass); v.scale.set(120, 70, 60); v.position.set(0, hipY + 360, hipZ + lean - 80); s.add(v); }
     for (const sx of [-1, 1]) {
       const sh = [sx * 112, hipY + 235, hipZ + lean + 10];
       const hand = pillion ? [sx * 120, hipY + 60, hipZ - 150] : [sx * grip[0], grip[1], grip[2]];
@@ -640,7 +1121,7 @@ vec3 nightLight(vec3 p) {
       s.add(limb(sh, elbow, 34, shirt)); s.add(limb(elbow, hand, 28, skin));
       const hip = [sx * 72, hipY + 20, hipZ], knee = [sx * (pillion ? 120 : 110), hipY + 40, hipZ - (pillion ? 150 : 230)], ft = [sx * foot[0], foot[1], foot[2]];
       s.add(limb(hip, knee, 50, pants)); s.add(limb(knee, ft, 40, pants));
-      const sho = new T.Mesh(unitSphere, shoe); sho.scale.set(70, 50, 120); sho.position.set(ft[0], ft[1], ft[2] - 30); s.add(sho);
+      const sho = new T.Mesh(sphGeo(), shoe); sho.scale.set(70, 50, 120); sho.position.set(ft[0], ft[1], ft[2] - 30); s.add(sho);
     }
   }
   // Two-wheelers: a commuter motorcycle (Splendor / Pulsar style: tank, engine, exhaust, telescopic forks,
@@ -686,16 +1167,25 @@ vec3 nightLight(vec3 p) {
         hipY = 560; hipZ = 175; grip = [168, 665, -wb + 185]; foot = [112, 250, 55];
       }
       s.add(limb([-170, grip[1], grip[2]], [170, grip[1], grip[2]], 12, satin));                          // handlebar
+      const dial = cyl(42, 26, satin, 0, grip[1] + 40, grip[2] + 10); dial.rotation.x = -0.9; s.add(dial);  // speedometer
+      s.add(sph(glass, 70, 20, 70, 0, grip[1] + 52, grip[2] + 18));
+      s.add(limb([-60, 230, 60], [-150, 22, 150], 9, satin));                                             // side stand
+      if (!sc) {
+        for (const y of [250, 175]) s.add(rbox(10, 10, 320, satin, -72, y, 120, 4));                     // chain
+        for (const sx of [-1, 1]) s.add(limb([sx * 70, 250, 50], [sx * 150, 250, 50], 10, satin));     // footpegs
+        for (const sx of [-1, 1]) s.add(limb([sx * 95, 545, 250], [sx * 95, 545, 390], 9, chrome));    // grab rail
+        s.add(limb([-95, 545, 390], [95, 545, 390], 9, chrome));
+      }
       for (const sx of [-1, 1]) {
         s.add(limb([sx * 120, grip[1], grip[2]], [sx * 175, grip[1] + 130, grip[2] - 10], 6, chrome));    // mirror stalks
-        const mir = new T.Mesh(unitSphere, satin); mir.scale.set(70, 50, 16); mir.position.set(sx * 180, grip[1] + 150, grip[2] - 12); s.add(mir);
+        const mir = new T.Mesh(sphGeo(), satin); mir.scale.set(70, 50, 16); mir.position.set(sx * 180, grip[1] + 150, grip[2] - 12); s.add(mir);
       }
       rider(s, look, hipY, hipZ, grip, foot);
       if (look.pillion) rider(s, look, hipY + 30, hipZ + 250, grip, [118, foot[1] + 30, hipZ + 200], true);
       return s;
     }));
-    g.add(wheel(r, sc ? 62 : 52, 0, r, -wb, sc ? '#b9bec4' : '#cfd3d7'));
-    g.add(wheel(r, sc ? 62 : 56, 0, r, wb, sc ? '#b9bec4' : '#cfd3d7'));
+    g.add(wheel(r, sc ? 62 : 52, 0, r, -wb, sc ? '#b9bec4' : '#cfd3d7', sc ? 'alloy' : 'spoke'));
+    g.add(wheel(r, sc ? 62 : 56, 0, r, wb, sc ? '#b9bec4' : '#cfd3d7', sc ? 'alloy' : 'spoke'));
     g.add(shadow(260, 860));
     // indicators: front on stalks by the headlamp, rear by the tail lamp
     g.userData.ind = { '-1': [], '1': [] };
@@ -880,6 +1370,8 @@ vec3 nightLight(vec3 p) {
   // ---------------------------------------------------------------- setup
   function init(glCanvas, opts) {
     W = opts.W; H = opts.H; ROAD_W = opts.ROAD_W; SEG_LEN = opts.SEG_LEN;
+    quality = TIERS[opts.quality] ? opts.quality : 'high'; TIER = TIERS[quality]; buildPrims();
+    if (!TIER.clearcoat) glass.clearcoat = 0;
     try {
       renderer = new T.WebGLRenderer({ canvas: glCanvas, alpha: true, antialias: true, logarithmicDepthBuffer: true, powerPreference: 'high-performance' });
     } catch (e) { return false; }
@@ -918,6 +1410,8 @@ vec3 nightLight(vec3 p) {
     segments = opts.segments; trackLength = opts.trackLength; theme = opts.theme; SP = opts.SP; TS = opts.themeSprites; cfg = opts;
     for (const m of sceneryMeshes.values()) scene.remove(m);
     for (const m of vehicles.values()) scene.remove(m);
+    for (const spare of pool.values()) for (const m of spare) scene.remove(m);
+    pool.clear(); queueWarm();
     sceneryMeshes.clear(); vehicles.clear(); buildingMats.clear();
     const c = h => new T.Color(h);
     colors = {
@@ -1036,24 +1530,67 @@ vec3 nightLight(vec3 p) {
     const ok = top.z < 1 && top.x > -200 && top.x < W + 200;
     obj.scr = ok ? { x: top.x, y: top.y, w: Math.abs(b.x - a.x), frame: frameNo } : null;
   }
-  function spinWheels(model, dist) { for (const c of model.children) if (c.userData.wheel) c.children.forEach(m => { m.rotation.x = -dist / 110; }); }
+  function spinWheels(model, dist) { for (const c of model.children) if (c.userData.wheel) c.children.forEach(m => { if (m.userData.spin) m.rotation.x = -dist / 110; }); }
   function walk(model, t, speed) {
     const legs = model.userData.legs; if (!legs) return;
     const a = speed > 0 ? Math.sin(t) * 0.3 : 0;
     legs[0].rotation.x = a; legs[3].rotation.x = a; legs[1].rotation.x = -a; legs[2].rotation.x = -a;
   }
+  // Every traffic look is built ahead of time, a little each frame while the title screen and countdown are
+  // up (detailed models with three levels of detail take a moment to build), so none is built mid-race.
+  let warmQueue = [];
+  function queueWarm() {
+    warmQueue = [...(cfg.CAR_LOOKS || []).map(l => () => carModelFor(l)), ...(cfg.TRACTOR_LOOKS || []).map(l => () => tractorModel(l)), ...(cfg.BIKE_LOOKS || []).map(l => () => bikeModel(l)),
+      () => busModel(SP.bus), () => truckModel(SP.truck)];
+  }
+  function warmStep(budget) {
+    const t0 = performance.now();
+    while (warmQueue.length && performance.now() - t0 < budget) { lodSink.length = 0; warmQueue.shift()(); }
+    lodSink.length = 0;
+    return warmQueue.length;
+  }
+  // Traffic off screen (behind the camera or past the draw distance) is just game data: position, lane,
+  // speed, heading (kept on the object). Its model goes back to a pool by look, and the next vehicle that
+  // looks the same reuses it, so models aren't built or kept per vehicle. Rivals, the player and animals
+  // keep their own.
+  const pool = new Map();   // look -> spare models
+  function lookOf(obj) {
+    if (obj.isRival || obj.isPlayer || obj.type === 'cow' || obj.type === 'dog') return null;
+    if (obj.type === 'auto') return 'auto' + JSON.stringify(obj.palette) + SP.rivals.indexOf(obj.img);
+    if (obj.look) return obj.type + JSON.stringify(obj.look);
+    if (obj.type === 'car') return 'car' + (obj.color || cfg.CAR_COLORS[Math.max(0, SP.cars.indexOf(obj.img))]);
+    if (obj.type === 'bike') return 'bike' + SP.bikes.indexOf(obj.img);
+    return obj.type;
+  }
+  function release(obj) {
+    const m = vehicles.get(obj); if (!m || !m.userData.look) return false;
+    vehicles.delete(obj); m.visible = false;
+    if (!pool.has(m.userData.look)) pool.set(m.userData.look, []);
+    pool.get(m.userData.look).push(m);
+    return true;
+  }
   function modelFor(obj) {
     let m = vehicles.get(obj);
     if (m) return m;
+    const look = lookOf(obj), spare = look && pool.get(look);
+    if (spare && spare.length) {
+      m = spare.pop(); m.scale.set(1, 1, 1);
+      const ind = m.userData.ind; if (ind) for (const side of ['-1', '1']) for (const lamp of ind[side]) lamp.material = indOff;
+      if (m.userData.arm) m.userData.arm.visible = false;
+      vehicles.set(obj, m); return m;
+    }
+    lodSink.length = 0;
     if (obj.isRival || obj.type === 'auto') m = autoModel(obj.palette || { body: obj.color || '#ffcc00', trim: '#111', canopy: '#151515' }, obj.img);
     else if (obj.isPlayer) m = autoModel({ body: '#1e9e4a', trim: '#ffd21f', canopy: '#151515' }, SP.player);
     else if (obj.type === 'bus') m = busModel(SP.bus);
     else if (obj.type === 'truck') m = truckModel(SP.truck);
-    else if (obj.type === 'car') { const i = Math.max(0, SP.cars.indexOf(obj.img)); m = carModel(obj.color || cfg.CAR_COLORS[i] || '#e9e9ea'); }
+    else if (obj.type === 'car') m = obj.look ? carModelFor(obj.look) : carModel(obj.color || cfg.CAR_COLORS[Math.max(0, SP.cars.indexOf(obj.img))] || '#e9e9ea');
+    else if (obj.type === 'tractor') m = tractorModel(obj.look || cfg.TRACTOR_LOOKS[0]);
     else if (obj.type === 'bike') { const i = Math.max(0, SP.bikes.indexOf(obj.img)); m = bikeModel(cfg.BIKE_LOOKS[i]); }
     else if (obj.type === 'cow') m = cowModel();
     else if (obj.type === 'dog') { const i = Math.max(0, SP.dogs.indexOf(obj.look)); m = dogModel(cfg.DOG_COATS[i]); }
     else return null;
+    m.userData.lods = lodSink.splice(0); m.userData.look = look;
     scene.add(m); vehicles.set(obj, m);
     return m;
   }
@@ -1180,6 +1717,7 @@ vec3 nightLight(vec3 p) {
   function frame(state) {
     if (!ready || !segments.length) return null;
     const { player, rivals, traffic, frameNo, shake, t, cross = [], lightOf = null } = state;
+    if (warmQueue.length) warmStep(6);
     buildFrame(player);
     buildRoad();
 
@@ -1218,8 +1756,9 @@ vec3 nightLight(vec3 p) {
     }
     // vehicles and animals
     const place = (obj, d, x) => {
-      if (d < -800 || d > OBJ_FAR) return null;
+      if (d < -800 || d > OBJ_FAR) { release(obj); return null; }
       const m = modelFor(obj); if (!m) return null;
+      setLod(m, d > TIER.lod[1] ? 2 : d > TIER.lod[0] ? 1 : 0);
       m.visible = true; visible.add(m); return m;
     };
     for (const r of rivals) {
@@ -1278,7 +1817,7 @@ vec3 nightLight(vec3 p) {
   }
 
   // drop models for objects that no longer exist (new race)
-  function forget(objs) { for (const o of objs) { const m = vehicles.get(o); if (m) { scene.remove(m); vehicles.delete(o); } } }
+  function forget(objs) { for (const o of objs) { const m = vehicles.get(o); if (m && !release(o)) { scene.remove(m); vehicles.delete(o); } } }
 
   // debug: render one model from four angles into a canvas (used to check models without driving)
   function turntable(kind, size = 360) {
@@ -1292,6 +1831,7 @@ vec3 nightLight(vec3 p) {
       : k0 === 'rival' ? autoModel({ body: '#1a1a1a', trim: '#f5c400', canopy: '#f5c400' }, SP.rivals[0])
       : k0 === 'bus' ? busModel(SP.bus) : k0 === 'truck' ? truckModel(SP.truck) : k0 === 'car' ? carModel(arg || '#c62828')
       : k0 === 'bike' ? bikeModel(cfg.BIKE_LOOKS[+arg || 0])
+      : k0 === 'look' ? carModelFor(cfg.CAR_LOOKS[+arg || 0]) : k0 === 'tractor' ? tractorModel(cfg.TRACTOR_LOOKS[+arg || 0])
       : k0 === 'cow' ? cowModel() : k0 === 'dog' ? dogModel({ body: '#b07a45', belly: '#e8c9a0', dark: '#6d4a2a' }) : null;
     const k = Math.max(m.userData.size.l, m.userData.size.h) / 1000; m.scale.setScalar(1 / Math.max(1, k * 0.9));
     sc.add(m);
@@ -1306,5 +1846,5 @@ vec3 nightLight(vec3 p) {
     return cv;
   }
 
-  return { init, setTrack, frame, forget, horizonY, setCamera, turntable, get smoke() { return smoke; }, get camera() { return camMode; }, get ready() { return ready; } };
+  return { init, setTrack, frame, forget, horizonY, setCamera, turntable, warmStep, get quality() { return quality; }, get smoke() { return smoke; }, get camera() { return camMode; }, get ready() { return ready; } };
 })();

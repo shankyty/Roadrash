@@ -1,5 +1,22 @@
 # Changelog
 
+## v2.9.3: Indian classics on the road, tractors, and far more detailed vehicles
+
+- **New traffic:**
+  - The Maruti 800, Maruti Esteem, Hindustan Ambassador (including the yellow taxi with its roof board) and Maruti Omni van.
+  - A Tata Ace-style mini pickup (the "chhota hathi") with its bed piled with jute sacks.
+  - Tractors towing trolleys overloaded with sugarcane hanging out the back, or a huge netted bale of straw bulging over the sides. They crawl along in the left lane with a putt-putt diesel and a farmer in a pagri at the wheel.
+- **Traffic mix is exact now:** cars and bikes most, then buses, then trucks and tractors, on every track.
+- **Much more detailed vehicles:**
+  - Smoother bodies and curves.
+  - Tyres with tread; alloy wheels with spokes, nuts and brake discs; deep-dish steel wheels; dual rear wheels on trucks; wire-spoked bike wheels.
+  - Cars: wipers, fog lamps, spoilers and aerials. Buses: big mirrors. Trucks: air horns and marker lamps. Bikes: chains and stands.
+- **Detail that fits your device:**
+  - Phones and tablets stay smooth.
+  - Computer browsers get more detail.
+  - The Mac app gets the finest models at full Retina resolution.
+  - Far-off vehicles switch to simpler models, and vehicles behind you are just tracked, not drawn.
+
 ## v2.9.2: Bikes on the road, more realistic vehicles
 
 - **Bikes and scooters join the traffic:**
