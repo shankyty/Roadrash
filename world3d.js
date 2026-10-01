@@ -954,64 +954,76 @@ vec3 nightLight(vec3 p) {
       : look.model === 'omni' ? omniModel(look.color) : look.model === 'ace' ? aceModel(look.color, look.bed) : carModel(look.color);
   }
 
-  // State transport bus: red lower body with a cream belt, a band of sliding windows with frames, a cream
-  // roof carrying a luggage rack, split windscreen with wipers, destination board, twin round headlamps and
-  // a door on the kerb (left) side.
-  function busModel(rearCanvas) {
-    const Wd = 1120, L = 3200, R = L / 2, g = new T.Group(), zf = -R + 560, zr = R - 800;
-    g.add(baked('bus', () => {
-      const s = new T.Group(), red = paint('#c62828', 30), cream = paint('#f3e2b3', 30), dark = lambert('#141517');
+  // 1990s city bus in its city's transport undertaking livery (look: operator, colours, decks, route):
+  // BEST red-and-cream single- and double-deckers in Mumbai, DTC and Blueline in Delhi, APSRTC in
+  // Hyderabad, Pallavan (PTC) in Chennai. Flat front with a split windscreen and wipers, a painted
+  // destination board, twin round headlamps, sliding windows with frames, a door on the kerb (left) side,
+  // route number at the back. No roof luggage: that's for long-distance buses.
+  const BUS_DEFAULT = { op: 'CITY BUS', body: '#c62828', band: '#f3e2b3', stripe: '#f9a825', roof: '#f3e2b3', deck: 1, dest: 'CITY', route: '1', plate: 'MH 01 BS' };
+  function busModel(look = BUS_DEFAULT) {
+    const Wd = 1120, L = 3200, R = L / 2, g = new T.Group(), zf = -R + 560, zr = R - 800, dd = look.deck === 2;
+    const top = dd ? 1680 : 1185;                                            // roof height
+    g.add(baked('bus' + JSON.stringify(look), () => {
+      const s = new T.Group(), body = paint(look.body, 30), band = paint(look.band, 30), roof = paint(look.roof, 30), dark = lambert('#141517');
       for (const z of [zf, zr]) well(s, 228, Wd + 4, 190, z);
       s.add(rbox(Wd - 40, 70, L - 40, dark, 0, 175, 0, 20));                              // skirt
-      s.add(rbox(Wd, 560, L, red, 0, 450, 0, 60));                                        // lower body
-      s.add(rbox(Wd + 8, 64, L + 8, cream, 0, 640, 0, 24));                               // cream belt
-      s.add(rbox(Wd + 10, 16, L + 10, paint('#f9a825'), 0, 590, 0, 8));                  // yellow pinstripe
-      s.add(rbox(Wd - 16, 330, L - 16, glass, 0, 890, 0, 40));                            // window band
-      s.add(rbox(Wd, 150, L, cream, 0, 1110, 0, 70));                                     // roof
-      // window frames and pillars on both sides, and the sliding-window rail
+      s.add(rbox(Wd, 560, L, body, 0, 450, 0, 60));                                       // lower body
+      s.add(rbox(Wd + 8, 64, L + 8, band, 0, 640, 0, 24));                                // belt band
+      s.add(rbox(Wd + 10, 16, L + 10, paint(look.stripe), 0, 590, 0, 8));                // pinstripe
+      // window bands (two on a double-decker, with a panel in the livery between the decks)
+      const bands = dd ? [890, 1385] : [890];
+      for (const y of bands) s.add(rbox(Wd - 16, 330, L - 16, glass, 0, y, 0, 40));
+      if (dd) {
+        s.add(rbox(Wd, 180, L, body, 0, 1140, 0, 40));
+        s.add(rbox(Wd + 8, 40, L + 8, band, 0, 1110, 0, 16));
+        s.add(rbox(Wd, 170, L, roof, 0, 1595, 0, 90));
+      } else s.add(rbox(Wd, 150, L, roof, 0, 1110, 0, 70));
+      // window frames and pillars on both sides, and the sliding-window rails
       for (const sx of [-1, 1]) {
-        const x = sx * (Wd / 2 - 6), from = sx < 0 ? -R + 720 : -R + 400;
-        for (let z = from; z < R - 100; z += 300) s.add(rbox(14, 330, 50, red, x, 890, z, 6));
-        s.add(rbox(14, 14, L - 300, chrome, x + sx * 2, 960, 60, 5));
-        s.add(facePanel(lettering('STATE TRANSPORT', '#c62828', '#f3e2b3', 512, 64, 'bold 40px Arial'), 1000, 125, sx * (Wd / 2 + 1), 440, 200, sx * Math.PI / 2));
+        const x = sx * (Wd / 2 - 6);
+        bands.forEach((y, deck) => {
+          const from = deck === 0 && sx < 0 ? -R + 720 : -R + 400;
+          for (let z = from; z < R - 100; z += 300) s.add(rbox(14, 330, 50, body, x, y, z, 6));
+          s.add(rbox(14, 14, L - 300, chrome, x + sx * 2, y + 70, 60, 5));
+        });
+        s.add(facePanel(lettering(look.op, look.body, look.band, 512, 64, 'bold 40px Arial'), 1000, 125, sx * (Wd / 2 + 1), 440, 200, sx * Math.PI / 2));
       }
       // front door on the kerb side (-x): glass leaf with frame and a step
       s.add(rbox(10, 820, 380, glass, -(Wd / 2 + 2), 600, -R + 400, 6));
       for (const z of [-R + 205, -R + 595]) s.add(rbox(14, 830, 20, chrome, -(Wd / 2 + 4), 600, z, 5));
       s.add(rbox(16, 20, 380, chrome, -(Wd / 2 + 5), 640, -R + 400, 5));
       s.add(rbox(120, 40, 360, dark, -(Wd / 2 - 40), 190, -R + 400, 10));
-      // front: windscreen divider, wipers, destination board, grille, headlamps, bumper, plate
-      s.add(rbox(50, 330, 24, red, 0, 890, -R + 4, 10));
+      // front: windscreen divider(s), wipers, destination board, grille, headlamps, bumper, plate
+      for (const y of bands) s.add(rbox(50, 330, 24, body, 0, y, -R + 4, 10));
       for (const sx of [-1, 1]) { const w = box(10, 280, 8, dark, sx * 200, 820, -R - 2); w.rotation.z = sx * 0.5; s.add(w); }
-      s.add(rbox(Wd * 0.74, 100, 24, dark, 0, 1110, -R - 2, 10));
-      s.add(facePanel(lettering('MUMBAI CST', '#111', '#ffb300', 256, 40, 'bold 26px Arial'), Wd * 0.7, 84, 0, 1110, -R - 16, Math.PI));
+      const boardY = dd ? 1140 : 1110, board = lettering(`${look.route}  ${look.dest}`, '#111', '#fff3c4', 384, 48, 'bold 28px Arial');
+      s.add(rbox(Wd * 0.8, 100, 24, dark, 0, boardY, -R - 2, 10));
+      s.add(facePanel(board, Wd * 0.76, 84, 0, boardY, -R - 16, Math.PI));
       s.add(rbox(Wd * 0.46, 150, 24, dark, 0, 440, -R - 2, 12));
       for (let i = 0; i < 4; i++) s.add(rbox(Wd * 0.44, 10, 10, chrome, 0, 390 + i * 34, -R - 14, 4));
       for (const sx of [-1, 1]) for (const dx of [150, 285]) roundLamp(s, 52, sx * (Wd / 2 - dx), 420, -R - 6);
       s.add(rbox(Wd + 20, 90, 70, dark, 0, 245, -R - 10, 25));
-      s.add(facePanel(plate('MH 01 BS', '#ffd21f'), 190, 48, 0, 330, -R - 8, Math.PI));
+      s.add(facePanel(plate(look.plate, '#ffd21f'), 190, 48, 0, 330, -R - 8, Math.PI));
+      // back: route number board, tail lamps, plate, bumper
       s.add(rbox(Wd + 20, 90, 70, dark, 0, 245, R + 10, 25));
-      // big mirrors on arms out front, a roof hatch, amber side markers
+      s.add(rbox(260, 110, 24, dark, 0, boardY, R + 2, 10));
+      s.add(facePanel(lettering(look.route, '#111', '#fff3c4', 128, 48, 'bold 36px Arial'), 230, 90, 0, boardY, R + 16));
+      for (const sx of [-1, 1]) { s.add(rbox(70, 120, 24, tailGlow, sx * (Wd / 2 - 90), 400, R + 2, 10)); s.add(rbox(60, 34, 24, lambert('#ffa000'), sx * (Wd / 2 - 90), 310, R + 2, 8)); }
+      s.add(facePanel(plate(look.plate, '#ffd21f'), 190, 48, 0, 340, R + 4));
+      // big mirrors on arms out front, roof hatches, amber side markers
       for (const sx of [-1, 1]) {
         spokeTo(s, [sx * (Wd / 2 - 10), 1060, -R + 30], [sx * (Wd / 2 + 110), 1010, -R - 110], 9, satin);
         s.add(rbox(28, 230, 90, satin, sx * (Wd / 2 + 118), 900, -R - 118, 12));
         s.add(rbox(6, 210, 76, glass, sx * (Wd / 2 + 118) + sx * -16, 900, -R - 118, 3));
         for (let i = 0; i < 4; i++) s.add(rbox(10, 22, 44, lambert('#ffa000'), sx * (Wd / 2 + 2), 250, -R + 900 + i * 600, 5));
       }
-      s.add(rbox(240, 30, 200, '#9e9e9e', 0, 1195, -R + 170, 12));
-      // roof rack and luggage
-      s.add(rbox(Wd * 0.9, 20, L * 0.8, '#555', 0, 1195, 0, 8));
-      for (const sx of [-1, 1]) s.add(rbox(16, 50, L * 0.8, chrome, sx * Wd * 0.45, 1215, 0, 6));
-      const bags = ['#8d6e63', '#1565c0', '#c62828', '#558b2f', '#f9a825'];
-      for (let i = 0; i < 6; i++) s.add(rbox(300, 120, 360, bags[i % 5], (i % 2 ? 1 : -1) * 220, 1265, -R + 500 + i * 380, 45));
-      // painted back (ladder, board, lamps, plate) from the 2D sprite
-      if (rearCanvas) s.add(facePanel(crop(rearCanvas, 8, 30, 292, 302), Wd - 60, 1000, 0, 685, R + 2));
+      for (const z of [-R + 500, R - 700]) s.add(rbox(240, 30, 200, '#9e9e9e', 0, top + 10, z, 12));
       return s;
     }));
     for (const z of [zf, zr]) for (const sx of [-1, 1]) g.add(wheel(190, 150, sx * (Wd / 2 - 54), 190, z, '#d5d8dc'));
     g.add(shadow(Wd, L));
     indicators(g, Wd, L, 330); g.userData.headY = 420;
-    g.userData.size = { w: Wd, h: 1300, l: L };
+    g.userData.size = { w: Wd, h: top + 20, l: L };
     return g;
   }
 
@@ -1541,7 +1553,7 @@ vec3 nightLight(vec3 p) {
   let warmQueue = [];
   function queueWarm() {
     warmQueue = [...(cfg.CAR_LOOKS || []).map(l => () => carModelFor(l)), ...(cfg.TRACTOR_LOOKS || []).map(l => () => tractorModel(l)), ...(cfg.BIKE_LOOKS || []).map(l => () => bikeModel(l)),
-      () => busModel(SP.bus), () => truckModel(SP.truck)];
+      ...((cfg.BUS_LOOKS || {})[theme.city] || [BUS_DEFAULT]).map(l => () => busModel(l)), () => truckModel(SP.truck)];
   }
   function warmStep(budget) {
     const t0 = performance.now();
@@ -1582,7 +1594,7 @@ vec3 nightLight(vec3 p) {
     lodSink.length = 0;
     if (obj.isRival || obj.type === 'auto') m = autoModel(obj.palette || { body: obj.color || '#ffcc00', trim: '#111', canopy: '#151515' }, obj.img);
     else if (obj.isPlayer) m = autoModel({ body: '#1e9e4a', trim: '#ffd21f', canopy: '#151515' }, SP.player);
-    else if (obj.type === 'bus') m = busModel(SP.bus);
+    else if (obj.type === 'bus') m = busModel(obj.look);
     else if (obj.type === 'truck') m = truckModel(SP.truck);
     else if (obj.type === 'car') m = obj.look ? carModelFor(obj.look) : carModel(obj.color || cfg.CAR_COLORS[Math.max(0, SP.cars.indexOf(obj.img))] || '#e9e9ea');
     else if (obj.type === 'tractor') m = tractorModel(obj.look || cfg.TRACTOR_LOOKS[0]);
@@ -1829,7 +1841,7 @@ vec3 nightLight(vec3 p) {
     const [k0, arg] = kind.split(':');
     const m = k0 === 'player' ? autoModel({ body: '#1e9e4a', trim: '#ffd21f', canopy: '#151515' }, SP.player)
       : k0 === 'rival' ? autoModel({ body: '#1a1a1a', trim: '#f5c400', canopy: '#f5c400' }, SP.rivals[0])
-      : k0 === 'bus' ? busModel(SP.bus) : k0 === 'truck' ? truckModel(SP.truck) : k0 === 'car' ? carModel(arg || '#c62828')
+      : k0 === 'bus' ? busModel(((cfg.BUS_LOOKS || {})[(arg || '').split('/')[0] || theme.city] || [BUS_DEFAULT])[+(arg || '').split('/')[1] || 0]) : k0 === 'truck' ? truckModel(SP.truck) : k0 === 'car' ? carModel(arg || '#c62828')
       : k0 === 'bike' ? bikeModel(cfg.BIKE_LOOKS[+arg || 0])
       : k0 === 'look' ? carModelFor(cfg.CAR_LOOKS[+arg || 0]) : k0 === 'tractor' ? tractorModel(cfg.TRACTOR_LOOKS[+arg || 0])
       : k0 === 'cow' ? cowModel() : k0 === 'dog' ? dogModel({ body: '#b07a45', belly: '#e8c9a0', dark: '#6d4a2a' }) : null;
