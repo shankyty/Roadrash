@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.9.7: No more traffic jams, tipped autos lie on the road
+
+- **Tipped-over autos lie on the road:** a knocked-out rival (or you, after a crash) falls onto its side and rests on the road. Before, it half sank into the road with its shadow standing up beside it.
+- **Traffic jams clear themselves:**
+  - A vehicle stuck for a while (not at a red light) squeezes into a free lane beside it.
+  - If it's out of your sight, it's moved on to a free spot far down the road.
+  - Cross traffic wedged at a junction is cleared too, so junctions never lock up for good.
+
 ## v2.9.6: Proper Indian cows, a real tractor, 2D on phones
 
 - **Cows look like real Indian street cows now:**
