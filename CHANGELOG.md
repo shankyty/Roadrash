@@ -1,5 +1,17 @@
 # Changelog
 
+## v2.9.2: Bikes on the road, more realistic vehicles
+
+- **Bikes and scooters join the traffic:**
+  - Commuter motorcycles and scooters, each with a helmeted rider and sometimes a pillion passenger.
+  - They use any lane, ride a little faster than cars and lean into lane changes.
+  - They have their own engine buzz and a high, short horn.
+- **Traffic mix:** cars and bikes are the most common (about a third each), then buses, then trucks.
+- **More realistic vehicles:**
+  - Glossy clear-coat paint, plus glass and chrome that reflect the sky (dimmer at night).
+  - Cars are rounder, with black window surrounds, bigger wheels and detailed headlamps with running-light strips.
+  - Soft shadows the shape of each vehicle instead of round blobs.
+
 ## v2.9.1: Better cars, buses and trucks
 
 - **Cars look like real hatchbacks:**
