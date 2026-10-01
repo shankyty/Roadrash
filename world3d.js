@@ -307,8 +307,13 @@ vec3 nightLight(vec3 p) {
     const g = new T.Group(), Wd = 560, L = 1060, R = L / 2;
     const body = pal.body, upper = pal.trim, hood = pal.canopy;
     g.add(shadow(Wd, L));
+    // the shell (tub, footboard, nose cowl, mudguard, dashboard, windscreen, canvas hood) is the Blender model
+    // when it's loaded (models/auto.js), painted in this auto's colours; else it's built here
+    const M = blenderModel('auto', { body: paint(body), trim: paint(upper), canopy: lambert(hood), glass });
+    if (M) g.add(M);
     // chassis and footboard
-    g.add(box(Wd * 0.7, 40, L * 0.9, '#1c1c1c', 0, 120, 0));
+    g.add(M ? box(Wd * 0.7, 40, L * 0.55, '#1c1c1c', 0, 120, R * 0.35) : box(Wd * 0.7, 40, L * 0.9, '#1c1c1c', 0, 120, 0));
+    if (!M) {
     g.add(rbox(Wd * 0.92, 44, 420, body, 0, 150, -40, 18));
     // rounded rear tub over the back wheels, a thin trim line along its sides, bulged wheel arches
     g.add(rbox(Wd, 270, 480, body, 0, 265, R - 240, 40));
@@ -316,29 +321,35 @@ vec3 nightLight(vec3 p) {
       g.add(rbox(10, 22, 440, upper, sx * (Wd / 2 + 2), 330, R - 240, 5));
       g.add(rbox(56, 150, 310, body, sx * (Wd / 2 + 8), 205, R - 190, 28));
     }
+    }
     // rear bench seat and backrest
     g.add(rbox(Wd * 0.84, 90, 230, '#2d4f8a', 0, 440, R - 390, 25));
     g.add(rbox(Wd * 0.84, 230, 60, '#2d4f8a', 0, 560, R - 285, 22));
     // front: narrow rounded nose down to the front wheel, mudguard, dashboard panel in the upper colour
+    if (!M) {
     g.add(rbox(260, 300, 200, body, 0, 300, -R + 110, 70));
     g.add(rbox(Wd * 0.86, 150, 170, upper, 0, 500, -R + 150, 55));
     const guard = new T.Mesh(halfTube, lambert(body, { side: T.DoubleSide })); guard.rotation.order = 'YXZ'; guard.rotation.set(Math.PI / 2, Math.PI / 2, 0);
     guard.scale.set(290, 150, 290); guard.position.set(0, 118, -R + 70); g.add(guard);
+    }
     const lamp = cyl(46, 40, '#fff8d0', 0, 380, -R + 12); lamp.rotation.x = Math.PI / 2;
     lamp.material = headGlow; g.add(lamp); g.userData.headY = 380;
     for (const sx of [-1, 1]) { const ind = new T.Mesh(unitSphere, lambert('#ff9800')); ind.scale.setScalar(34); ind.position.set(sx * 90, 440, -R + 40); g.add(ind); }
     // windscreen (slightly raked) with a frame in the upper colour, and mirrors
+    if (!M) {
     const ws = new T.Group(); ws.position.set(0, 575, -R + 205); ws.rotation.x = 0.16;
     ws.add(box(Wd * 0.82, 250, 12, lambert('#9fc3d6', { transparent: true, opacity: 0.45 }), 0, 125, 0));
     for (const sx of [-1, 1]) ws.add(rbox(26, 262, 30, upper, sx * Wd * 0.42, 125, 0, 12));
     ws.add(rbox(Wd * 0.86, 24, 30, upper, 0, 252, 0, 11));
     g.add(ws);
+    }
     for (const sx of [-1, 1]) {
       g.add(cyl(5, 90, '#333', sx * (Wd * 0.46), 640, -R + 190));
       const mir = new T.Mesh(unitSphere, lambert('#333')); mir.scale.set(60, 44, 18); mir.position.set(sx * (Wd * 0.5), 690, -R + 190); g.add(mir);
     }
     // canvas hood: a rounded roof that runs back and curves down into the back wall, which comes down onto the
     // tub (no deck showing behind it); closed sides around the back seat, a strip over the doorway, pillars
+    if (!M) {
     g.add(rbox(Wd * 1.05, 80, L * 0.9, hood, 0, 850, R - L * 0.45, 40));
     g.add(rbox(Wd * 1.04, 520, 70, hood, 0, 640, R - 35, 40));                              // back wall
     for (const sx of [-1, 1]) {
@@ -347,6 +358,7 @@ vec3 nightLight(vec3 p) {
       g.add(cyl(14, 440, upper, sx * (Wd / 2 - 6), 610, -R + 240));                        // A-pillar
     }
     g.add(rbox(Wd * 1.05, 34, 100, hood, 0, 815, -R + 150, 16));                             // visor
+    }
     // driver and passengers
     const drv = new T.Mesh(capsule(62, 60), lambert('#3949ab')); drv.position.set(0, 470, -R + 400); g.add(drv);
     const head = new T.Mesh(unitSphere, lambert('#8d5524')); head.scale.set(100, 115, 100); head.position.set(0, 620, -R + 400); g.add(head);
@@ -359,7 +371,7 @@ vec3 nightLight(vec3 p) {
     const fw = wheel(118, 70, 0, 118, -R + 70); g.add(fw); g.userData.frontWheel = fw;
     // painted rear of the tub (plate, HORN OK PLEASE, tail lights) and the rear window in the hood
     if (rearCanvas) g.add(facePanel(crop(rearCanvas, 10, 108, 230, 206), Wd - 40, 250, 0, 265, R + 1));
-    g.add(facePanel(rearWindowCanvas(), 330, 165, 0, 700, R + 1));
+    g.add(facePanel(rearWindowCanvas(), 330, 165, 0, 700, R + (M ? 9 : 1)));
     // lathi arm, shown while swinging
     const arm = new T.Group(); arm.position.set(0, 560, -R + 400);
     const armPivot = new T.Group(); armPivot.position.x = Wd * 0.3;
@@ -370,6 +382,30 @@ vec3 nightLight(vec3 p) {
     g.userData.size = { w: Wd, h: 890, l: L };
     return g;
   }
+  // ---------------------------------------------------------------- Blender models
+  // tools/blender/*.py export window.RR_MODELS[name] = { hi | lo: { slot: { p, n, c } } }: positions (half
+  // units) and normals as base64 int16, per material slot. Decoded once, shared by every copy; each slot is
+  // painted with the material passed in (so one model serves every colour scheme).
+  const modelGeos = new Map();
+  function blenderModel(name, mats) {
+    const src = window.RR_MODELS && window.RR_MODELS[name]; if (!src) return null;
+    const lod = TIER === TIERS.smooth ? 'lo' : 'hi', key = name + lod;
+    if (!modelGeos.has(key)) {
+      const dec = (b64, scale) => { const bin = atob(b64), i16 = new Int16Array(bin.length / 2); for (let i = 0; i < i16.length; i++) { const v = bin.charCodeAt(i * 2) | (bin.charCodeAt(i * 2 + 1) << 8); i16[i] = v > 32767 ? v - 65536 : v; } const f = new Float32Array(i16.length); for (let i = 0; i < f.length; i++) f[i] = i16[i] * scale; return f; };
+      const geos = {};
+      for (const [slotName, d] of Object.entries(src[lod])) {
+        const geo = new T.BufferGeometry();
+        geo.setAttribute('position', new T.BufferAttribute(dec(d.p, 0.5), 3));
+        geo.setAttribute('normal', new T.BufferAttribute(dec(d.n, 1 / 32767), 3));
+        geo.computeBoundingSphere(); geos[slotName] = geo;
+      }
+      modelGeos.set(key, geos);
+    }
+    const g = new T.Group();
+    for (const [slotName, geo] of Object.entries(modelGeos.get(key))) if (mats[slotName]) g.add(new T.Mesh(geo, mats[slotName]));
+    return g;
+  }
+
   // ---------------------------------------------------------------- car, bus and truck
   // Static parts of a model are built once per variant and baked: merged into one mesh per material, so a
   // detailed vehicle costs a handful of draw calls. Every copy shares the baked geometry (traffic comes and
