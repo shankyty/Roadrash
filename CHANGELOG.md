@@ -1,5 +1,16 @@
 # Changelog
 
+## v3.3.0: A Blender-made Ambassador, and the BEST double-decker's rear platform
+
+- **The Hindustan Ambassador is modelled in Blender, after Sketchfab references:**
+  - Separate front wings bulge up and forward, carrying the round headlamps in chrome rings.
+  - The chrome grille is recessed between them, with a strip down the long bonnet.
+  - A high domed roof over a glasshouse with thin pillars, a humped boot with rounded haunches, and real wheel arches.
+  - Chrome bumpers with overriders, and the classic wing mirrors on the front fenders.
+  - The yellow taxi keeps its roof board.
+- **BEST double-deckers have the open rear platform** on the kerb side, with the staircase up to the top deck and a grab pole.
+- Chrome keeps a bit of its own silver, so it no longer turns pink in the sunset.
+
 ## v3.2.1: The auto, as close to the real thing as we can get
 
 - **Rebuilt the Blender auto after real Bajaj RE autos and Sketchfab references:**
