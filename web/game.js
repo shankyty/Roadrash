@@ -176,7 +176,7 @@ function deviceSummary() {
 //   error/<kind>/<problem>/<OS-browser>
 // with the details needed to reproduce them in the title (version, game state, OS/browser versions,
 // screen, audio state, stack). Nothing personal is sent. Also logged to the console.
-const GAME_VERSION = '3.0.0';
+const GAME_VERSION = '3.1.0';
 // 3D quality tier: mobile browsers < laptop/desktop browsers < the Mac app. 'smooth' (phones and tablets,
 // when 3D is forced there with ?3d) keeps the frame rate up with fewer polygons and a lower resolution; 'high' for computer browsers; 'ultra'
 // in the Mac app (loaded from file://): finest models, detail kept farther away, full Retina resolution.
@@ -2719,6 +2719,29 @@ function drawSegment(seg, n) {
   }
 }
 
+// Clouds: a wrap-around layer painted once per theme from soft puffs, lit on top (the sun's colour at
+// sunset), shaded underneath by the sky; thin and faint at night. Drifts slowly and swings with the curves.
+let cloudCanvas = null, cloudTheme = null;
+const hexA = (hex, a) => { const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`; };
+function cloudLayer() {
+  if (cloudTheme === theme) return cloudCanvas;
+  cloudTheme = theme;
+  const c = mk(W * 2, Math.round(H * 0.42)), g = c.getContext('2d'), r = mulberry32(17), night = !!theme.night;
+  const lit = night ? '#5a6890' : theme.sun, base = night ? '#252d4a' : theme.sky[1], alpha = night ? 0.3 : 0.75;
+  for (let i = 0; i < (night ? 6 : 12); i++) {
+    const cx = r() * c.width, cy = c.height * (0.2 + r() * 0.55), w = 130 + r() * 240, h = w * (0.2 + r() * 0.12);
+    for (let k = 0; k < 10; k++) {
+      const px = cx + (r() - 0.5) * w, py = cy + (r() - 0.65) * h, pr = h * (0.45 + r() * 0.7);
+      for (const dx of [0, c.width, -c.width]) {
+        const gr = g.createRadialGradient(px + dx, py - pr * 0.35, pr * 0.1, px + dx, py, pr);
+        gr.addColorStop(0, hexA(night ? lit : '#ffffff', alpha)); gr.addColorStop(0.45, hexA(lit, alpha * 0.65));
+        gr.addColorStop(0.8, hexA(base, alpha * 0.35)); gr.addColorStop(1, hexA(base, 0));
+        g.fillStyle = gr; g.fillRect(px + dx - pr, py - pr, pr * 2, pr * 2);
+      }
+    }
+  }
+  return (cloudCanvas = c);
+}
 function drawBackground(ctx, hz) {
   const g = ctx.createLinearGradient(0, 0, 0, hz * 1.1);
   g.addColorStop(0, theme.sky[0]); g.addColorStop(0.6, theme.sky[1]); g.addColorStop(1, theme.sky[2]);
@@ -2738,6 +2761,8 @@ function drawBackground(ctx, hz) {
     ctx.save(); ctx.beginPath(); ctx.arc(sx, sy, disc, 0, Math.PI * 2); ctx.clip();
     ctx.fillStyle = theme.sky[1]; ctx.beginPath(); ctx.arc(sx + 9, sy - 6, disc * 0.9, 0, Math.PI * 2); ctx.fill(); ctx.restore();
   }
+  const cl = cloudLayer(), co = ((skyOffset * 0.35 + performance.now() / 600000) % 1 + 1) % 1;
+  ctx.drawImage(cl, -co * cl.width, hz * 0.04); ctx.drawImage(cl, (1 - co) * cl.width, hz * 0.04);
   const layer = (img, off, bottom) => {
     const lw = img.width, x0 = -Math.floor(off * lw);
     for (let x = x0; x < W; x += lw) ctx.drawImage(img, x, bottom - img.height);

@@ -1,5 +1,19 @@
 # Changelog
 
+## v3.1.0: A textured, detailed city
+
+- **Real asphalt:**
+  - The road has grain, darker wheel paths with tyre marks and an oily strip down each lane.
+  - It also has patched repairs and cracks.
+  - The lane paint looks worn.
+- **Buildings in 3D detail:**
+  - A concrete sunshade (chajja) over every window, with sills under them and ledges between floors.
+  - AC units hanging off windows.
+  - On the roof: a parapet, a stair room, black water tanks and TV aerials.
+  - The sunshades cast real shadows.
+  - At night most windows and the shops light up (and glow on the Mac).
+- **Clouds in the sky:** they're lit by the sun (pink and gold at sunset), faint at night, and drift as you drive.
+
 ## v3.0.0: Real shadows and cinematic light
 
 - **Real sun shadows:** vehicles, buildings, palms, lamps and signals cast true shadows across the road and onto each other. They're shown on the Mac app and in computer browsers.
