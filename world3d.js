@@ -396,7 +396,7 @@ vec3 nightLight(vec3 p) {
   const modelGeos = new Map();
   function blenderModel(name, mats) {
     const src = window.RR_MODELS && window.RR_MODELS[name]; if (!src) return null;
-    const lod = TIER === TIERS.smooth ? 'lo' : 'hi', key = name + lod;
+    const lod = TIER === TIERS.smooth || LO === 2 ? 'lo' : 'hi', key = name + lod;
     if (!modelGeos.has(key)) {
       const dec = (b64, scale) => { const bin = atob(b64), i16 = new Int16Array(bin.length / 2); for (let i = 0; i < i16.length; i++) { const v = bin.charCodeAt(i * 2) | (bin.charCodeAt(i * 2 + 1) << 8); i16[i] = v > 32767 ? v - 65536 : v; } const f = new Float32Array(i16.length); for (let i = 0; i < f.length; i++) f[i] = i16[i] * scale; return f; };
       const geos = {};
@@ -404,6 +404,7 @@ vec3 nightLight(vec3 p) {
         const geo = new T.BufferGeometry();
         geo.setAttribute('position', new T.BufferAttribute(dec(d.p, 0.5), 3));
         geo.setAttribute('normal', new T.BufferAttribute(dec(d.n, 1 / 32767), 3));
+        geo.setAttribute('uv', new T.BufferAttribute(new Float32Array(d.c * 2), 2));          // (untextured; lets it be baked)
         geo.computeBoundingSphere(); geos[slotName] = geo;
       }
       modelGeos.set(key, geos);
@@ -476,7 +477,7 @@ vec3 nightLight(vec3 p) {
     return matCache.get(key);
   };
   const glass = envMat(new T.MeshPhysicalMaterial({ color: '#0f1820', metalness: 0.55, roughness: 0.04, clearcoat: 1, clearcoatRoughness: 0.02, side: T.DoubleSide }));
-  const chrome = envMat(new T.MeshStandardMaterial({ color: '#e6e9ec', metalness: 1, roughness: 0.16 }));
+  const chrome = envMat(new T.MeshStandardMaterial({ color: '#e6e9ec', metalness: 0.8, roughness: 0.26 }));   // (a touch of its own silver, so sunsets don't turn it pink)
   const satin = envMat(new T.MeshStandardMaterial({ color: '#16181b', metalness: 0.3, roughness: 0.35 }));   // black trim, window surrounds
   // sky dome for reflections: the theme's sky gradient, a bright sun patch and a road-grey ground
   let envTarget = null, pmrem = null;
@@ -787,6 +788,28 @@ vec3 nightLight(vec3 p) {
     const R = sp.L / 2, g = new T.Group(), taxi = color === '#f2c200';
     g.add(baked('amby' + color, () => {
       const s = new T.Group(), body = paint(color), dark = lambert('#141517');
+      // the Blender model (models/amby.js) when loaded: body, wings, haunches, glasshouse, roof, pillars, grille,
+      // bumpers; lamps, plates, wing mirrors and the taxi board go on it here
+      const M = blenderModel('amby', { body, chrome, glass, dark });
+      if (M) {
+        s.add(M);
+        for (const sx of [-1, 1]) {
+          roundLamp(s, 44, sx * 272, 306, -R + 26); ringZ(s, 54, 9, sx * 272, 306, -R + 14);          // headlamps in the wings
+          s.add(sph(lambert('#ffb020'), 36, 28, 20, sx * 200, 232, -R - 14));                            // parking lamps
+          s.add(rbox(60, 96, 30, tailGlow, sx * 285, 310, R - 38, 16));                                   // tail lamps
+          spokeTo(s, [sx * 262, 420, -600], [sx * 262, 500, -610], 6, chrome);                           // wing mirrors
+          s.add(sph(chrome, 56, 40, 20, sx * 262, 515, -612));
+          for (const z of [-180, 250]) s.add(rbox(8, 12, 54, chrome, sx * 343, 380, z, 4));            // door handles
+        }
+        s.add(facePanel(plate(taxi ? 'WB 04 T' : 'DL 3C AM', taxi ? '#ffd21f' : '#fff'), 150, 38, 0, 202, -R - 66, Math.PI));
+        s.add(facePanel(plate(taxi ? 'WB 04 T' : 'DL 3C AM', taxi ? '#ffd21f' : '#fff'), 150, 38, 0, 290, R + 4));
+        if (taxi) {
+          s.add(rbox(260, 70, 60, dark, 0, 742, -60, 12));
+          s.add(facePanel(lettering('TAXI', '#111', '#ffd21f', 128, 40, 'bold 30px Arial'), 240, 60, 0, 742, -92, Math.PI));
+          s.add(facePanel(lettering('TAXI', '#111', '#ffd21f', 128, 40, 'bold 30px Arial'), 240, 60, 0, 742, -28));
+        }
+        return s;
+      }
       carShell(s, body, sp);
       s.add(rbox(10, sp.gbev * 2 + 300, 14, chrome, 0, 470, -235, 4));                               // split windscreen bar
       // big chrome grille with dark slats
@@ -1092,6 +1115,15 @@ vec3 nightLight(vec3 p) {
           s.add(rbox(14, 14, L - 300, chrome, x + sx * 2, y + 70, 60, 5));
         });
         s.add(facePanel(lettering(look.op, look.body, look.band, 512, 64, 'bold 40px Arial'), 1000, 125, sx * (Wd / 2 + 1), 440, 200, sx * Math.PI / 2));
+      }
+      // BEST double-deckers: the open rear platform on the kerb side, with the staircase up to the top deck and
+      // a grab pole at the edge
+      if (dd) {
+        const pz = R - 360, px = -(Wd / 2 - 150);
+        s.add(rbox(300, 860, 560, lambert('#1c1c1c'), px, 610, pz, 10));                          // the open platform
+        for (let i = 0; i < 6; i++) s.add(rbox(250, 30, 90, lambert('#5d4037'), px + 10, 230 + i * 150, pz + 220 - i * 85, 6));   // stairs
+        spokeTo(s, [-(Wd / 2 + 6), 190, pz - 270], [-(Wd / 2 + 6), 1040, pz - 270], 12, chrome);    // grab pole
+        s.add(rbox(14, 14, 560, chrome, -(Wd / 2 + 4), 1040, pz, 5));
       }
       // front door on the kerb side (-x): glass leaf with frame and a step
       if (!look.crowd) s.add(rbox(10, 820, 380, glass, -(Wd / 2 + 2), 600, -R + 400, 6));     // (crowded: door open)
