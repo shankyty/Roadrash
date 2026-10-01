@@ -176,7 +176,7 @@ function deviceSummary() {
 //   error/<kind>/<problem>/<OS-browser>
 // with the details needed to reproduce them in the title (version, game state, OS/browser versions,
 // screen, audio state, stack). Nothing personal is sent. Also logged to the console.
-const GAME_VERSION = '2.9.3';
+const GAME_VERSION = '2.9.4';
 // 3D quality tier: mobile browsers < laptop/desktop browsers < the Mac app. 'smooth' (phones and tablets)
 // keeps the frame rate up with fewer polygons and a lower resolution; 'high' for computer browsers; 'ultra'
 // in the Mac app (loaded from file://): finest models, detail kept farther away, full Retina resolution.
