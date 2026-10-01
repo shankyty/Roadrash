@@ -1618,7 +1618,8 @@ const BUS_LOOKS = {
     { op: 'PALLAVAN', body: '#e8b923', band: '#7b1e2b', stripe: '#7b1e2b', roof: '#f3e2b3', deck: 1, route: '12B', dest: 'MYLAPORE', plate: 'TN 01 N 1202' },
   ],
 };
-const busLookFor = r => { const list = BUS_LOOKS[THEMES[track.theme].city] || BUS_LOOKS.mumbai; return list[Math.floor(r() * list.length)]; };
+// most buses are packed (people at every window, hanging off the footboard)
+const busLookFor = r => { const list = BUS_LOOKS[THEMES[track.theme].city] || BUS_LOOKS.mumbai, l = list[Math.floor(r() * list.length)]; return r() < 0.7 ? { ...l, crowd: true } : l; };
 // tractors towing a trolley overloaded with sugarcane or a netted bale of straw (wider than the trolley)
 const TRACTOR_LOOKS = [
   { color: '#c62828', crop: 'cane', pagri: '#ff8f00', rim: '#f0b400' }, { color: '#1565c0', crop: 'hay', pagri: '#fdd835', rim: '#e0e0e0' },

@@ -960,6 +960,35 @@ vec3 nightLight(vec3 p) {
   // destination board, twin round headlamps, sliding windows with frames, a door on the kerb (left) side,
   // route number at the back. No roof luggage: that's for long-distance buses.
   const BUS_DEFAULT = { op: 'CITY BUS', body: '#c62828', band: '#f3e2b3', stripe: '#f9a825', roof: '#f3e2b3', deck: 1, dest: 'CITY', route: '1', plate: 'MH 01 BS' };
+  // Packed like a 90s city bus at rush hour: a head at every window, elbows out of the open sliding
+  // windows, and people hanging off the footboard at the open front door, one hand on the rail.
+  const SKINS = ['#8d5524', '#a0673a', '#6f4320', '#c68642'], SHIRTS = ['#f5f5f5', '#3949ab', '#c62828', '#7cb342', '#ffb300', '#8e24aa', '#90a4ae', '#5d4037'];
+  function busCrowd(s, Wd, R, bands) {
+    const hair = lambert('#1a1a1a'), step = q(150, 300, 0);
+    let k = 0;
+    for (const sx of [-1, 1]) bands.forEach((y, deck) => {
+      for (let z = -R + (deck === 0 && sx < 0 ? 760 : 440); z < R - 140; z += step) {
+        k++; if (k % 7 === 3) continue;                                                     // the odd empty seat
+        const x = sx * (Wd / 2 - 34), hy = y - 30 + (k % 3) * 18, skin = lambert(SKINS[k % 4]);
+        s.add(sph(skin, 110, 130, 110, x, hy, z));
+        s.add(sph(hair, 118, 70, 118, x, hy + 42, z + 6));
+        if (k % 4 === 1) s.add(limb([sx * (Wd / 2 - 30), y - 120, z + 40], [sx * (Wd / 2 + 50), y - 150, z + 70], 24, skin));   // elbow out
+      }
+    });
+    // footboard: people standing on the step, leaning out of the open door holding the rail
+    const bx = -(Wd / 2 + 20), dz = [-R + 260, -R + 380, -R + 500, -R + 330];
+    dz.slice(0, q(4, 3, 0)).forEach((z, i) => {
+      const lean = 60 + i * 35, shirt = lambert(SHIRTS[(i * 3 + 1) % SHIRTS.length]), skin = lambert(SKINS[i % 4]), pants = lambert(i % 2 ? '#2f3542' : '#5d4037');
+      const hip = [bx - 20, 640, z], neck = [bx - 20 - lean, 990, z + 10], top = i === 3 ? 60 : 0;
+      for (const f of [-40, 40]) s.add(limb([bx + 10, 230 + top, z + f], hip, 40, pants));
+      s.add(limb(hip, neck, 80, shirt));
+      s.add(sph(skin, 115, 135, 115, neck[0] - 15, 1090, z + 10));
+      s.add(sph(lambert('#1a1a1a'), 120, 70, 120, neck[0] - 15, 1135, z + 14));
+      s.add(limb([neck[0], 950, z], [-(Wd / 2 - 20), 1080, z - 70], 26, shirt));                // hand on the door rail
+      s.add(limb([neck[0], 940, z + 20], [neck[0] - 150, 860 + i * 30, z + 110], 26, shirt));   // the other one out
+    });
+    s.add(rbox(14, 14, 380, chrome, -(Wd / 2 - 12), 1080, -R + 400, 5));                     // door rail
+  }
   function busModel(look = BUS_DEFAULT) {
     const Wd = 1120, L = 3200, R = L / 2, g = new T.Group(), zf = -R + 560, zr = R - 800, dd = look.deck === 2;
     const top = dd ? 1680 : 1185;                                            // roof height
@@ -989,7 +1018,7 @@ vec3 nightLight(vec3 p) {
         s.add(facePanel(lettering(look.op, look.body, look.band, 512, 64, 'bold 40px Arial'), 1000, 125, sx * (Wd / 2 + 1), 440, 200, sx * Math.PI / 2));
       }
       // front door on the kerb side (-x): glass leaf with frame and a step
-      s.add(rbox(10, 820, 380, glass, -(Wd / 2 + 2), 600, -R + 400, 6));
+      if (!look.crowd) s.add(rbox(10, 820, 380, glass, -(Wd / 2 + 2), 600, -R + 400, 6));     // (crowded: door open)
       for (const z of [-R + 205, -R + 595]) s.add(rbox(14, 830, 20, chrome, -(Wd / 2 + 4), 600, z, 5));
       s.add(rbox(16, 20, 380, chrome, -(Wd / 2 + 5), 640, -R + 400, 5));
       s.add(rbox(120, 40, 360, dark, -(Wd / 2 - 40), 190, -R + 400, 10));
@@ -1018,6 +1047,7 @@ vec3 nightLight(vec3 p) {
         for (let i = 0; i < 4; i++) s.add(rbox(10, 22, 44, lambert('#ffa000'), sx * (Wd / 2 + 2), 250, -R + 900 + i * 600, 5));
       }
       for (const z of [-R + 500, R - 700]) s.add(rbox(240, 30, 200, '#9e9e9e', 0, top + 10, z, 12));
+      if (look.crowd && LO < 2) busCrowd(s, Wd, R, bands);
       return s;
     }));
     for (const z of [zf, zr]) for (const sx of [-1, 1]) g.add(wheel(190, 150, sx * (Wd / 2 - 54), 190, z, '#d5d8dc'));
@@ -1553,7 +1583,7 @@ vec3 nightLight(vec3 p) {
   let warmQueue = [];
   function queueWarm() {
     warmQueue = [...(cfg.CAR_LOOKS || []).map(l => () => carModelFor(l)), ...(cfg.TRACTOR_LOOKS || []).map(l => () => tractorModel(l)), ...(cfg.BIKE_LOOKS || []).map(l => () => bikeModel(l)),
-      ...((cfg.BUS_LOOKS || {})[theme.city] || [BUS_DEFAULT]).map(l => () => busModel(l)), () => truckModel(SP.truck)];
+      ...((cfg.BUS_LOOKS || {})[theme.city] || [BUS_DEFAULT]).flatMap(l => [() => busModel(l), () => busModel({ ...l, crowd: true })]), () => truckModel(SP.truck)];
   }
   function warmStep(budget) {
     const t0 = performance.now();
@@ -1841,7 +1871,7 @@ vec3 nightLight(vec3 p) {
     const [k0, arg] = kind.split(':');
     const m = k0 === 'player' ? autoModel({ body: '#1e9e4a', trim: '#ffd21f', canopy: '#151515' }, SP.player)
       : k0 === 'rival' ? autoModel({ body: '#1a1a1a', trim: '#f5c400', canopy: '#f5c400' }, SP.rivals[0])
-      : k0 === 'bus' ? busModel(((cfg.BUS_LOOKS || {})[(arg || '').split('/')[0] || theme.city] || [BUS_DEFAULT])[+(arg || '').split('/')[1] || 0]) : k0 === 'truck' ? truckModel(SP.truck) : k0 === 'car' ? carModel(arg || '#c62828')
+      : k0 === 'bus' ? busModel({ ...((cfg.BUS_LOOKS || {})[(arg || '').split('/')[0] || theme.city] || [BUS_DEFAULT])[+(arg || '').split('/')[1] || 0], ...((arg || '').split('/')[2] ? { crowd: true } : {}) }) : k0 === 'truck' ? truckModel(SP.truck) : k0 === 'car' ? carModel(arg || '#c62828')
       : k0 === 'bike' ? bikeModel(cfg.BIKE_LOOKS[+arg || 0])
       : k0 === 'look' ? carModelFor(cfg.CAR_LOOKS[+arg || 0]) : k0 === 'tractor' ? tractorModel(cfg.TRACTOR_LOOKS[+arg || 0])
       : k0 === 'cow' ? cowModel() : k0 === 'dog' ? dogModel({ body: '#b07a45', belly: '#e8c9a0', dark: '#6d4a2a' }) : null;
