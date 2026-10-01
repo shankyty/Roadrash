@@ -1,5 +1,18 @@
 # Changelog
 
+## v2.9.6: Proper Indian cows, a real tractor, 2D on phones
+
+- **Cows look like real Indian street cows now:**
+  - A hump, a hanging dewlap, a long face with a dark muzzle, droopy ears, and curved horns with painted tips.
+  - The tail hangs down to a tuft and swishes.
+  - Coats are white, grey or Gir red-brown.
+- **The tractor is built like the real thing:**
+  - A flat steering wheel on a column from the dashboard, with the driver's hands on the rim.
+  - A tall chrome grille, headlamps on the sides of the nose and a front weight.
+  - A mate rides along on the fender.
+  - The straw load is a giant bulging sack with bamboo poles lashed on top and rope straps down the sides.
+- **Phones and tablets play the 2D game** so it runs smoothly. Computers and the Mac app keep the 3D world.
+
 ## v2.9.5: Packed buses and rash bikers
 
 - **Buses packed like the 90s:**

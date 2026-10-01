@@ -176,17 +176,18 @@ function deviceSummary() {
 //   error/<kind>/<problem>/<OS-browser>
 // with the details needed to reproduce them in the title (version, game state, OS/browser versions,
 // screen, audio state, stack). Nothing personal is sent. Also logged to the console.
-const GAME_VERSION = '2.9.5';
-// 3D quality tier: mobile browsers < laptop/desktop browsers < the Mac app. 'smooth' (phones and tablets)
-// keeps the frame rate up with fewer polygons and a lower resolution; 'high' for computer browsers; 'ultra'
+const GAME_VERSION = '2.9.6';
+// 3D quality tier: mobile browsers < laptop/desktop browsers < the Mac app. 'smooth' (phones and tablets,
+// when 3D is forced there with ?3d) keeps the frame rate up with fewer polygons and a lower resolution; 'high' for computer browsers; 'ultra'
 // in the Mac app (loaded from file://): finest models, detail kept farther away, full Retina resolution.
 // ?quality=smooth|high|ultra overrides it.
+// phones and tablets (incl. iPadOS, which reports itself as a Mac with touch) play the 2D game; ?3d forces 3D there
+const IS_MOBILE = (() => { const ua = navigator.userAgent || ''; return /Android|iPhone|iPad|iPod|Mobile/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1); })();
 const QUALITY = (() => {
   const asked = new URLSearchParams(location.search).get('quality');
   if (['smooth', 'high', 'ultra'].includes(asked)) return asked;
   if (location.protocol === 'file:') return 'ultra';
-  const ua = navigator.userAgent || '', touch = navigator.maxTouchPoints > 1;
-  return /Android|iPhone|iPad|iPod|Mobile/.test(ua) || (/Macintosh/.test(ua) && touch) ? 'smooth' : 'high'; // phones and tablets (incl. iPadOS)
+  return IS_MOBILE ? 'smooth' : 'high';
 })();
 const safe = (f, fallback = '?') => { try { const v = f(); return v === undefined ? fallback : v; } catch (e) { return fallback; } };
 function envDetails() {
@@ -3139,7 +3140,7 @@ function fit() {
 addEventListener('resize', fit);
 
 buildSharedSprites();
-use3D = !/[?&]2d\b/.test(location.search) && !!(window.World3D && glCanvas && bgCtx &&
+use3D = !/[?&]2d\b/.test(location.search) && (!IS_MOBILE || /[?&]3d\b/.test(location.search)) && !!(window.World3D && glCanvas && bgCtx &&
   guard('renderer', () => World3D.init(glCanvas, { W, H, ROAD_W, SEG_LEN, quality: QUALITY, maxPixelRatio: { smooth: 1.25, high: 1.75, ultra: 2 }[QUALITY] })));
 if (!use3D) disable3D(); else World3D.setCamera(store.get('camera', 'heli'));
 attractSetup();
