@@ -1,5 +1,14 @@
 # Changelog
 
+## v3.0.0: Real shadows and cinematic light
+
+- **Real sun shadows:** vehicles, buildings, palms, lamps and signals cast true shadows across the road and onto each other. They're shown on the Mac app and in computer browsers.
+- **Cinematic light on the Mac app:**
+  - Headlights, street lamps, signals and sun glints glow.
+  - Bright highlights roll off softly instead of clipping.
+  - Colours are a touch richer, with a soft vignette.
+- Phones keep the smooth 2D game.
+
 ## v2.9.7: No more traffic jams, tipped autos lie on the road
 
 - **Tipped-over autos lie on the road:** a knocked-out rival (or you, after a crash) falls onto its side and rests on the road. Before, it half sank into the road with its shadow standing up beside it.
