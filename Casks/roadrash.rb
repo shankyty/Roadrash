@@ -7,7 +7,7 @@ cask "roadrash" do
   desc "Road Rash-style combat racer where you drive an auto-rickshaw through Indian cities"
   homepage "https://github.com/shankyty/Roadrash"
 
-  depends_on macos: ">= :ventura"
+  depends_on macos: :ventura
 
   app "Road Rash.app"
 
