@@ -995,10 +995,6 @@ function makeBus() {
   const c = mk(300, 340), g = c.getContext('2d');
   g.fillStyle = 'rgba(0,0,0,.35)'; ell(g, 150, 330, 146, 10); g.fill();
   g.fillStyle = '#111'; rr(g, 14, 290, 50, 44, 8); g.fill(); rr(g, 236, 290, 50, 44, 8); g.fill();
-  // luggage on the roof
-  g.fillStyle = '#555'; g.fillRect(24, 26, 252, 5);
-  const bags = ['#8d6e63', '#1565c0', '#c62828', '#558b2f', '#f9a825'];
-  let bx = 30; for (let i = 0; i < 7; i++) { const bw = 24 + (i * 13) % 20; g.fillStyle = bags[i % bags.length]; rr(g, bx, 8 + (i % 3) * 3, bw, 20 - (i % 3) * 3, 4); g.fill(); bx += bw + 6; }
   g.fillStyle = '#c62828'; rr(g, 8, 30, 284, 272, 16); g.fill();
   g.fillStyle = '#f3e2b3'; g.fillRect(8, 150, 284, 22);
   g.fillStyle = '#111'; rr(g, 70, 38, 160, 22, 3); g.fill();
@@ -1008,10 +1004,6 @@ function makeBus() {
   g.fillStyle = '#1c2833'; g.fillRect(28, 140, 244, 6);
   g.fillStyle = 'rgba(255,255,255,.1)'; g.beginPath(); g.moveTo(28, 120); g.lineTo(90, 66); g.lineTo(120, 66); g.lineTo(40, 146); g.lineTo(28, 146); g.fill();
   g.fillStyle = '#c62828'; g.font = 'bold 13px Arial'; g.fillText('STATE TRANSPORT', 150, 161.5);
-  // ladder
-  g.strokeStyle = '#bdbdbd'; g.lineWidth = 4;
-  g.beginPath(); g.moveTo(248, 30); g.lineTo(248, 290); g.moveTo(270, 30); g.lineTo(270, 290); g.stroke();
-  for (let y = 44; y < 290; y += 22) { g.beginPath(); g.moveTo(248, y); g.lineTo(270, y); g.stroke(); }
   g.fillStyle = '#ff2b2b'; rr(g, 16, 190, 30, 50, 6); g.fill();
   g.fillStyle = '#ff9a3c'; rr(g, 16, 244, 30, 16, 4); g.fill();
   g.fillStyle = '#ff2b2b'; rr(g, 218, 190, 24, 50, 6); g.fill();
@@ -1600,6 +1592,33 @@ const CAR_LOOKS = [
   ...['#f2f2f2', '#7b1e2b', '#b0b4b8'].map(color => ({ model: 'omni', color, nw: 0.31, len: 1330, s: [0.3, 0.42], label: 'VAN' })),
   ...['#1565c0', '#2e7d32', '#d32f2f'].map(bed => ({ model: 'ace', color: '#f2f2f2', bed, nw: 0.33, len: 1670, s: [0.28, 0.4], label: 'MINI TRUCK' })),
 ];
+// 1990s city buses: each city's transport undertaking, its livery and well-known routes of the time
+// (destination boards read "route  destination"; Bombay's CST was still V.T.)
+const BEST = { op: 'B.E.S.T.', body: '#c62828', band: '#f3e2b3', stripe: '#f3e2b3', roof: '#c62828', plate: 'MH 01 J 4517' };
+const BUS_LOOKS = {
+  mumbai: [
+    { ...BEST, deck: 2, route: '123', dest: 'TARDEO - COLABA' }, { ...BEST, deck: 2, route: '1', dest: 'COLABA - MAHIM' },
+    { ...BEST, deck: 1, roof: '#f3e2b3', route: '83', dest: 'COLABA - KURLA' }, { ...BEST, deck: 1, roof: '#f3e2b3', route: '138', dest: 'V.T. - BACKBAY' },
+  ],
+  delhi: [
+    { op: 'D.T.C.', body: '#2e7d32', band: '#f3e2b3', stripe: '#f9a825', roof: '#f3e2b3', deck: 1, route: 'MUDRIKA', dest: 'RING ROAD', plate: 'DL 1P 2231' },
+    { op: 'D.T.C.', body: '#2e7d32', band: '#f3e2b3', stripe: '#f9a825', roof: '#f3e2b3', deck: 1, route: 'BAHRI', dest: 'MUDRIKA', plate: 'DL 1P 4120' },
+    { op: 'BLUELINE', body: '#1565c0', band: '#f5f5f5', stripe: '#f5f5f5', roof: '#f5f5f5', deck: 1, route: '429', dest: 'ISBT - NEHRU PLACE', plate: 'DL 1P 7788' },
+    { op: 'D.T.C.', body: '#2e7d32', band: '#f3e2b3', stripe: '#f9a825', roof: '#f3e2b3', deck: 1, route: '620', dest: 'SHIVAJI STADIUM', plate: 'DL 1P 3065' },
+  ],
+  hyderabad: [
+    { op: 'A.P.S.R.T.C.', body: '#b71c1c', band: '#f3e2b3', stripe: '#f9a825', roof: '#f3e2b3', deck: 1, route: '8A', dest: 'SECUNDERABAD - CHARMINAR', plate: 'AP 09 Z 1182' },
+    { op: 'A.P.S.R.T.C.', body: '#b71c1c', band: '#f3e2b3', stripe: '#f9a825', roof: '#f3e2b3', deck: 1, route: '5K', dest: 'SECUNDERABAD - MEHDIPATNAM', plate: 'AP 09 Z 2045' },
+    { op: 'A.P.S.R.T.C.', body: '#b71c1c', band: '#f3e2b3', stripe: '#f9a825', roof: '#f3e2b3', deck: 1, route: '49M', dest: 'KOTI', plate: 'AP 09 Z 3310' },
+  ],
+  chennai: [
+    { op: 'PALLAVAN', body: '#e8b923', band: '#7b1e2b', stripe: '#7b1e2b', roof: '#f3e2b3', deck: 1, route: '21G', dest: 'BROADWAY - TAMBARAM', plate: 'TN 01 N 0921' },
+    { op: 'PALLAVAN', body: '#e8b923', band: '#7b1e2b', stripe: '#7b1e2b', roof: '#f3e2b3', deck: 1, route: '29C', dest: 'PERAMBUR - BESANT NAGAR', plate: 'TN 01 N 2290' },
+    { op: 'PALLAVAN', body: '#e8b923', band: '#7b1e2b', stripe: '#7b1e2b', roof: '#f3e2b3', deck: 1, route: '23C', dest: 'BESANT NAGAR', plate: 'TN 01 N 1723' },
+    { op: 'PALLAVAN', body: '#e8b923', band: '#7b1e2b', stripe: '#7b1e2b', roof: '#f3e2b3', deck: 1, route: '12B', dest: 'MYLAPORE', plate: 'TN 01 N 1202' },
+  ],
+};
+const busLookFor = r => { const list = BUS_LOOKS[THEMES[track.theme].city] || BUS_LOOKS.mumbai; return list[Math.floor(r() * list.length)]; };
 // tractors towing a trolley overloaded with sugarcane or a netted bale of straw (wider than the trolley)
 const TRACTOR_LOOKS = [
   { color: '#c62828', crop: 'cane', pagri: '#ff8f00', rim: '#f0b400' }, { color: '#1565c0', crop: 'hay', pagri: '#fdd835', rim: '#e0e0e0' },
@@ -1818,7 +1837,7 @@ function loadTrack(idx) {
   const sky = SKYLINES[theme.city];
   bgLayers = { far: sky.far(theme, track.seed), near: sky.near(theme, track.seed + 5) };
   buildTrack(track);
-  if (use3D) World3D.setTrack({ segments, trackLength, theme, SP, themeSprites, CAR_COLORS, CAR_LOOKS, TRACTOR_LOOKS, BIKE_LOOKS, DOG_COATS, MAX_SPEED, LANE_W });
+  if (use3D) World3D.setTrack({ segments, trackLength, theme, SP, themeSprites, CAR_COLORS, CAR_LOOKS, TRACTOR_LOOKS, BUS_LOOKS, BIKE_LOOKS, DOG_COATS, MAX_SPEED, LANE_W });
 }
 
 function findSegment(z) { return segments[Math.floor(((z % trackLength) + trackLength) % trackLength / SEG_LEN) % segments.length]; }
@@ -1861,7 +1880,7 @@ function setupRace() {
     const h = halfAt(z);
     if (type === 'cow') traffic.push({ type, z, x: rand(-h - 0.2, h + 0.2), speed: 0, vx: pick([-1, 1], tr) * rand(0.05, 0.12), nw: 0.42, len: 380, pause: 0, scared: 0, label: 'HOLY COW' });
     else {
-      const def = type === 'bus' ? { img: SP.bus, nw: 0.56, len: 3200, s: [0.28, 0.38], label: 'BUS' } : type === 'truck' ? { img: SP.truck, nw: 0.56, len: 2800, s: [0.25, 0.35], label: 'TRUCK' }
+      const def = type === 'bus' ? { img: SP.bus, look: busLookFor(tr), nw: 0.56, len: 3200, s: [0.28, 0.38], label: 'BUS' } : type === 'truck' ? { img: SP.truck, nw: 0.56, len: 2800, s: [0.25, 0.35], label: 'TRUCK' }
         : type === 'bike' ? { img: pick(SP.bikes, tr), nw: 0.17, len: 860, s: [0.38, 0.55], label: 'BIKE' }
         : type === 'tractor' ? (i => ({ look: TRACTOR_LOOKS[i], img: SP.tractors[i], nw: TRACTOR_LOOKS[i].crop === 'hay' ? 0.65 : 0.56, len: 3800, s: [0.14, 0.2], label: 'TRACTOR' }))(Math.floor(tr() * TRACTOR_LOOKS.length))
         : (i => ({ ...CAR_LOOKS[i], look: CAR_LOOKS[i], img: SP.carLooks[i] }))(Math.floor(tr() * CAR_LOOKS.length));
@@ -2393,6 +2412,7 @@ const CROSS_TYPES = [
 function spawnCross(j, dirX, queued) {
   let d = pick(CROSS_TYPES);
   if (d.type === 'car') { const i = Math.floor(Math.random() * CAR_LOOKS.length); d = { ...d, ...CAR_LOOKS[i], look: CAR_LOOKS[i], img: SP.carLooks[i] }; }
+  if (d.type === 'bus') d = { ...d, look: busLookFor(Math.random) };
   const lenX = d.len / ROAD_W;
   const stopX = -dirX * (j.half + 0.35);
   const lineUp = crossTraffic.filter(c => c.j === j && c.dirX === dirX && c.x * dirX < stopX * dirX + 0.1);
