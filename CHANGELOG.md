@@ -1,5 +1,15 @@
 # Changelog
 
+## v2.9.4: 1990s city buses
+
+- **Each city runs its own buses, the way they looked in the 90s:**
+  - **Mumbai:** BEST red and cream, with plenty of double-deckers.
+  - **Delhi:** DTC green and cream, plus the blue Blueline buses.
+  - **Hyderabad:** APSRTC red and cream.
+  - **Chennai:** Pallavan mustard and maroon.
+- **Real routes on the destination boards**, for example 123 Tardeo–Colaba, the Mudrika on Delhi's Ring Road, 8A to Charminar and 21G Broadway–Tambaram. There's a route number on the back too.
+- **No more luggage on the roof:** that's for long-distance buses, not city buses.
+
 ## v2.9.3: Indian classics on the road, tractors, and far more detailed vehicles
 
 - **New traffic:**
