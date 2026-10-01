@@ -56,33 +56,69 @@ def slot(ob, name):
     ob['slot'] = name
     return ob
 
+def loftz(name, sections, n=16, cap=True):
+    """vertical loft: sections (z, halfwidth, y_back, y_front, squareness) up the height, each a rounded
+    rectangle in plan; lets a shape be wide at the top and narrow at the bottom (the front face)"""
+    bm = bmesh.new(); rings = []
+    for (z, hw, y0, y1, sq) in sections:
+        cy, hy = (y0 + y1) / 2, (y1 - y0) / 2
+        ring = []
+        for i in range(n):
+            a = 2 * math.pi * i / n; c, s_ = math.cos(a), math.sin(a)
+            ring.append(bm.verts.new((math.copysign(abs(c) ** (2 / sq), c) * hw * S, (math.copysign(abs(s_) ** (2 / sq), s_) * hy + cy) * S, z * S)))
+        rings.append(ring)
+    for r0, r1 in zip(rings, rings[1:]):
+        for i in range(n):
+            j = (i + 1) % n; bm.faces.new((r0[i], r0[j], r1[j], r1[i]))
+    if cap: bm.faces.new(list(reversed(rings[0]))); bm.faces.new(rings[-1])
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
+    ob = bpy.data.objects.new(name, me); bpy.context.collection.objects.link(ob)
+    return ob
+
+# Proportions after a Bajaj RE (2.6 m long, 1.3 m wide, 1.7 m high) and Sketchfab references: a low rear tub
+# with a dark trim line, a low open floor, a tall shield-shaped front face (wide under the windscreen,
+# narrowing to the front wheel; the top band in the trim colour, a black panel holding the headlamp), a big
+# near-upright windscreen with the canvas roof starting right at its top, closed rear canopy with a big side
+# opening and a grab bar.
 def build():
     reset()
     parts = []
-    # body: rear tub over the back wheels, low footboard, and the nose cowl rising to the dashboard,
-    # narrowing down to the front wheel
+    # tub and floor (lengthways loft): rear tub over the back wheels stepping down to the open floor
     parts.append(slot(smooth(loft('body', [
-        (-530, 268, 165, 380, 5), (-500, 280, 145, 425, 6), (-200, 284, 140, 432, 6), (-95, 282, 140, 425, 6),
-        (-62, 262, 128, 235, 5), (0, 255, 124, 192, 6), (250, 250, 124, 196, 6),
-        (300, 236, 130, 560, 5), (380, 205, 148, 610, 4), (455, 160, 195, 540, 3.5), (515, 112, 255, 400, 3), (540, 70, 300, 330, 2.6),
+        (-530, 266, 170, 368, 6), (-505, 280, 150, 392, 6.5), (-160, 284, 145, 398, 6.5), (-92, 282, 145, 392, 6),
+        (-62, 262, 132, 238, 5), (0, 255, 125, 196, 6), (300, 252, 125, 200, 6), (360, 240, 128, 215, 5),
     ], n=16), 2), 'body'))
-    # canopy: rounded roof running the length, closed back wall and sides behind the passengers, a visor
-    parts.append(slot(smooth(loft('roof', [
-        (-535, 300, 820, 880, 6), (-450, 306, 835, 892, 7), (100, 306, 838, 895, 7), (230, 300, 830, 885, 6), (300, 290, 815, 860, 4),
-    ], n=16), 2), 'canopy'))
-    parts.append(slot(smooth(box('back', (604, 70, 470), (0, -500, 640), 0.25), 1), 'canopy'))
-    for sx in (-1, 1):
-        parts.append(slot(smooth(box('side%d' % sx, (40, 330, 470), (sx * 288, -360, 640), 0.15), 1), 'canopy'))
-        parts.append(slot(smooth(box('rail%d' % sx, (30, 470, 120), (sx * 291, 40, 775), 0.12), 1), 'canopy'))
-        parts.append(slot(smooth(box('pillar%d' % sx, (28, 30, 440), (sx * 272, 255, 620), 0.1), 1), 'trim'))
-    # windscreen frame and dashboard panel in the trim colour; glass
-    parts.append(slot(smooth(box('screenTop', (560, 30, 26), (0, 300, 820), 0.1), 1), 'trim'))
-    parts.append(slot(smooth(box('dash', (440, 110, 120), (0, 330, 545), 0.3), 1), 'trim'))
-    g = slot(box('glass', (510, 10, 250), (0, 290, 700)), 'glass'); g.rotation_euler.x = 0.16; parts.append(g)   # raked back
+    # front face (vertical loft): narrow over the front wheel, widening up to the dashboard
+    parts.append(slot(smooth(loftz('face', [
+        (225, 70, 340, 468, 3), (250, 110, 322, 488, 3.5), (290, 170, 308, 502, 4.5), (335, 220, 298, 510, 6),
+        (375, 250, 292, 512, 7), (402, 260, 290, 512, 8), (408, 260, 290, 512, 8),
+    ]), 1), 'body'))
+    parts.append(slot(smooth(loftz('cap', [                                       # top band of the face, trim colour
+        (398, 262, 288, 514, 8), (420, 266, 288, 512, 8), (446, 264, 292, 504, 7), (462, 258, 300, 494, 6),
+    ]), 1), 'trim'))
+    parts.append(slot(smooth(box('facePanel', (300, 30, 130), (0, 500, 340), 0.2), 1), 'dark'))   # black panel, headlamp
     # front mudguard over the front wheel
     parts.append(slot(smooth(loft('guard', [
-        (420, 70, 230, 300, 3), (480, 80, 250, 315, 3), (560, 76, 225, 295, 3), (600, 60, 170, 250, 3),
+        (390, 64, 215, 262, 3), (450, 76, 232, 280, 3), (530, 72, 218, 266, 3), (575, 56, 175, 225, 3),
     ], n=12), 2), 'body'))
+    # windscreen: frame in the trim colour, nearly upright glass
+    for sx in (-1, 1):
+        post = slot(smooth(box('post%d' % sx, (26, 26, 285), (sx * 262, 478, 600), 0.1), 1), 'trim'); post.rotation_euler.x = 0.08; parts.append(post)
+    parts.append(slot(smooth(box('screenTop', (560, 34, 30), (0, 468, 735), 0.12), 1), 'trim'))
+    g = slot(box('glass', (510, 8, 270), (0, 476, 598)), 'glass'); g.rotation_euler.x = 0.08; parts.append(g)
+    # canvas roof, starting right at the windscreen top, sloping a touch to the back
+    parts.append(slot(smooth(loft('roof', [
+        (-542, 292, 712, 760, 6), (-470, 302, 724, 772, 7), (300, 302, 728, 776, 7), (430, 294, 726, 772, 6), (492, 272, 716, 758, 4),
+    ], n=16), 2), 'canopy'))
+    # closed canopy at the back: back wall and rear quarters behind the seat; a strip over the side opening
+    parts.append(slot(smooth(box('back', (600, 60, 350), (0, -506, 560), 0.22), 1), 'canopy'))
+    for sx in (-1, 1):
+        parts.append(slot(smooth(box('quarter%d' % sx, (34, 280, 350), (sx * 287, -385, 560), 0.14), 1), 'canopy'))
+        parts.append(slot(smooth(box('strip%d' % sx, (26, 560, 70), (sx * 290, 30, 700), 0.1), 1), 'canopy'))
+        parts.append(slot(box('grab%d' % sx, (14, 14, 300), (sx * 280, -238, 560)), 'trim'))                 # grab bar
+        parts.append(slot(box('line%d' % sx, (8, 380, 18), (sx * 274, -310, 330)), 'dark'))                  # tub trim line
+    parts.append(slot(box('mat', (470, 340, 6), (0, 120, 200)), 'dark'))                                     # rubber floor mat
     return parts
 
 def tris(ob, depsgraph):
@@ -128,10 +164,10 @@ def render(path):
     scn = bpy.context.scene
     for ob in bpy.data.objects:
         mat = bpy.data.materials.new(ob['slot'])
-        mat.diffuse_color = {'body': (0.1, 0.6, 0.25, 1), 'trim': (1, 0.82, 0.1, 1), 'canopy': (0.05, 0.05, 0.05, 1), 'glass': (0.3, 0.5, 0.6, 1)}[ob['slot']]
+        mat.diffuse_color = {'body': (0.1, 0.6, 0.25, 1), 'trim': (1, 0.82, 0.1, 1), 'canopy': (0.05, 0.05, 0.05, 1), 'glass': (0.3, 0.5, 0.6, 1), 'dark': (0.08, 0.08, 0.08, 1)}[ob['slot']]
         ob.data.materials.append(mat)
     cam = bpy.data.objects.new('cam', bpy.data.cameras.new('cam')); scn.collection.objects.link(cam)
-    aim = bpy.data.objects.new('aim', None); scn.collection.objects.link(aim); aim.location = (0, 0, 4.5)
+    aim = bpy.data.objects.new('aim', None); scn.collection.objects.link(aim); aim.location = (0, 0, 4)
     cam.location = VIEW; c = cam.constraints.new('TRACK_TO'); c.target = aim; scn.camera = cam
     sun = bpy.data.objects.new('sun', bpy.data.lights.new('sun', 'SUN')); scn.collection.objects.link(sun); sun.rotation_euler = (0.6, 0.3, 0.8)
     scn.render.engine = 'BLENDER_WORKBENCH'; scn.display.shading.light = 'STUDIO'; scn.display.shading.color_type = 'MATERIAL'

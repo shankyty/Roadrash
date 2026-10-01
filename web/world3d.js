@@ -303,13 +303,15 @@ vec3 nightLight(vec3 p) {
     x.strokeStyle = '#0a0a0a'; x.lineWidth = 8; x.beginPath(); x.roundRect(8, 8, 240, 112, 26); x.stroke();
     return (rearWindow = c);
   }
+  // an auto's windscreen is clear (you see the driver through it), unlike a car's dark tinted glass
+  const autoScreen = nightify(new T.MeshPhongMaterial({ color: '#cfe6f2', transparent: true, opacity: 0.32, shininess: 120, specular: '#ffffff', side: T.DoubleSide, depthWrite: false }));
   function autoModel(pal, rearCanvas) {
     const g = new T.Group(), Wd = 560, L = 1060, R = L / 2;
     const body = pal.body, upper = pal.trim, hood = pal.canopy;
     g.add(shadow(Wd, L));
     // the shell (tub, footboard, nose cowl, mudguard, dashboard, windscreen, canvas hood) is the Blender model
     // when it's loaded (models/auto.js), painted in this auto's colours; else it's built here
-    const M = blenderModel('auto', { body: paint(body), trim: paint(upper), canopy: lambert(hood), glass });
+    const M = blenderModel('auto', { body: paint(body), trim: paint(upper), canopy: lambert(hood), glass: autoScreen, dark: lambert('#1a1a1a') });
     if (M) g.add(M);
     // chassis and footboard
     g.add(M ? box(Wd * 0.7, 40, L * 0.55, '#1c1c1c', 0, 120, R * 0.35) : box(Wd * 0.7, 40, L * 0.9, '#1c1c1c', 0, 120, 0));
@@ -323,8 +325,9 @@ vec3 nightLight(vec3 p) {
     }
     }
     // rear bench seat and backrest
-    g.add(rbox(Wd * 0.84, 90, 230, '#2d4f8a', 0, 440, R - 390, 25));
-    g.add(rbox(Wd * 0.84, 230, 60, '#2d4f8a', 0, 560, R - 285, 22));
+    const lowY = M ? 50 : 0;                                         // the Blender body sits lower, like a real one
+    g.add(rbox(Wd * 0.84, 90, 230, '#2d4f8a', 0, 440 - lowY, R - 390, 25));
+    g.add(rbox(Wd * 0.84, 230, 60, '#2d4f8a', 0, 560 - lowY, R - 285, 22));
     // front: narrow rounded nose down to the front wheel, mudguard, dashboard panel in the upper colour
     if (!M) {
     g.add(rbox(260, 300, 200, body, 0, 300, -R + 110, 70));
@@ -332,9 +335,11 @@ vec3 nightLight(vec3 p) {
     const guard = new T.Mesh(halfTube, lambert(body, { side: T.DoubleSide })); guard.rotation.order = 'YXZ'; guard.rotation.set(Math.PI / 2, Math.PI / 2, 0);
     guard.scale.set(290, 150, 290); guard.position.set(0, 118, -R + 70); g.add(guard);
     }
-    const lamp = cyl(46, 40, '#fff8d0', 0, 380, -R + 12); lamp.rotation.x = Math.PI / 2;
-    lamp.material = headGlow; g.add(lamp); g.userData.headY = 380;
-    for (const sx of [-1, 1]) { const ind = new T.Mesh(unitSphere, lambert('#ff9800')); ind.scale.setScalar(34); ind.position.set(sx * 90, 440, -R + 40); g.add(ind); }
+    // headlamp (in the black face panel on the Blender body) and indicators at the top corners of the face
+    const lampY = M ? 340 : 380, lampZ = M ? -R + 16 : -R + 12;
+    const lamp = cyl(46, 40, '#fff8d0', 0, lampY, lampZ); lamp.rotation.x = Math.PI / 2;
+    lamp.material = headGlow; g.add(lamp); g.userData.headY = lampY;
+    for (const sx of [-1, 1]) { const ind = new T.Mesh(unitSphere, lambert('#ff9800')); ind.scale.setScalar(34); ind.position.set(sx * (M ? 215 : 90), M ? 425 : 440, M ? -R + 34 : -R + 40); g.add(ind); }
     // windscreen (slightly raked) with a frame in the upper colour, and mirrors
     if (!M) {
     const ws = new T.Group(); ws.position.set(0, 575, -R + 205); ws.rotation.x = 0.16;
@@ -344,8 +349,9 @@ vec3 nightLight(vec3 p) {
     g.add(ws);
     }
     for (const sx of [-1, 1]) {
-      g.add(cyl(5, 90, '#333', sx * (Wd * 0.46), 640, -R + 190));
-      const mir = new T.Mesh(unitSphere, lambert('#333')); mir.scale.set(60, 44, 18); mir.position.set(sx * (Wd * 0.5), 690, -R + 190); g.add(mir);
+      const my = M ? 640 : 690, mz = M ? -R + 60 : -R + 190;
+      g.add(cyl(5, 90, '#333', sx * (Wd * 0.48), my - 50, mz));
+      const mir = new T.Mesh(unitSphere, lambert('#333')); mir.scale.set(60, 44, 18); mir.position.set(sx * (Wd * 0.52), my, mz); g.add(mir);
     }
     // canvas hood: a rounded roof that runs back and curves down into the back wall, which comes down onto the
     // tub (no deck showing behind it); closed sides around the back seat, a strip over the doorway, pillars
@@ -360,10 +366,11 @@ vec3 nightLight(vec3 p) {
     g.add(rbox(Wd * 1.05, 34, 100, hood, 0, 815, -R + 150, 16));                             // visor
     }
     // driver and passengers
-    const drv = new T.Mesh(capsule(62, 60), lambert('#3949ab')); drv.position.set(0, 470, -R + 400); g.add(drv);
-    const head = new T.Mesh(unitSphere, lambert('#8d5524')); head.scale.set(100, 115, 100); head.position.set(0, 620, -R + 400); g.add(head);
-    const bar = cyl(16, 220, '#222', 0, 560, -R + 300); bar.rotation.z = Math.PI / 2; g.add(bar);   // handlebar
-    for (const px of [-120, 120]) { const h = new T.Mesh(unitSphere, lambert('#2b2b2b')); h.scale.set(90, 100, 90); h.position.set(px, 600, R - 380); g.add(h); }
+    const drvZ = M ? -R + 300 : -R + 400;
+    const drv = new T.Mesh(capsule(62, 60), lambert('#3949ab')); drv.position.set(0, 470 - lowY, drvZ); g.add(drv);
+    const head = new T.Mesh(unitSphere, lambert('#8d5524')); head.scale.set(100, 115, 100); head.position.set(0, 620 - lowY, drvZ); g.add(head);
+    const bar = cyl(16, 220, '#222', 0, 560 - lowY * 1.6, drvZ - 110); bar.rotation.z = Math.PI / 2; g.add(bar);   // handlebar
+    for (const px of [-120, 120]) { const h = new T.Mesh(unitSphere, lambert('#2b2b2b')); h.scale.set(90, 100, 90); h.position.set(px, 600 - lowY, R - 380); g.add(h); }
     // wheels: two at the back under the tub, one in front under the mudguard
     g.add(wheel(125, 80, -Wd / 2 + 40, 125, R - 190));
     g.add(wheel(125, 80, Wd / 2 - 40, 125, R - 190));
@@ -371,9 +378,9 @@ vec3 nightLight(vec3 p) {
     const fw = wheel(118, 70, 0, 118, -R + 70); g.add(fw); g.userData.frontWheel = fw;
     // painted rear of the tub (plate, HORN OK PLEASE, tail lights) and the rear window in the hood
     if (rearCanvas) g.add(facePanel(crop(rearCanvas, 10, 108, 230, 206), Wd - 40, 250, 0, 265, R + 1));
-    g.add(facePanel(rearWindowCanvas(), 330, 165, 0, 700, R + (M ? 9 : 1)));
+    g.add(facePanel(rearWindowCanvas(), 330, 165, 0, M ? 590 : 700, R + (M ? 9 : 1)));
     // lathi arm, shown while swinging
-    const arm = new T.Group(); arm.position.set(0, 560, -R + 400);
+    const arm = new T.Group(); arm.position.set(0, 560 - lowY, drvZ);
     const armPivot = new T.Group(); armPivot.position.x = Wd * 0.3;
     armPivot.add(rbox(220, 44, 44, '#3949ab', 110, 0, 0, 18));
     const stick = cyl(15, 640, '#c8a165', 490, 0, 0); stick.rotation.z = Math.PI / 2; armPivot.add(stick);

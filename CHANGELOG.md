@@ -1,5 +1,14 @@
 # Changelog
 
+## v3.2.1: The auto, as close to the real thing as we can get
+
+- **Rebuilt the Blender auto after real Bajaj RE autos and Sketchfab references:**
+  - True proportions: 2.6 m long, 1.3 m wide, 1.7 m high. It's lower and longer than before.
+  - A tall, shield-shaped front face, wide under the windscreen and narrowing to the front wheel. It's two-tone, with a trim-coloured top band and a black panel around the round headlamp.
+  - A big, nearly upright, clear windscreen (you can see the driver), with the canvas roof starting right at its top.
+  - A closed rear canopy with a big side opening and a grab bar.
+  - A low rear tub with a trim line, and a rubber floor mat.
+
 ## v3.2.0: A Blender-made auto-rickshaw
 
 - **Your auto and the rival autos are modelled in Blender now:**
