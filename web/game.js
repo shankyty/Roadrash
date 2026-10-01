@@ -176,7 +176,7 @@ function deviceSummary() {
 //   error/<kind>/<problem>/<OS-browser>
 // with the details needed to reproduce them in the title (version, game state, OS/browser versions,
 // screen, audio state, stack). Nothing personal is sent. Also logged to the console.
-const GAME_VERSION = '2.9.4';
+const GAME_VERSION = '2.9.5';
 // 3D quality tier: mobile browsers < laptop/desktop browsers < the Mac app. 'smooth' (phones and tablets)
 // keeps the frame rate up with fewer polygons and a lower resolution; 'high' for computer browsers; 'ultra'
 // in the Mac app (loaded from file://): finest models, detail kept farther away, full Retina resolution.
@@ -764,6 +764,8 @@ const VehicleAudio = {
         const dz = wrapDelta(c.z - player.dist);
         // overtaking close by: they often lean on the horn
         if (c.dir !== -1 && c._dz > 0 && dz <= 0 && Math.abs(c.x - player.x) < 0.9 && player.speed > c.speed && Math.random() < 0.55) this.honkAt(c, dz, true);
+        // rash bikers lean on the horn coming up behind you
+        if (c.rash && c.dir !== -1 && dz < 0 && dz > -1800 && Math.abs(c.x - player.x) < 0.5 && !(c.honkCd > 0)) { c.honkCd = 1.1; this.honkAt(c, dz, true); }
         // you're in an oncoming vehicle's lane, heading at it: long angry horn
         if (c.dir === -1 && dz > 0 && dz < 4500 && Math.abs(c.x - player.x) < (c.nw + TUK_NW) / 2 && !(c.honkCd > 0)) { c.honkCd = 2.5; this.honkAt(c, dz, true); }
         if (c.honkCd > 0) c.honkCd -= dt;
@@ -1633,7 +1635,12 @@ const BIKE_LOOKS = [
   { scooter: true, color: '#1565c0', shirt: '#ffb300', helmet: '#fafafa', pillion: false },
   { scooter: false, color: '#1f4e9c', shirt: '#5d4037', helmet: '#1e88e5', pillion: false },
   { scooter: true, color: '#8e24aa', shirt: '#26a69a', helmet: '#111', pillion: true },
+  // rash drivers (90s RX100 boys): no helmets, loud shirts, sometimes three to a bike
+  { scooter: false, color: '#111111', shirt: '#e53935', helmet: '#1a1a1a', bare: true, pillion: true, triple: true, rash: true },
+  { scooter: false, color: '#1565c0', shirt: '#fdd835', helmet: '#2b1a10', bare: true, pillion: false, rash: true },
+  { scooter: false, color: '#c62828', shirt: '#26c6da', helmet: '#1a1a1a', bare: true, pillion: true, rash: true },
 ];
+const BIKE_CALM = BIKE_LOOKS.map((l, i) => i).filter(i => !BIKE_LOOKS[i].rash), BIKE_RASH = BIKE_LOOKS.map((l, i) => i).filter(i => BIKE_LOOKS[i].rash);
 const SP = {};
 function buildSharedSprites() {
   SP.player = makeTuk('#1e9e4a', '#ffd21f', '#151515', 'DL 1R 4207');
@@ -1882,11 +1889,11 @@ function setupRace() {
     if (type === 'cow') traffic.push({ type, z, x: rand(-h - 0.2, h + 0.2), speed: 0, vx: pick([-1, 1], tr) * rand(0.05, 0.12), nw: 0.42, len: 380, pause: 0, scared: 0, label: 'HOLY COW' });
     else {
       const def = type === 'bus' ? { img: SP.bus, look: busLookFor(tr), nw: 0.56, len: 3200, s: [0.28, 0.38], label: 'BUS' } : type === 'truck' ? { img: SP.truck, nw: 0.56, len: 2800, s: [0.25, 0.35], label: 'TRUCK' }
-        : type === 'bike' ? { img: pick(SP.bikes, tr), nw: 0.17, len: 860, s: [0.38, 0.55], label: 'BIKE' }
+        : type === 'bike' ? (rash => ({ img: SP.bikes[pick(rash ? BIKE_RASH : BIKE_CALM, tr)], rash, nw: 0.17, len: 860, s: rash ? [0.6, 0.78] : [0.38, 0.55], label: 'BIKE' }))(tr() < 0.3)
         : type === 'tractor' ? (i => ({ look: TRACTOR_LOOKS[i], img: SP.tractors[i], nw: TRACTOR_LOOKS[i].crop === 'hay' ? 0.65 : 0.56, len: 3800, s: [0.14, 0.2], label: 'TRACTOR' }))(Math.floor(tr() * TRACTOR_LOOKS.length))
         : (i => ({ ...CAR_LOOKS[i], look: CAR_LOOKS[i], img: SP.carLooks[i] }))(Math.floor(tr() * CAR_LOOKS.length));
       const lanes = findSegment(z).lanes, lane = type === 'car' || type === 'bike' ? Math.floor(tr() * lanes) : lanes - 1;
-      traffic.push({ type, dir, z, lane, x: laneX(dir, lane), img: def.img, look: def.look, nw: def.nw, len: def.len, speed: MAX_SPEED * rand(def.s[0], def.s[1]), label: def.label });
+      traffic.push({ type, dir, z, lane, x: laneX(dir, lane), img: def.img, look: def.look, rash: def.rash, nw: def.nw, len: def.len, speed: MAX_SPEED * rand(def.s[0], def.s[1]), label: def.label });
     }
   };
   // the mix on the road: cars and bikes most, then buses, then trucks
@@ -2358,12 +2365,12 @@ function driveTraffic(c, obs, dt) {
     if (d > 0 && g < 3000 && g < gap) { gap = g; aheadV = Math.max(0, o.vz * dir); ahead = o; }
   }
   const sl = stopLineAhead(c.z, dir, c.len / 2, 3000);
-  if (sl) {
+  if (sl && !c.rash) {                                          // (rash bikers jump the red)
     const L = lightOf(sl.j), brakeDist = c.speed * c.speed / 12000;
     if ((L === 'R' || sl.j.busy || (L === 'A' && sl.d > brakeDist)) && sl.d < gap) { gap = sl.d; aheadV = 0; ahead = null; }
   }
   if (laneEnds < Infinity && laneEnds - c.len / 2 - 120 < gap) { gap = laneEnds - c.len / 2 - 120; aheadV = 0; ahead = null; }
-  const safe = 250 + c.speed * 0.35;
+  const safe = c.rash ? 90 + c.speed * 0.1 : 250 + c.speed * 0.35;
   const target = gap < Infinity ? Math.min(c.cruise, Math.max(0, aheadV + (gap - safe) * 1.6)) : c.cruise;
   c.speed += clamp(target - c.speed, -9000 * dt, 2500 * dt);
   c.z = ((c.z + dir * c.speed * dt) % trackLength + trackLength) % trackLength;
@@ -2372,7 +2379,16 @@ function driveTraffic(c, obs, dt) {
   if (c.lane >= lanesNow) c.lane = lanesNow - 1;
   if (c.yieldT > 0) c.yieldT -= dt;
   const atLane = Math.abs(laneX(dir, c.lane) - c.x) < 0.01;
-  if (c.signalT > 0) {
+  if (c.rash) {
+    // rash biker: never indicates; cuts into whichever lane (either side) is free the moment anything is
+    // in the way, and weaves now and then anyway
+    c.signal = 0; c.signalT = 0; c.checkT -= dt;
+    if ((ahead && gap < 900) || c.checkT <= 0 || c.lane >= lanesAhead) {
+      c.checkT = rand(0.6, 1.8);
+      const opts = [c.lane - 1, c.lane + 1].filter(l => l >= 0 && l < lanesAhead && laneFree(laneX(dir, l), 350, 250));
+      if (opts.length) c.lane = pick(opts);
+    }
+  } else if (c.signalT > 0) {
     c.signalT -= dt;
     if (c.signalT <= 0) {
       const l = c.lane + c.signal;
@@ -2391,7 +2407,8 @@ function driveTraffic(c, obs, dt) {
     else if (c.checkT <= 0) { c.checkT = rand(1.5, 3); if (c.lane < home && laneFree(laneX(dir, c.lane + 1), 1400, 900)) { c.signal = 1; c.signalT = 0.8; } } // back out to the left
   }
   // steer toward the lane, never sliding into something alongside
-  const tx = laneX(dir, c.lane), nx = c.x + clamp(tx - c.x, -0.45 * dt, 0.45 * dt);
+  const turn = c.rash ? 1.3 : 0.45, tx = laneX(dir, c.lane) + (c.rash ? Math.sin(c.z / 900) * 0.05 : 0); // rash: swerves fast, wobbles in lane
+  const nx = c.x + clamp(tx - c.x, -turn * dt, turn * dt);
   if (nx !== c.x) {
     const blocked = obs.some(o => o.who !== c && Math.abs(fwd(o)) < reachOf(o) && hits(nx, o) && !hits(c.x, o));
     if (blocked) c.lane = clamp(Math.round(Math.abs(c.x) / LANE_W - 0.5), 0, lanesNow - 1); else c.x = nx;

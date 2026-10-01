@@ -1,5 +1,15 @@
 # Changelog
 
+## v2.9.5: Packed buses and rash bikers
+
+- **Buses packed like the 90s:**
+  - Most city buses are overcrowded, with a head at every window and elbows out of the open windows.
+  - People hang off the footboard at the open door, one hand on the rail.
+- **Rash-driving bikers:**
+  - RX100 boys with no helmets, sometimes three to a bike.
+  - They ride much faster than everyone else, weave between lanes without indicating and squeeze through tiny gaps.
+  - They jump red lights, lean hard into their swerves, pop the odd wheelie, and blast their horn as they come up behind you.
+
 ## v2.9.4: 1990s city buses
 
 - **Each city runs its own buses, the way they looked in the 90s:**
