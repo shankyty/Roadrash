@@ -2324,7 +2324,10 @@ function updateTraffic(dt) {
       else { c.x += c.vx * dt; if (Math.random() < dt * 0.1 && c.scared <= 0) c.pause = rand(1, 4); }
       const h = halfAt(c.z) + 0.4; if (Math.abs(c.x) > h) { c.vx = -Math.sign(c.x) * rand(0.05, 0.12); c.x = Math.sign(c.x) * h; }
       c.img = c.vx > 0 ? SP.cowR : SP.cowL;
-    } else driveTraffic(c, obs, dt);
+    } else {
+      driveTraffic(c, obs, dt);
+      if (c.stuckT > 8 && offScreen(c.z)) respawnTraffic(c, obs);
+    }
   }
 }
 
@@ -2348,6 +2351,21 @@ function stopLineAhead(z, dir, front, range) {
   }
   return null;
 }
+// Jams clear themselves out of sight: traffic stuck for a while (not at a red light) behind the camera or
+// past the draw distance is moved to a free spot in a lane far ahead, clear of junctions and of other
+// vehicles, beyond what you can see, and drives on from there.
+const offScreen = z => { const dz = wrapDelta(z - player.dist); return dz < -3500 || dz > 44000; };
+function respawnTraffic(c, obs) {
+  for (let tries = 0; tries < 12; tries++) {
+    const z = ((player.dist + rand(48000, 80000)) % trackLength + trackLength) % trackLength;
+    if (junctions.some(j => { const d = wrapDelta(z - j.zc); return d > -3500 && d < 2000; })) continue;
+    const lanes = findSegment(z).lanes, lane = c.type === 'car' || c.type === 'bike' ? Math.floor(Math.random() * lanes) : lanes - 1, x = laneX(c.dir, lane);
+    if (obs.some(o => o.who !== c && Math.abs(o.x - x) < (c.nw + o.nw) / 2 + 0.05 && Math.abs(wrapDelta(o.z - z)) < (c.len + (o.len || 0)) / 2 + 1500)) continue;
+    Object.assign(c, { z, lane, x, speed: c.cruise * 0.8, stuckT: 0, stuck: 0, signal: 0, signalT: 0 });
+    return true;
+  }
+  return false;
+}
 function driveTraffic(c, obs, dt) {
   const dir = c.dir;
   if (c.cruise == null) { c.cruise = c.speed; c.stuck = 0; c.signal = 0; c.signalT = 0; c.checkT = rand(1, 3); c.pref = c.type === 'car' || c.type === 'bike' ? Math.floor(Math.random() * 3) : 2; }
@@ -2366,9 +2384,10 @@ function driveTraffic(c, obs, dt) {
     if (d > 0 && g < 3000 && g < gap) { gap = g; aheadV = Math.max(0, o.vz * dir); ahead = o; }
   }
   const sl = stopLineAhead(c.z, dir, c.len / 2, 3000);
+  let atRed = false;                                            // waiting for the lights (that's not a jam)
   if (sl && !c.rash) {                                          // (rash bikers jump the red)
     const L = lightOf(sl.j), brakeDist = c.speed * c.speed / 12000;
-    if ((L === 'R' || sl.j.busy || (L === 'A' && sl.d > brakeDist)) && sl.d < gap) { gap = sl.d; aheadV = 0; ahead = null; }
+    if ((L === 'R' || sl.j.busy || (L === 'A' && sl.d > brakeDist)) && sl.d < gap) { gap = sl.d; aheadV = 0; ahead = null; atRed = true; }
   }
   if (laneEnds < Infinity && laneEnds - c.len / 2 - 120 < gap) { gap = laneEnds - c.len / 2 - 120; aheadV = 0; ahead = null; }
   const safe = c.rash ? 90 + c.speed * 0.1 : 250 + c.speed * 0.35;
@@ -2406,6 +2425,13 @@ function driveTraffic(c, obs, dt) {
     else if (c.yieldT > 0 && c.lane + 1 < lanesAhead && laneFree(laneX(dir, c.lane + 1), 700, 600)) { c.signal = 1; c.signalT = 0.35; c.yieldT = 0; } // let the honker through
     else if (c.stuck > 0.8 && c.lane > 0 && laneFree(laneX(dir, c.lane - 1), 900, 700)) { c.signal = -1; c.signalT = 0.8; c.stuck = 0; } // overtake on the inside
     else if (c.checkT <= 0) { c.checkT = rand(1.5, 3); if (c.lane < home && laneFree(laneX(dir, c.lane + 1), 1400, 900)) { c.signal = 1; c.signalT = 0.8; } } // back out to the left
+  }
+  // jam watch: time spent (nearly) stopped other than at the lights. After a while a jammed vehicle squeezes
+  // into any lane that's free right alongside (off screen it's moved on altogether: see updateTraffic)
+  c.stuckT = c.speed < 150 && !atRed ? (c.stuckT || 0) + dt : 0;
+  if (c.stuckT > 10 && !c.rash && c.signalT <= 0 && atLane) {
+    const opts = [c.lane - 1, c.lane + 1].filter(l => l >= 0 && l < lanesNow && laneFree(laneX(dir, l), 250, 250));
+    if (opts.length) { const l = pick(opts); c.signal = l < c.lane ? -1 : 1; c.lane = l; c.stuckT = 6; }
   }
   // steer toward the lane, never sliding into something alongside
   const turn = c.rash ? 1.3 : 0.45, tx = laneX(dir, c.lane) + (c.rash ? Math.sin(c.z / 900) * 0.05 : 0); // rash: swerves fast, wobbles in lane
@@ -2471,6 +2497,7 @@ function updateCross(dt) {
     if (!crossGo(c.j) && stop > -0.05 && stop < gap) gap = stop;
     const target = gap === Infinity ? c.cruise : Math.min(c.cruise, Math.sqrt(2 * 3 * Math.max(0, gap - 0.12)));
     c.speed += clamp(target - c.speed, -3 * dt, 1.2 * dt);  // brakes hard, but not instantly
+    c.stuckT = c.speed < 0.05 && crossGo(c.j) ? (c.stuckT || 0) + dt : 0;
     c.x += c.dirX * c.speed * dt;
     if (Math.abs(c.x) - c.lenX / 2 < c.j.half + 0.2) c.j.busy = true;
     // hits: you get T-boned; a rival is knocked out
@@ -2483,7 +2510,7 @@ function updateCross(dt) {
       c.speed = 0;
     }
   }
-  dropCross(c => Math.abs(c.x) >= c.j.half + 16);
+  dropCross(c => Math.abs(c.x) >= c.j.half + 16 || (c.stuckT > 8 && offScreen(c.z)) || c.stuckT > 25);   // (stuck on its green: a jam)
   // jumping the red: the cop blows his whistle and writes a challan
   const front = player.dist + TUK_LEN / 2;
   for (const j of junctions) {

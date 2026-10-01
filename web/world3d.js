@@ -236,7 +236,7 @@ vec3 nightLight(vec3 p) {
   }
   const shadow = (w, l) => {
     const m = new T.Mesh(unitPlane, contactShadowMat()); m.rotation.x = -Math.PI / 2;
-    m.scale.set(w * 1.12, l * 1.06, 1); m.position.set(-w * 0.05, 4, -l * 0.02); m.renderOrder = 1; return m;
+    m.scale.set(w * 1.12, l * 1.06, 1); m.position.set(-w * 0.05, 4, -l * 0.02); m.renderOrder = 1; m.userData.isShadow = true; return m;
   };
   // box with rounded edges and corners (a subdivided cube whose corner zones are pushed onto spheres of radius r)
   const rgeoCache = new Map();
@@ -1714,6 +1714,14 @@ vec3 nightLight(vec3 p) {
     const p = onGround(placeAt(d, x), d, x, m.userData.size.l), yaw = obj.crash > 0 || obj.ko > 0 ? 0 : steerYaw(obj, obj.dist || 0, x);
     m.position.set(p.x + (hurt > 0 ? Math.sin(hurt * 90) * 18 : 0), p.y + bounce, p.z);
     m.rotation.set(p.pitch, -p.th - yaw, -rot, 'YXZ');
+    // tipping over: roll about the wheel edge it falls onto (rolling about the middle sinks half the auto into
+    // the road), and drop the contact shadow while it's up on its side
+    const sh = m.userData.shadowMesh ??= m.children.find(ch => ch.userData.isShadow);
+    if (sh) sh.visible = Math.abs(rot) < 0.25;
+    if (rot) {
+      const px = Math.sign(rot) * m.userData.size.w / 2, side = px * (1 - Math.cos(rot)), a = m.rotation.y;
+      m.position.x += side * Math.cos(a); m.position.z -= side * Math.sin(a); m.position.y += Math.abs(px * Math.sin(rot));
+    }
     if (m.userData.frontWheel) m.userData.frontWheel.rotation.y = -yaw * 1.6;
     const arm = m.userData.arm;
     if (atk) {
