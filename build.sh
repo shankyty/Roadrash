@@ -25,6 +25,7 @@ echo "▸ bundling resources"
 cp macos/Info.plist "$APP/Contents/Info.plist"
 cp web/index.html web/sounds.js web/voices.js web/animals.js web/horns.js web/ambience-*.js web/game.js web/icon.png "$APP/Contents/Resources/web/"
 cp web/world3d.js "$APP/Contents/Resources/web/"
+mkdir -p "$APP/Contents/Resources/web/models" && cp web/models/*.js "$APP/Contents/Resources/web/models/"
 cp web/lib/three.min.js "$APP/Contents/Resources/web/lib/"
 
 echo "▸ icon"

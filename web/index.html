@@ -84,6 +84,12 @@
 <script src="animals.js"></script>
 <script src="horns.js"></script>
 <script src="lib/three.min.js"></script>
+<script>
+  // Blender vehicle models are only for the 3D game: phones and tablets play 2D, so they skip the download
+  // (same test as IS_MOBILE in game.js; ?3d forces 3D there)
+  if (!(/Android|iPhone|iPad|iPod|Mobile/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1)) || /[?&]3d\b/.test(location.search))
+    document.write('<script src="models/auto.js"><\/script>');
+</script>
 <script src="world3d.js"></script>
 <script src="game.js"></script>
 </body>

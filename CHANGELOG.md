@@ -1,5 +1,14 @@
 # Changelog
 
+## v3.2.0: A Blender-made auto-rickshaw
+
+- **Your auto and the rival autos are modelled in Blender now:**
+  - The tub flows into the footboard.
+  - The nose cowl sweeps up to the dashboard.
+  - The canvas hood and windscreen frame are smoothly rounded, like a real Bajaj, instead of being built from boxes.
+  - Every rival's colour scheme paints onto the same model.
+- The model is only downloaded where it's used: the 3D game on computers and the Mac app. Phones keep the 2D game.
+
 ## v3.1.0: A textured, detailed city
 
 - **Real asphalt:**
