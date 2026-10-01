@@ -100,10 +100,37 @@ vec3 nightLight(vec3 p) {
     m.scale.set(w, h, l); m.position.set(x, y, z); return m;
   };
   const cyl = (r, h, color, x = 0, y = 0, z = 0) => { const m = new T.Mesh(unitCyl, lambert(color)); m.scale.set(r * 2, h, r * 2); m.position.set(x, y, z); return m; };
-  const wheel = (r, w, x, y, z) => {
+  // tyre: a lathed section with rounded shoulders (axis along Y), open in the middle where the rim sits
+  const tyreGeos = new Map(), tyreMat = lambert('#1b1b1b', { side: T.DoubleSide });
+  function tyreGeo(r, w) {
+    const key = r + ',' + w;
+    if (!tyreGeos.has(key)) {
+      const ri = r * 0.6, sh = Math.min(w * 0.3, r * 0.2), pts = [new T.Vector2(ri, -w * 0.45)];
+      for (let i = 0; i <= 4; i++) { const a = -Math.PI / 2 + i / 8 * Math.PI; pts.push(new T.Vector2(r - sh + Math.cos(a) * sh, -w / 2 + sh + Math.sin(a) * sh)); }
+      for (let i = 0; i <= 4; i++) { const a = i / 8 * Math.PI; pts.push(new T.Vector2(r - sh + Math.cos(a) * sh, w / 2 - sh + Math.sin(a) * sh)); }
+      pts.push(new T.Vector2(ri, w * 0.45));
+      tyreGeos.set(key, new T.LatheGeometry(pts, 24));
+    }
+    return tyreGeos.get(key);
+  }
+  // wheel: tyre, a recessed rim with slots (so you can see it turn) and a hub on both faces. The rotating
+  // part is one baked child (spinWheels turns the wheel group's children about the axle).
+  const wheel = (r, w, x, y, z, rim = '#b9bec4') => {
     const g = new T.Group();
-    const tyre = cyl(r, w, '#161616'); tyre.rotation.z = Math.PI / 2; g.add(tyre);
-    const hub = cyl(r * 0.45, w * 1.05, '#9e9e9e'); hub.rotation.z = Math.PI / 2; g.add(hub);
+    g.add(baked('wheel' + [r, w, rim], () => {
+      const s = new T.Group(), slot = lambert('#202224');
+      const tyre = new T.Mesh(tyreGeo(r, w), tyreMat); tyre.rotation.z = Math.PI / 2; s.add(tyre);
+      for (const sx of [-1, 1]) {
+        const face = sx * w * 0.36;
+        const disc = cyl(r * 0.61, w * 0.08, rim, face, 0, 0); disc.rotation.z = Math.PI / 2; s.add(disc);
+        const hub = cyl(r * 0.17, w * 0.1, '#3a3a3a', face + sx * w * 0.05, 0, 0); hub.rotation.z = Math.PI / 2; s.add(hub);
+        for (let i = 0; i < 5; i++) {
+          const a = i * Math.PI * 2 / 5, h = box(w * 0.03, r * 0.22, r * 0.13, slot, face + sx * w * 0.045, Math.cos(a) * r * 0.39, Math.sin(a) * r * 0.39);
+          h.rotation.x = a; s.add(h);
+        }
+      }
+      return s;
+    }));
     g.position.set(x, y, z); g.userData.wheel = true; return g;
   };
   const shadow = (w, l) => { const m = new T.Mesh(blob, shadowMat); m.rotation.x = -Math.PI / 2; m.scale.set(w * 1.15, l * 1.1, 1); m.position.y = 4; m.renderOrder = 1; return m; };
@@ -236,59 +263,308 @@ vec3 nightLight(vec3 p) {
     g.userData.size = { w: Wd, h: 890, l: L };
     return g;
   }
+  // ---------------------------------------------------------------- car, bus and truck
+  // Static parts of a model are built once per variant and baked: merged into one mesh per material, so a
+  // detailed vehicle costs a handful of draw calls. Every copy shares the baked geometry (traffic comes and
+  // goes all race, so nothing is allocated per vehicle). Moving parts (wheels, indicators) stay separate.
+  const bakeCache = new Map();
+  function mergeGeos(gs) {
+    const out = new T.BufferGeometry();
+    for (const [n, k] of [['position', 3], ['normal', 3], ['uv', 2]]) {
+      const arr = new Float32Array(gs.reduce((s, g) => s + g.attributes[n].count * k, 0));
+      let o = 0; for (const g of gs) { arr.set(g.attributes[n].array, o); o += g.attributes[n].count * k; }
+      out.setAttribute(n, new T.BufferAttribute(arr, k));
+    }
+    out.computeBoundingSphere(); return out;
+  }
+  function baked(key, build) {
+    let parts = bakeCache.get(key);
+    if (!parts) {
+      const src = build(), byMat = new Map(); src.updateMatrixWorld(true);
+      src.traverse(o => {
+        if (!o.isMesh) return;
+        const geo = (o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone()).applyMatrix4(o.matrixWorld);
+        if (!byMat.has(o.material)) byMat.set(o.material, []);
+        byMat.get(o.material).push(geo);
+      });
+      parts = [...byMat].map(([mat, gs]) => { const geo = mergeGeos(gs); gs.forEach(g => g.dispose()); return [mat, geo]; });
+      bakeCache.set(key, parts);
+    }
+    const g = new T.Group();
+    for (const [mat, geo] of parts) g.add(new T.Mesh(geo, mat));
+    return g;
+  }
+  // glossy paint and tinted glass (the flat lambert look is fine for canvas and rubber, not for car bodies)
+  const paint = (color, shininess = 60) => {
+    const key = 'paint' + color + shininess;
+    if (!matCache.has(key)) matCache.set(key, nightify(new T.MeshPhongMaterial({ color, shininess, specular: '#4a4a4a' })));
+    return matCache.get(key);
+  };
+  const glass = nightify(new T.MeshPhongMaterial({ color: '#1e2b36', shininess: 110, specular: '#9fb4c4', side: T.DoubleSide }));
+  const chrome = nightify(new T.MeshPhongMaterial({ color: '#c9ced4', shininess: 120, specular: '#ffffff' }));
+  const tailGlow = lambert('#ff4033', { emissive: '#b00000', emissiveIntensity: 0.6 });
+
+  // a side outline, [u, v] points (u forward, v up; bottom from the back to the front, then over the top back):
+  // [u, v] a corner, [cu, cv, u, v] a curve through control point (cu, cv), [cu, cv, r] a wheel arch over (cu, cv)
+  function outline(pts) {
+    const s = new T.Shape();
+    pts.forEach((p, i) => {
+      if (!i) s.moveTo(p[0], p[1]);
+      else if (p.length === 4) s.quadraticCurveTo(p[0], p[1], p[2], p[3]);
+      else if (p.length === 3) s.absarc(p[0], p[1], p[2], Math.PI, 0, true);
+      else s.lineTo(p[0], p[1]);
+    });
+    return s;
+  }
+  // the outline extruded across the width with rounded edges (the bevel grows the outline by bev all round)
+  function profile(pts, width, bev, mat) {
+    const depth = Math.max(1, width - 2 * bev);
+    const geo = new T.ExtrudeGeometry(outline(pts), { depth, bevelEnabled: true, bevelSize: bev, bevelThickness: bev, bevelSegments: 3, curveSegments: 12 });
+    geo.translate(0, 0, -depth / 2); geo.rotateY(Math.PI / 2);
+    return new T.Mesh(geo, mat);
+  }
+  // a flat outline on the side of a body at x (side windows)
+  function sidePane(pts, mat, x) {
+    const geo = new T.ShapeGeometry(outline(pts), 8); geo.rotateY(Math.PI / 2);
+    const m = new T.Mesh(geo, mat); m.position.x = x; return m;
+  }
+  // a pane across the width between two outline points (top/front first), pushed out along its normal by off
+  function slopePane(u1, v1, u2, v2, w, off, mat) {
+    const du = u2 - u1, dv = v2 - v1, len = Math.hypot(du, dv), th = Math.atan2(-du, dv);
+    const m = new T.Mesh(unitPlane, mat); m.scale.set(w, len, 1); m.rotation.x = th;
+    m.position.set(0, (v1 + v2) / 2 + du / len * off, -(u1 + u2) / 2 + dv / len * off);
+    return m;
+  }
+  // painted canvases: number plates, bus boards, truck art
+  const canvases = new Map();
+  function painted(key, w, h, draw) {
+    if (!canvases.has(key)) { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); canvases.set(key, c); }
+    return canvases.get(key);
+  }
+  const plate = (text, bg) => painted('plate' + text + bg, 160, 40, (x, w, h) => {
+    x.fillStyle = bg; x.fillRect(0, 0, w, h); x.strokeStyle = '#111'; x.lineWidth = 4; x.strokeRect(2, 2, w - 4, h - 4);
+    x.fillStyle = '#111'; x.font = 'bold 24px Arial'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(text, w / 2, h / 2 + 1);
+  });
+  const lettering = (text, bg, fg, w, h, font) => painted('text' + text + bg + fg + w, w, h, (x) => {
+    x.fillStyle = bg; x.fillRect(0, 0, w, h); x.fillStyle = fg; x.font = font; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(text, w / 2, h / 2 + 2);
+  });
+  // yellow and black hazard stripes (truck bumper)
+  const hazard = () => painted('hazard', 256, 32, (x, w, h) => {
+    x.fillStyle = '#f9c80e'; x.fillRect(0, 0, w, h); x.fillStyle = '#111';
+    for (let i = -h; i < w; i += 32) { x.beginPath(); x.moveTo(i, h); x.lineTo(i + 16, h); x.lineTo(i + 16 + h, 0); x.lineTo(i + h, 0); x.fill(); }
+  });
+  // the decorated "crown" over a truck's windscreen: scallops, mirror dots and a band of diamonds
+  const truckCrown = () => painted('crown', 512, 96, (x, w, h) => {
+    x.fillStyle = '#c62828'; x.fillRect(0, 0, w, h);
+    x.fillStyle = '#ffd54f'; for (let i = 0; i < w; i += 32) { x.beginPath(); x.arc(i + 16, 0, 16, 0, Math.PI); x.fill(); }
+    x.fillStyle = '#1b5e20'; x.fillRect(0, 44, w, 22);
+    x.fillStyle = '#ffd54f'; for (let i = 8; i < w; i += 28) { x.beginPath(); x.moveTo(i, 55); x.lineTo(i + 10, 46); x.lineTo(i + 20, 55); x.lineTo(i + 10, 64); x.fill(); }
+    for (let i = 20; i < w; i += 40) { x.fillStyle = '#e0f7fa'; x.beginPath(); x.arc(i, 80, 6, 0, 7); x.fill(); x.fillStyle = '#ff9800'; x.beginPath(); x.arc(i + 20, 80, 4, 0, 7); x.fill(); }
+  });
+  // a truck body's painted side: bordered panels, flowers at the ends and PUBLIC CARRIER
+  const truckSide = () => painted('truckside', 1024, 300, (x, w, h) => {
+    x.fillStyle = '#ffca28'; x.fillRect(0, 0, w, h);
+    x.strokeStyle = '#d32f2f'; x.lineWidth = 14; x.strokeRect(7, 7, w - 14, h - 14);
+    x.strokeStyle = '#2e7d32'; x.lineWidth = 6; x.strokeRect(26, 26, w - 52, h - 52);
+    x.strokeStyle = '#8d6e63'; x.lineWidth = 3; for (let i = 1; i < 6; i++) { x.beginPath(); x.moveTo(26, 26 + i * 41); x.lineTo(w - 26, 26 + i * 41); x.stroke(); }
+    for (const cx of [110, w - 110]) {
+      x.fillStyle = '#e91e63'; for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4; x.beginPath(); x.ellipse(cx + Math.cos(a) * 34, 150 + Math.sin(a) * 34, 26, 14, a, 0, 7); x.fill(); }
+      x.fillStyle = '#ffeb3b'; x.beginPath(); x.arc(cx, 150, 20, 0, 7); x.fill();
+    }
+    x.fillStyle = '#c62828'; x.font = 'bold 84px Impact, Arial Black, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.fillText('PUBLIC CARRIER', w / 2, 150);
+  });
+
   // amber indicator lamps at the four corners (blinked from the frame loop while the vehicle signals)
   const indOff = lambert('#8a5a12'), indOn = lambert('#ffb020', { emissive: '#ff9800', emissiveIntensity: 1 });
-  function indicators(g, w, l, y) {
+  function indicators(g, w, l, y, s = 1) {
     g.userData.ind = { '-1': [], '1': [] };
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
-      const m = new T.Mesh(unitSphere, indOff); m.scale.set(60, 50, 40); m.position.set(sx * (w / 2 - 20), y, sz * (l / 2 + 6));
+      const m = new T.Mesh(unitSphere, indOff); m.scale.set(60 * s, 50 * s, 40 * s); m.position.set(sx * (w / 2 - 20), y, sz * (l / 2 + 6));
       g.add(m); g.userData.ind[sx].push(m);
     }
   }
-  function headlamps(g, w, l, y) {
-    for (const sx of [-1, 1]) { const m = new T.Mesh(unitSphere, headGlow); m.scale.set(120, 80, 30); m.position.set(sx * (w / 2 - 130), y, -l / 2 - 4); g.add(m); }
-    g.userData.headY = y;
+  // round headlamp in a dark bezel, facing forward (-z)
+  function roundLamp(s, r, x, y, z) {
+    const bez = cyl(r * 1.25, 24, '#1a1a1a', x, y, z + 6); bez.rotation.x = Math.PI / 2; s.add(bez);
+    const l = cyl(r, 20, '#fff', x, y, z - 6); l.material = headGlow; l.rotation.x = Math.PI / 2; s.add(l);
   }
-  function busModel(rearCanvas) {
-    const g = new T.Group(), Wd = 1120, L = 3200;
+  // wheel wells: a dark disc through the body behind each wheel, which reads as the arch from the side
+  // (the wheels sit a little proud of it, so their rims show)
+  const well = (s, r, width, y, z) => { const m = cyl(r, width, '#0e0e0e', 0, y, z); m.rotation.z = Math.PI / 2; s.add(m); };
+
+  // Hatchback / compact sedan (Swift, i20, Dzire): a side profile with wheel arches, short sloping bonnet,
+  // raked windscreen, roof and hatch glass; framed windows, grille, swept headlamps, tail lamps, plates.
+  function carModel(color) {
+    const Wd = 760, L = 1500, R = L / 2, g = new T.Group();
+    g.add(baked('car' + color, () => {
+      const s = new T.Group(), body = paint(color), dark = lambert('#141517'), trim = lambert('#2a2c30');
+      // lower body (bevel 26 rounds every edge and makes it 26 bigger all round)
+      s.add(profile([[-724, 140], [-700, 110], [-635, 110], [-635, 125], [-470, 125, 165], [-305, 110], [315, 110], [315, 125], [480, 125, 165],
+        [645, 110], [705, 110], [730, 115, 730, 180], [728, 280], [720, 330, 640, 345], [330, 385], [-560, 400], [-700, 400, -715, 330]], Wd - 10, 26, body));
+      // glasshouse, narrower than the body (tumblehome), with the roof in the body colour
+      const gw = Wd * 0.82;
+      s.add(profile([[330, 370], [90, 590], [60, 612, 10, 614], [-420, 606], [-470, 604, -500, 580], [-620, 370]], gw, 30, body));
+      for (const sx of [-1, 1]) {
+        s.add(sidePane([[265, 410], [92, 570], [-100, 578], [-100, 410]], glass, sx * (gw / 2 + 1)));
+        s.add(sidePane([[-130, 410], [-130, 578], [-400, 574], [-470, 560], [-560, 410]], glass, sx * (gw / 2 + 1)));
+      }
+      s.add(slopePane(114, 568, 311, 388, gw - 90, 31, glass));        // windscreen
+      s.add(slopePane(-608, 391, -514, 555, gw - 110, 31, glass));     // hatch glass
+      // arches: dark inside, so you don't see through the body
+      for (const z of [-480, 470]) s.add(box(Wd - 250, 180, 330, dark, 0, 200, z));
+      s.add(box(Wd - 200, 60, L - 260, dark, 0, 110, 0));
+      // front: grille, air dam, swept headlamps, plate
+      s.add(rbox(Wd * 0.44, 50, 24, dark, 0, 252, -R - 4, 10));
+      s.add(rbox(Wd * 0.6, 32, 24, dark, 0, 124, -R - 2, 10));
+      for (const sx of [-1, 1]) {
+        const hl = rbox(150, 52, 40, headGlow, sx * (Wd / 2 - 118), 306, -R + 12, 18); hl.rotation.y = -sx * 0.18; s.add(hl);
+        s.add(rbox(48, 22, 20, chrome, sx * (Wd / 2 - 205), 252, -R - 8, 8));   // grille chrome ends
+      }
+      s.add(facePanel(plate('MH 12 CR', '#fff'), 150, 38, 0, 184, -R - 8, Math.PI));
+      // back: tail lamps wrapping the corners, bumper, plate
+      for (const sx of [-1, 1]) {
+        s.add(rbox(136, 84, 40, dark, sx * (Wd / 2 - 80), 345, R - 18, 18));             // tail lamp: dark bezel, bright lens
+        s.add(rbox(112, 60, 40, tailGlow, sx * (Wd / 2 - 80), 345, R - 10, 14));
+        s.add(rbox(30, 60, 90, tailGlow, sx * (Wd / 2 - 12), 345, R - 40, 12));
+      }
+      s.add(rbox(Wd * 0.92, 44, 28, trim, 0, 160, R - 6, 14));
+      s.add(facePanel(plate('MH 12 CR', '#fff'), 150, 38, 0, 250, R - 2));
+      // sides: door shut lines, handles, mirrors, a rubbing strip
+      for (const sx of [-1, 1]) {
+        const x = sx * ((Wd - 10) / 2 + 1);
+        s.add(box(3, 280, 5, dark, x, 270, -290));
+        s.add(box(3, 280, 5, dark, x, 270, 110));
+        s.add(box(3, 110, 5, dark, x, 355, 440));
+        for (const z of [-40, 330]) s.add(rbox(8, 14, 60, trim, x, 365, z, 4));
+        s.add(rbox(10, 22, 700, trim, x, 215, -80, 6));
+        s.add(rbox(60, 20, 30, dark, sx * (Wd / 2 + 4), 415, -290, 6));                 // mirror arm
+        s.add(rbox(28, 58, 86, body, sx * (Wd / 2 + 34), 432, -300, 14));               // mirror
+      }
+      return s;
+    }));
+    for (const z of [-480, 470]) for (const sx of [-1, 1]) g.add(wheel(122, 100, sx * (Wd / 2 - 64), 122, z));
     g.add(shadow(Wd, L));
-    g.add(rbox(Wd, 900, L, '#c62828', 0, 640, 0, 110));
-    g.add(rbox(Wd * 1.006, 190, L * 1.002, '#f3e2b3', 0, 830, 0, 100));
-    for (const sx of [-1, 1]) g.add(rbox(14, 250, L * 0.86, '#1c2833', sx * (Wd / 2 + 2), 960, -40, 6));
-    g.add(rbox(Wd * 0.86, 330, 14, '#1c2833', 0, 930, -L / 2 + 2, 6));                       // windscreen
-    g.add(rbox(Wd * 0.9, 40, L * 0.8, '#555', 0, 1100, 0, 15));                              // roof rack
-    const bags = ['#8d6e63', '#1565c0', '#c62828', '#558b2f', '#f9a825'];
-    for (let i = 0; i < 6; i++) g.add(rbox(300, 150, 360, bags[i % 5], (i % 2 ? 1 : -1) * 220, 1195, -L / 2 + 500 + i * 380, 50));
-    for (const z of [-L / 2 + 520, L / 2 - 560]) for (const sx of [-1, 1]) g.add(wheel(190, 150, sx * (Wd / 2 - 70), 190, z));
-    if (rearCanvas) g.add(rearPanel(rearCanvas, Wd * 0.9, L / 2 + 4, 0));
-    indicators(g, Wd, L, 330); headlamps(g, Wd, L, 330);
+    indicators(g, Wd, L, 300, 0.7); g.userData.headY = 306;
+    g.userData.size = { w: Wd, h: 700, l: L };
+    return g;
+  }
+
+  // State transport bus: red lower body with a cream belt, a band of sliding windows with frames, a cream
+  // roof carrying a luggage rack, split windscreen with wipers, destination board, twin round headlamps and
+  // a door on the kerb (left) side.
+  function busModel(rearCanvas) {
+    const Wd = 1120, L = 3200, R = L / 2, g = new T.Group(), zf = -R + 560, zr = R - 800;
+    g.add(baked('bus', () => {
+      const s = new T.Group(), red = paint('#c62828', 30), cream = paint('#f3e2b3', 30), dark = lambert('#141517');
+      for (const z of [zf, zr]) well(s, 228, Wd + 4, 190, z);
+      s.add(rbox(Wd - 40, 70, L - 40, dark, 0, 175, 0, 20));                              // skirt
+      s.add(rbox(Wd, 560, L, red, 0, 450, 0, 60));                                        // lower body
+      s.add(rbox(Wd + 8, 64, L + 8, cream, 0, 640, 0, 24));                               // cream belt
+      s.add(rbox(Wd + 10, 16, L + 10, paint('#f9a825'), 0, 590, 0, 8));                  // yellow pinstripe
+      s.add(rbox(Wd - 16, 330, L - 16, glass, 0, 890, 0, 40));                            // window band
+      s.add(rbox(Wd, 150, L, cream, 0, 1110, 0, 70));                                     // roof
+      // window frames and pillars on both sides, and the sliding-window rail
+      for (const sx of [-1, 1]) {
+        const x = sx * (Wd / 2 - 6), from = sx < 0 ? -R + 720 : -R + 400;
+        for (let z = from; z < R - 100; z += 300) s.add(rbox(14, 330, 50, red, x, 890, z, 6));
+        s.add(rbox(14, 14, L - 300, chrome, x + sx * 2, 960, 60, 5));
+        s.add(facePanel(lettering('STATE TRANSPORT', '#c62828', '#f3e2b3', 512, 64, 'bold 40px Arial'), 1000, 125, sx * (Wd / 2 + 1), 440, 200, sx * Math.PI / 2));
+      }
+      // front door on the kerb side (-x): glass leaf with frame and a step
+      s.add(rbox(10, 820, 380, glass, -(Wd / 2 + 2), 600, -R + 400, 6));
+      for (const z of [-R + 205, -R + 595]) s.add(rbox(14, 830, 20, chrome, -(Wd / 2 + 4), 600, z, 5));
+      s.add(rbox(16, 20, 380, chrome, -(Wd / 2 + 5), 640, -R + 400, 5));
+      s.add(rbox(120, 40, 360, dark, -(Wd / 2 - 40), 190, -R + 400, 10));
+      // front: windscreen divider, wipers, destination board, grille, headlamps, bumper, plate
+      s.add(rbox(50, 330, 24, red, 0, 890, -R + 4, 10));
+      for (const sx of [-1, 1]) { const w = box(10, 280, 8, dark, sx * 200, 820, -R - 2); w.rotation.z = sx * 0.5; s.add(w); }
+      s.add(rbox(Wd * 0.74, 100, 24, dark, 0, 1110, -R - 2, 10));
+      s.add(facePanel(lettering('MUMBAI CST', '#111', '#ffb300', 256, 40, 'bold 26px Arial'), Wd * 0.7, 84, 0, 1110, -R - 16, Math.PI));
+      s.add(rbox(Wd * 0.46, 150, 24, dark, 0, 440, -R - 2, 12));
+      for (let i = 0; i < 4; i++) s.add(rbox(Wd * 0.44, 10, 10, chrome, 0, 390 + i * 34, -R - 14, 4));
+      for (const sx of [-1, 1]) for (const dx of [150, 285]) roundLamp(s, 52, sx * (Wd / 2 - dx), 420, -R - 6);
+      s.add(rbox(Wd + 20, 90, 70, dark, 0, 245, -R - 10, 25));
+      s.add(facePanel(plate('MH 01 BS', '#ffd21f'), 190, 48, 0, 330, -R - 8, Math.PI));
+      s.add(rbox(Wd + 20, 90, 70, dark, 0, 245, R + 10, 25));
+      // roof rack and luggage
+      s.add(rbox(Wd * 0.9, 20, L * 0.8, '#555', 0, 1195, 0, 8));
+      for (const sx of [-1, 1]) s.add(rbox(16, 50, L * 0.8, chrome, sx * Wd * 0.45, 1215, 0, 6));
+      const bags = ['#8d6e63', '#1565c0', '#c62828', '#558b2f', '#f9a825'];
+      for (let i = 0; i < 6; i++) s.add(rbox(300, 120, 360, bags[i % 5], (i % 2 ? 1 : -1) * 220, 1265, -R + 500 + i * 380, 45));
+      // painted back (ladder, board, lamps, plate) from the 2D sprite
+      if (rearCanvas) s.add(facePanel(crop(rearCanvas, 8, 30, 292, 302), Wd - 60, 1000, 0, 685, R + 2));
+      return s;
+    }));
+    for (const z of [zf, zr]) for (const sx of [-1, 1]) g.add(wheel(190, 150, sx * (Wd / 2 - 54), 190, z, '#d5d8dc'));
+    g.add(shadow(Wd, L));
+    indicators(g, Wd, L, 330); g.userData.headY = 420;
     g.userData.size = { w: Wd, h: 1300, l: L };
     return g;
   }
+
+  // Indian goods truck (Tata / Leyland style): flat-fronted cab with a painted crown over the split
+  // windscreen, chrome grille, round headlamps and a hazard-striped bumper; a high-sided painted body with
+  // PUBLIC CARRIER on it and a roped tarpaulin over the load; HORN OK PLEASE on the tailgate, mud flaps.
   function truckModel(rearCanvas) {
-    const g = new T.Group(), Wd = 1120, L = 2800;
+    const Wd = 1120, L = 2800, R = L / 2, g = new T.Group(), axles = [-R + 400, R - 720, R - 330];
+    g.add(baked('truck', () => {
+      const s = new T.Group(), cab = paint('#f4a300', 40), dark = lambert('#141517'), bodyC = paint('#ffca28', 20);
+      well(s, 232, Wd + 4, 195, axles[0]);
+      s.add(box(Wd * 0.62, 90, L - 200, '#1a1a1a', 0, 250, 80));                           // chassis
+      // cab
+      s.add(rbox(Wd, 820, 760, cab, 0, 790, -R + 380, 110));
+      s.add(rbox(Wd * 0.78, 290, 20, glass, 0, 990, -R + 4, 12));
+      s.add(rbox(44, 300, 26, cab, 0, 990, -R + 2, 10));
+      for (const sx of [-1, 1]) {
+        s.add(rbox(12, 260, 360, glass, sx * (Wd / 2 + 1), 990, -R + 330, 8));             // door windows
+        s.add(rbox(14, 12, 60, dark, sx * (Wd / 2 + 2), 800, -R + 250, 4));                 // handle
+        s.add(rbox(90, 28, 260, '#333', sx * (Wd / 2 - 40), 340, -R + 380, 8));            // step
+        s.add(rbox(120, 16, 16, '#333', sx * (Wd / 2 + 50), 1060, -R + 60, 6));             // mirror arm
+        s.add(rbox(30, 230, 110, '#222', sx * (Wd / 2 + 110), 1010, -R + 60, 10));          // mirror
+      }
+      s.add(rbox(Wd * 1.02, 110, 240, '#c62828', 0, 1200, -R + 110, 40));
+      s.add(facePanel(truckCrown(), Wd * 0.96, 100, 0, 1200, -R - 12, Math.PI));
+      s.add(rbox(Wd * 0.56, 230, 20, dark, 0, 610, -R - 2, 12));
+      for (let i = 0; i < 5; i++) s.add(rbox(Wd * 0.54, 14, 12, chrome, 0, 520 + i * 44, -R - 12, 5));
+      for (const sx of [-1, 1]) roundLamp(s, 62, sx * (Wd / 2 - 130), 560, -R - 6);
+      s.add(rbox(Wd + 30, 130, 90, dark, 0, 330, -R - 20, 25));
+      s.add(facePanel(hazard(), Wd + 10, 100, 0, 330, -R - 66, Math.PI));
+      s.add(facePanel(plate('MH 04 TK', '#ffd21f'), 190, 48, 0, 450, -R - 14, Math.PI));
+      // fuel tank and tool box between the axles
+      const tank = cyl(110, 480, '#a7abb0', -(Wd / 2 - 150), 330, -R + 1050); tank.rotation.x = Math.PI / 2; s.add(tank);
+      s.add(rbox(200, 200, 380, '#37474f', Wd / 2 - 130, 330, -R + 1050, 12));
+      // cargo body: floor, headboard, sides, tailgate, top rail
+      const bz = 400, bl = 2000;
+      s.add(rbox(Wd, 80, bl, '#5d4037', 0, 460, bz, 15));
+      s.add(rbox(Wd, 800, 50, bodyC, 0, 900, bz - bl / 2 + 25, 15));
+      for (const sx of [-1, 1]) {
+        s.add(rbox(40, 650, bl, bodyC, sx * (Wd / 2 - 20), 825, bz, 12));
+        s.add(facePanel(truckSide(), bl - 100, 560, sx * (Wd / 2 + 1), 825, bz, sx * Math.PI / 2));
+      }
+      s.add(rbox(Wd, 650, 50, bodyC, 0, 825, R - 25, 12));
+      s.add(rbox(Wd + 16, 40, bl, '#d32f2f', 0, 1155, bz, 12));
+      // tarpaulin bulging over the load, tied down with ropes
+      s.add(rbox(Wd * 0.97, 420, bl - 60, paint('#1565c0', 15), 0, 1270, bz + 10, 190));
+      for (let i = 0; i < 5; i++) {
+        const z = bz - bl / 2 + 250 + i * 375;
+        s.add(rbox(Wd * 0.7, 12, 16, '#e0c080', 0, 1482, z, 5));
+        for (const sx of [-1, 1]) s.add(rbox(12, 200, 16, '#e0c080', sx * (Wd * 0.485 + 4), 1250, z, 5));
+      }
+      // back: HORN OK PLEASE, under-run bar, tail lamps, mud flaps behind the rear wheels
+      if (rearCanvas) s.add(facePanel(crop(rearCanvas, 8, 130, 292, 290), Wd - 60, 590, 0, 830, R + 2));
+      s.add(rbox(Wd, 60, 40, dark, 0, 300, R - 20, 12));
+      for (const sx of [-1, 1]) {
+        s.add(rbox(110, 50, 24, tailGlow, sx * (Wd / 2 - 110), 380, R + 2, 10));
+        s.add(box(240, 260, 12, dark, sx * (Wd / 2 - 90), 200, R - 140));
+        s.add(rbox(220, 30, 520, '#222', sx * (Wd / 2 - 88), 410, (axles[1] + axles[2]) / 2, 10));  // rear mudguards
+      }
+      return s;
+    }));
+    for (const z of axles) for (const sx of [-1, 1]) g.add(wheel(195, 170, sx * (Wd / 2 - 56), 195, z, '#9e1b1b'));
     g.add(shadow(Wd, L));
-    g.add(rbox(Wd, 980, 780, '#f4a300', 0, 700, -L / 2 + 390, 130));                        // cab
-    g.add(rbox(Wd * 0.84, 330, 14, '#1c2833', 0, 950, -L / 2 + 4, 6));                      // windscreen
-    g.add(rbox(Wd * 1.02, 90, 800, '#d32f2f', 0, 1150, -L / 2 + 390, 40));                   // painted visor
-    g.add(rbox(Wd, 880, 1900, '#ffca28', 0, 640, L / 2 - 950, 60));                          // cargo body
-    g.add(rbox(Wd * 0.98, 520, 1880, '#1565c0', 0, 1260, L / 2 - 950, 200));                 // tarpaulin, bulging over the load
-    for (const z of [-L / 2 + 420, L / 2 - 700, L / 2 - 330]) for (const sx of [-1, 1]) g.add(wheel(195, 170, sx * (Wd / 2 - 80), 195, z));
-    if (rearCanvas) g.add(rearPanel(rearCanvas, Wd * 0.9, L / 2 + 4, 0));
-    indicators(g, Wd, L, 330); headlamps(g, Wd, L, 420);
+    indicators(g, Wd, L, 450); g.userData.headY = 560;
     g.userData.size = { w: Wd, h: 1500, l: L };
-    return g;
-  }
-  function carModel(color, rearCanvas) {
-    const g = new T.Group(), Wd = 760, L = 1500;
-    g.add(shadow(Wd, L));
-    g.add(rbox(Wd, 300, L, color, 0, 260, 0, 90));
-    const cabin = rbox(Wd * 0.84, 250, L * 0.56, '#1c2833', 0, 500, 60, 90); g.add(cabin);   // glasshouse
-    g.add(rbox(Wd * 0.8, 60, L * 0.44, color, 0, 610, 60, 28));                             // roof
-    for (const z of [-L / 2 + 280, L / 2 - 300]) for (const sx of [-1, 1]) g.add(wheel(125, 110, sx * (Wd / 2 - 50), 125, z));
-    if (rearCanvas) g.add(rearPanel(rearCanvas, Wd * 0.94, L / 2 + 3, 0));
-    indicators(g, Wd, L, 320); headlamps(g, Wd, L, 300);
-    g.userData.size = { w: Wd, h: 700, l: L };
     return g;
   }
   function legs(g, color, spots, h, r, dz) {
@@ -633,7 +909,7 @@ vec3 nightLight(vec3 p) {
     else if (obj.isPlayer) m = autoModel({ body: '#1e9e4a', trim: '#ffd21f', canopy: '#151515' }, SP.player);
     else if (obj.type === 'bus') m = busModel(SP.bus);
     else if (obj.type === 'truck') m = truckModel(SP.truck);
-    else if (obj.type === 'car') { const i = Math.max(0, SP.cars.indexOf(obj.img)); m = carModel(obj.color || cfg.CAR_COLORS[i] || '#e9e9ea', obj.img); }
+    else if (obj.type === 'car') { const i = Math.max(0, SP.cars.indexOf(obj.img)); m = carModel(obj.color || cfg.CAR_COLORS[i] || '#e9e9ea'); }
     else if (obj.type === 'cow') m = cowModel();
     else if (obj.type === 'dog') { const i = Math.max(0, SP.dogs.indexOf(obj.look)); m = dogModel(cfg.DOG_COATS[i]); }
     else return null;
@@ -869,7 +1145,7 @@ vec3 nightLight(vec3 p) {
     const sc = new T.Scene(); sc.add(new T.HemisphereLight(0xffffff, 0x666666, 1)); const d = new T.DirectionalLight(0xffffff, 0.6); d.position.set(1, 2, 1); sc.add(d);
     const m = kind === 'player' ? autoModel({ body: '#1e9e4a', trim: '#ffd21f', canopy: '#151515' }, SP.player)
       : kind === 'rival' ? autoModel({ body: '#1a1a1a', trim: '#f5c400', canopy: '#f5c400' }, SP.rivals[0])
-      : kind === 'bus' ? busModel(SP.bus) : kind === 'truck' ? truckModel(SP.truck) : kind === 'car' ? carModel('#c62828', SP.cars[0])
+      : kind === 'bus' ? busModel(SP.bus) : kind === 'truck' ? truckModel(SP.truck) : kind === 'car' ? carModel('#c62828')
       : kind === 'cow' ? cowModel() : kind === 'dog' ? dogModel({ body: '#b07a45', belly: '#e8c9a0', dark: '#6d4a2a' }) : null;
     const k = Math.max(m.userData.size.l, m.userData.size.h) / 1000; m.scale.setScalar(1 / Math.max(1, k * 0.9));
     sc.add(m);

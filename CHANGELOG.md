@@ -1,5 +1,24 @@
 # Changelog
 
+## v2.9.1: Better cars, buses and trucks
+
+- **Cars look like real hatchbacks:**
+  - A proper body shape with wheel arches, a sloping bonnet, a raked windscreen and a hatch.
+  - Framed windows, a grille, swept headlamps, wrap-round tail lamps, number plates, mirrors and door lines.
+  - The rear now matches the car's colour; before, some cars had another car's back pasted on.
+- **State transport buses:**
+  - Red and cream with a pinstripe, a band of framed windows and a luggage rack.
+  - A split windscreen with wipers, a destination board and twin round headlamps.
+  - A door on the kerb side.
+- **Goods trucks:**
+  - A painted crown over the windscreen, a chrome grille and a hazard-striped bumper.
+  - PUBLIC CARRIER painted on the sides and a roped tarpaulin.
+  - Under the body: fuel tank and mud flaps.
+  - HORN OK PLEASE on the tailgate.
+- **Real wheels everywhere:** rounded tyres and rims you can see turning, on autos too.
+- **Shiny paint** on cars, buses and trucks.
+- **Runs just as fast:** each vehicle is drawn in a handful of pieces, so the extra detail doesn't cost frame rate.
+
 ## v2.9.0: Two-way city roads, junctions and real night lighting
 
 - **Two-way roads:**
