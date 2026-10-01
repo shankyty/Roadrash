@@ -12,9 +12,8 @@ cask "roadrash" do
   app "Road Rash.app"
 
   # The app is ad-hoc signed (not notarized); clear quarantine so it opens without a Gatekeeper prompt.
-  postflight do
-    system_command "/usr/bin/xattr",
-                   args: ["-dr", "com.apple.quarantine", "#{appdir}/Road Rash.app"]
+  postflight_steps do
+    run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{appdir}}/Road Rash.app"]
   end
 
   zap trash: [
