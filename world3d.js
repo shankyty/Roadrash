@@ -21,7 +21,7 @@ window.World3D = (() => {
   const CURVE_TO_RAD = 1 / 200; // heading change per segment per unit of track curve (matches the 2D look)
 
   let W = 960, H = 540, ROAD_W = 2000, SEG_LEN = 200;
-  let renderer, scene, camera, hemi, sun, ready = false;
+  let renderer, scene, camera, hemi, sun, ready = false, roadShade = null, post = null;
   let road, roadPos, roadCol;
   let segments = [], trackLength = 1, theme = null, SP = null, TS = null, cfg = {};
   const QUADS = 30; // per segment: verge and road (7), centre line (2), lane lines (4), or finish cells (12) / zebra + stop line
@@ -40,9 +40,11 @@ window.World3D = (() => {
   // and weak laptops fluid; 'high' for desktop browsers; 'ultra' for the Mac app (finer curves, detail
   // kept much farther down the road).
   const TIERS = {
-    smooth: { lod: [3500, 9000], det: 0.7, clearcoat: false, maxK: 3 },
-    high: { lod: [7000, 18000], det: 1, clearcoat: true, maxK: 5 },
-    ultra: { lod: [14000, 32000], det: 1.6, clearcoat: true, maxK: 7 },
+    // shadow: sun shadow map size and how far around you it reaches; post: filmic glow pass (else the
+    // renderer's own tone mapping)
+    smooth: { lod: [3500, 9000], det: 0.7, clearcoat: false, maxK: 3, shadow: null, post: false },
+    high: { lod: [7000, 18000], det: 1, clearcoat: true, maxK: 5, shadow: { size: 2048, reach: 7000 }, post: false },
+    ultra: { lod: [14000, 32000], det: 1.6, clearcoat: true, maxK: 7, shadow: { size: 4096, reach: 10000 }, post: true },
   };
   let TIER = TIERS.high, quality = 'high';
   let LO = 0;
@@ -408,6 +410,11 @@ vec3 nightLight(vec3 p) {
     });
     lodSink.push(g);
     return g;
+  }
+  // everything solid casts sun shadows and takes them (not the contact-shadow blobs, glows or smoke)
+  function castShadows(m) {
+    if (!TIER.shadow) return;
+    m.traverse(o => { if (o.isMesh && !o.userData.isShadow && !(o.material && o.material.transparent)) { o.castShadow = true; o.receiveShadow = true; } });
   }
   function setLod(model, level) {
     const u = model.userData;
@@ -1486,6 +1493,18 @@ vec3 nightLight(vec3 p) {
     geo.setAttribute('color', new T.BufferAttribute(roadCol, 3).setUsage(T.DynamicDrawUsage));
     road = new T.Mesh(geo, nightify(new T.MeshBasicMaterial({ vertexColors: true }), true));
     road.frustumCulled = false; scene.add(road);
+    // Sun shadows. The road stays unlit (its colours are painted), so shadows land on it through a second,
+    // see-through copy of the road surface that only darkens where the sun is blocked.
+    if (TIER.shadow) {
+      renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFSoftShadowMap;
+      sun.castShadow = true; sun.shadow.mapSize.set(TIER.shadow.size, TIER.shadow.size);
+      const sc = sun.shadow.camera, e = TIER.shadow.reach; sc.left = -e; sc.right = e; sc.top = e; sc.bottom = -e; sc.near = 100; sc.far = 30000; sc.updateProjectionMatrix();
+      sun.shadow.bias = -0.0004; sun.shadow.normalBias = 6; scene.add(sun.target);
+      roadShade = new T.Mesh(geo, new T.ShadowMaterial({ opacity: 0.42, depthWrite: false }));
+      roadShade.receiveShadow = true; roadShade.frustumCulled = false; roadShade.position.y = 3; roadShade.renderOrder = 1; scene.add(roadShade);
+    }
+    renderer.toneMapping = T.NoToneMapping;
+    if (TIER.post) post = makePost();
     ready = true;
     return true;
   }
@@ -1686,7 +1705,7 @@ vec3 nightLight(vec3 p) {
     else if (obj.type === 'cow') m = cowModel(COW_COATS[(obj.coat ??= Math.floor(Math.random() * COW_COATS.length))]);
     else if (obj.type === 'dog') { const i = Math.max(0, SP.dogs.indexOf(obj.look)); m = dogModel(cfg.DOG_COATS[i]); }
     else return null;
-    m.userData.lods = lodSink.splice(0); m.userData.look = look;
+    m.userData.lods = lodSink.splice(0); m.userData.look = look; castShadows(m);
     scene.add(m); vehicles.set(obj, m);
     return m;
   }
@@ -1837,7 +1856,7 @@ vec3 nightLight(vec3 p) {
       const seg = segments[(baseIdx + n) % L];
       for (const s of seg.sprites) {
         let m = sceneryMeshes.get(s);
-        if (!m) { m = sceneryModel(s); sceneryMeshes.set(s, m); scene.add(m); }
+        if (!m) { m = sceneryModel(s); castShadows(m); sceneryMeshes.set(s, m); scene.add(m); }
         const side = s.offset < 0 ? -1 : 1, d = (n - camFrac) * SEG_LEN;
         let p;
         if (s.kind === 'building') { const len = s.len || 1400; p = placeAt(d + len / 2, s.offset + side * 450 / ROAD_W); }
@@ -1916,10 +1935,62 @@ vec3 nightLight(vec3 p) {
     lastVisible = visible;
     updateSmoke(player, t);
     if (nightU.uNight.value) feedNightLights(pp, visible);
+    if (TIER.shadow) {                                           // the shadow box follows you, reaching mostly ahead
+      const day = !nightU.uNight.value, e = TIER.shadow.reach;
+      sun.castShadow = day; if (roadShade) roadShade.visible = day;
+      sun.target.position.set(pp.x * 0.5, pp.y, pp.z - e * 0.6);
+      sun.position.copy(sun.target.position).addScaledVector(SUN_DIR, 12000);
+    }
 
-    renderer.render(scene, camera);
+    if (post) post.render(); else renderer.render(scene, camera);
     const top = toScreen(pp.x, pp.y + 880, pp.z), bot = toScreen(pp.x, pp.y, pp.z);
     return { player: { x: bot.x, y: bot.y, top: top.y } };
+  }
+
+  // ---------------------------------------------------------------- glow pass (ultra)
+  // The scene renders off screen in HDR; bright parts (headlights, street lamps, signals, sun glints) are
+  // picked out, blurred at half and quarter size and added back as glow; then filmic (ACES) tone mapping
+  // and a soft vignette. Keeps the canvas transparent where nothing is drawn (the 2D sky shows through).
+  const SUN_DIR = new T.Vector3(0.6, 1, 0.4).normalize();
+  function makePost() {
+    const size = renderer.getDrawingBufferSize(new T.Vector2()), w = size.x, h = size.y, HF = T.HalfFloatType;
+    const rt = (a, b, ms) => new T.WebGLRenderTarget(a, b, { type: HF, samples: ms || 0 });
+    const scene0 = rt(w, h, 4), half = [rt(w >> 1, h >> 1), rt(w >> 1, h >> 1)], quart = [rt(w >> 2, h >> 2), rt(w >> 2, h >> 2)];
+    const quadCam = new T.OrthographicCamera(-1, 1, 1, -1, 0, 1), quadScene = new T.Scene(), quad = new T.Mesh(new T.PlaneGeometry(2, 2));
+    quad.frustumCulled = false; quadScene.add(quad);
+    const vert = 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }';
+    const mat = (frag, uniforms) => new T.ShaderMaterial({ vertexShader: vert, fragmentShader: frag, uniforms, depthTest: false, depthWrite: false, transparent: false });
+    const bright = mat(`uniform sampler2D t; varying vec2 vUv;
+      void main(){ vec4 c = texture2D(t, vUv); float l = dot(c.rgb, vec3(0.2126, 0.7152, 0.0722)); gl_FragColor = vec4(c.rgb * smoothstep(0.85, 1.6, l), 1.0); }`, { t: { value: null } });
+    const blur = mat(`uniform sampler2D t; uniform vec2 d; varying vec2 vUv;
+      void main(){ vec3 c = texture2D(t, vUv).rgb * 0.227;
+        c += (texture2D(t, vUv + d * 1.385).rgb + texture2D(t, vUv - d * 1.385).rgb) * 0.316;
+        c += (texture2D(t, vUv + d * 3.231).rgb + texture2D(t, vUv - d * 3.231).rgb) * 0.070;
+        gl_FragColor = vec4(c, 1.0); }`, { t: { value: null }, d: { value: new T.Vector2() } });
+    // tone: the painted colours pass through unchanged up to 0.8, brighter values (glows, glints) roll off
+    // smoothly instead of clipping; then a touch of contrast and saturation
+    const comp = mat(`uniform sampler2D s, b1, b2; uniform float glow; varying vec2 vUv;
+      vec3 shoulder(vec3 c){ return mix(c, 0.8 + 0.2 * (1.0 - exp(-(c - 0.8) / 0.2)), step(0.8, c)); }
+      void main(){ vec4 sc = texture2D(s, vUv); vec3 g = (texture2D(b1, vUv).rgb + texture2D(b2, vUv).rgb) * glow;
+        vec3 c = shoulder(sc.rgb + g);
+        float l = dot(c, vec3(0.2126, 0.7152, 0.0722)); c = mix(vec3(l), c, 1.08); c = clamp((c - 0.5) * 1.05 + 0.5, 0.0, 1.0); float v = smoothstep(1.25, 0.35, length(vUv - 0.5) * 1.6); c *= mix(0.82, 1.0, v);
+        float a = max(sc.a, clamp(dot(g, vec3(0.33)), 0.0, 1.0)); gl_FragColor = vec4(c * (sc.a > 0.0 ? 1.0 : a), a); }`,
+      { s: { value: scene0.texture }, b1: { value: half[0].texture }, b2: { value: quart[0].texture }, glow: { value: 0.8 } });
+    const pass = (m, target) => { quad.material = m; renderer.setRenderTarget(target); renderer.render(quadScene, quadCam); };
+    const blurInto = ([a, b2], src, pw, ph) => {
+      bright.uniforms.t.value = src; pass(bright, a);
+      blur.uniforms.t.value = a.texture; blur.uniforms.d.value.set(1 / pw, 0); pass(blur, b2);
+      blur.uniforms.t.value = b2.texture; blur.uniforms.d.value.set(0, 1 / ph); pass(blur, a);
+    };
+    return {
+      render() {
+        renderer.setRenderTarget(scene0); renderer.clear(); renderer.render(scene, camera);
+        blurInto(half, scene0.texture, w >> 1, h >> 1);
+        blurInto(quart, half[0].texture, w >> 2, h >> 2);
+        comp.uniforms.glow.value = nightU.uNight.value ? 1.1 : 0.6;
+        pass(comp, null);
+      },
+    };
   }
 
   // drop models for objects that no longer exist (new race)
@@ -1952,5 +2023,5 @@ vec3 nightLight(vec3 p) {
     return cv;
   }
 
-  return { init, setTrack, frame, forget, horizonY, setCamera, turntable, warmStep, get quality() { return quality; }, get smoke() { return smoke; }, get camera() { return camMode; }, get ready() { return ready; } };
+  return { init, setTrack, frame, forget, horizonY, setCamera, turntable, warmStep, get debug() { return { renderer, scene, sun, camera, roadShade }; }, get quality() { return quality; }, get smoke() { return smoke; }, get camera() { return camMode; }, get ready() { return ready; } };
 })();
