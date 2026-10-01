@@ -22,7 +22,7 @@ window.World3D = (() => {
 
   let W = 960, H = 540, ROAD_W = 2000, SEG_LEN = 200;
   let renderer, scene, camera, hemi, sun, ready = false, roadShade = null, post = null;
-  let road, roadPos, roadCol;
+  let road, roadPos, roadCol, roadUV, roadDet, det = 1;
   let segments = [], trackLength = 1, theme = null, SP = null, TS = null, cfg = {};
   const QUADS = 30; // per segment: verge and road (7), centre line (2), lane lines (4), or finish cells (12) / zebra + stop line
   const P = [], TH = [], Y = [];     // per-frame centreline points, headings, heights (camera space)
@@ -1360,22 +1360,72 @@ vec3 nightLight(vec3 p) {
 
   // ---------------------------------------------------------------- scenery models
   const buildingMats = new Map();
+  // Apartment block: the painted facade (windows, shop, sign) on a box, with real 3D detail lined up with the
+  // painted windows: a concrete sunshade (chajja) over each window and a sill under it, a ledge between
+  // floors, the odd AC unit, a parapet round the roof, a stair room, a water tank and TV aerials. At night
+  // most windows and the shop are lit (an emissive mask built from the same layout).
+  const litMasks = new Map();
+  function litMask(img) {
+    if (litMasks.has(img)) return litMasks.get(img);
+    const W0 = img.width, H0 = img.height, bh = img.bh, top = H0 - bh, floors = Math.floor((bh - 90) / 66);
+    const c = document.createElement('canvas'); c.width = W0; c.height = H0; const x = c.getContext('2d');
+    x.fillStyle = '#000'; x.fillRect(0, 0, W0, H0);
+    let h = bh * 31 + floors;
+    for (let f = 0; f < floors; f++) for (let k = 0; k < 3; k++) {
+      h = (h * 1103515245 + 12345) % 2147483648;
+      if (h / 2147483648 < 0.6) { x.fillStyle = h % 3 ? '#ffd27a' : '#fff1c4'; x.fillRect(30 + k * 92 + 3, top + 20 + f * 66 + 3, 54, 36); }
+    }
+    x.fillStyle = '#ffe2a0'; x.fillRect(30, H0 - 70, 260, 70);                                        // the shop
+    litMasks.set(img, c); return c;
+  }
   function buildingModel(s) {
     const img = s.img, len = s.len || 1400, depth = 900;
     const bh = img.bh || img.height * 0.8;
-    const height = len * bh / 300;
-    const key = img;
+    const height = len * bh / 300, k = len / 300, H0 = img.height, top = H0 - bh, floors = Math.floor((bh - 90) / 66);
+    const night = !!nightU.uNight.value, key = img;
     if (!buildingMats.has(key)) {
       const t = tex(img).clone(); t.needsUpdate = true;
       t.repeat.set(300 / img.width, bh / img.height); t.offset.set(10 / img.width, 0);
-      const facade = nightify(new T.MeshLambertMaterial({ map: t }));
+      const e = new T.CanvasTexture(litMask(img)); e.repeat.copy(t.repeat); e.offset.copy(t.offset);
+      const facade = nightify(new T.MeshLambertMaterial({ map: t, emissive: night ? '#ffcf7a' : '#000', emissiveMap: e, emissiveIntensity: night ? 0.9 : 0 }));
       const wall = lambert(img.wallColor || '#b9a88f'), roof = lambert('#4a4540');
-      buildingMats.set(key, { left: [facade, wall, roof, wall, wall, wall], right: [wall, facade, roof, wall, wall, wall] });
+      buildingMats.set(key, { left: [facade, wall, roof, wall, wall, wall], right: [wall, facade, roof, wall, wall, wall], wall });
     }
-    const mats = buildingMats.get(key)[s.offset < 0 ? 'left' : 'right'];
+    const bm = buildingMats.get(key), mats = bm[s.offset < 0 ? 'left' : 'right'];
     const g = new T.Group();
     const m = new T.Mesh(unitBox, mats); m.scale.set(depth, height, len); m.position.set(0, height / 2, 0); g.add(m);
-    const tank = cyl(90, 180, '#1e1e1e', (s.offset < 0 ? -1 : 1) * 150, height + 90, -len / 4); g.add(tank);
+    // detail on the facade: sd = which side faces the road; facade x (canvas px) -> z, canvas y -> height
+    const sd = s.offset < 0 ? 1 : -1, fx = sd * depth / 2, zOf = px => -sd * (px - 160) * k, yOf = py => (H0 - py) * k;
+    const concrete = lambert('#cfc6b4'), dark = lambert('#3a3a3a'), wall = bm.wall;
+    g.add(baked('bldg' + [Math.round(len), Math.round(bh), sd, img.wallColor], () => {
+      const d = new T.Group();
+      for (let f = 0; f < floors; f++) {
+        const fy = top + 20 + f * 66;
+        d.add(rbox(36, 10 * k, len * 0.96, wall, fx + sd * 18, yOf(fy + 54), 0, 4));                  // floor ledge
+        for (let w = 0; w < 3; w++) {
+          const z = zOf(30 + w * 92 + 30);
+          const shade = rbox(130, 7 * k, 74 * k, concrete, fx + sd * 60, yOf(fy - 5), z, 3); shade.rotation.z = sd * 0.12; d.add(shade);   // chajja
+          d.add(rbox(40, 5 * k, 66 * k, concrete, fx + sd * 18, yOf(fy + 45), z, 2));                // sill
+          if ((f * 3 + w) % 5 === 2) {                                                                  // AC unit
+            d.add(rbox(110, 15 * k, 32 * k, lambert('#e0e0e0'), fx + sd * 58, yOf(fy + 34), z + 18 * k, 4));
+            d.add(rbox(4, 11 * k, 26 * k, dark, fx + sd * 114, yOf(fy + 34), z + 18 * k, 1));
+          }
+        }
+      }
+      // roof: parapet, stair room, water tanks, TV aerials
+      const ry = height;
+      for (const zz of [-len / 2 + 15, len / 2 - 15]) d.add(rbox(depth, 70, 30, wall, 0, ry + 35, zz, 6));
+      for (const xx of [-depth / 2 + 15, depth / 2 - 15]) d.add(rbox(30, 70, len, wall, xx, ry + 35, 0, 6));
+      d.add(rbox(260, 240, 300, wall, -sd * 200, ry + 120, len / 4, 10));
+      d.add(rbox(280, 20, 320, dark, -sd * 200, ry + 250, len / 4, 6));
+      for (let i = 0; i < 2; i++) { const t = cyl(80, 170, '#1e1e1e', -sd * (60 + i * 190), ry + 85, -len / 4); d.add(t); d.add(cyl(84, 14, '#2b2b2b', -sd * (60 + i * 190), ry + 175, -len / 4)); }
+      for (let i = 0; i < 2; i++) {
+        const ax = sd * (120 - i * 260), az = len * (0.1 + i * 0.12);
+        spokeTo(d, [ax, ry, az], [ax, ry + 420, az], 5, dark);
+        for (let j = 0; j < 4; j++) spokeTo(d, [ax - 90 + j * 10, ry + 300 + j * 30, az], [ax + 90 - j * 10, ry + 300 + j * 30, az], 3, dark);
+      }
+      return d;
+    }));
     g.userData.size = { w: depth, h: height, l: len };
     g.userData.kind = 'building';
     return g;
@@ -1489,9 +1539,12 @@ vec3 nightLight(vec3 p) {
     const geo = new T.BufferGeometry();
     roadPos = new Float32Array(DRAW * QUADS * 6 * 3);
     roadCol = new Float32Array(DRAW * QUADS * 6 * 3);
+    roadUV = new Float32Array(DRAW * QUADS * 6 * 2); roadDet = new Float32Array(DRAW * QUADS * 6);
     geo.setAttribute('position', new T.BufferAttribute(roadPos, 3).setUsage(T.DynamicDrawUsage));
     geo.setAttribute('color', new T.BufferAttribute(roadCol, 3).setUsage(T.DynamicDrawUsage));
-    road = new T.Mesh(geo, nightify(new T.MeshBasicMaterial({ vertexColors: true }), true));
+    geo.setAttribute('uv', new T.BufferAttribute(roadUV, 2).setUsage(T.DynamicDrawUsage));
+    geo.setAttribute('detail', new T.BufferAttribute(roadDet, 1).setUsage(T.DynamicDrawUsage));
+    road = new T.Mesh(geo, roadMaterial());
     road.frustumCulled = false; scene.add(road);
     // Sun shadows. The road stays unlit (its colours are painted), so shadows land on it through a second,
     // see-through copy of the road surface that only darkens where the sun is blocked.
@@ -1522,6 +1575,7 @@ vec3 nightLight(vec3 p) {
   let colors = null;
   function setTrack(opts) {
     segments = opts.segments; trackLength = opts.trackLength; theme = opts.theme; SP = opts.SP; TS = opts.themeSprites; cfg = opts;
+    TILE = (opts.LANE_W || 0.6) * ROAD_W;
     for (const m of sceneryMeshes.values()) scene.remove(m);
     for (const m of vehicles.values()) scene.remove(m);
     for (const spare of pool.values()) for (const m of spare) scene.remove(m);
@@ -1580,11 +1634,13 @@ vec3 nightLight(vec3 p) {
 
   // ---------------------------------------------------------------- road mesh
   let vi = 0;
-  function quad(ax, ay, az, bx, by, bz, cx, cy, cz, dx, dy, dz, col) {
-    // a-b at the near edge (left, right), c-d at the far edge (right, left)
+  function quad(ax, ay, az, bx, by, bz, cx, cy, cz, dx, dy, dz, col, uv) {
+    // a-b at the near edge (left, right), c-d at the far edge (right, left); uv: [ua, va, ub, vb, uc, vc, ud, vd]
     const p = roadPos, c = roadCol, pts = [ax, ay, az, bx, by, bz, cx, cy, cz, ax, ay, az, cx, cy, cz, dx, dy, dz];
     for (let k = 0; k < 18; k++) p[vi * 3 + k] = pts[k];
-    for (let k = 0; k < 6; k++) { c[(vi + k) * 3] = col.r; c[(vi + k) * 3 + 1] = col.g; c[(vi + k) * 3 + 2] = col.b; }
+    for (let k = 0; k < 6; k++) { c[(vi + k) * 3] = col.r; c[(vi + k) * 3 + 1] = col.g; c[(vi + k) * 3 + 2] = col.b; roadDet[vi + k] = det; }
+    const u = [uv[0], uv[1], uv[2], uv[3], uv[4], uv[5], uv[0], uv[1], uv[4], uv[5], uv[6], uv[7]];
+    for (let k = 0; k < 12; k++) roadUV[vi * 2 + k] = u[k];
     vi += 6;
   }
   // a quad across the road between fractions f1..f2 of segment n (0 = its near end), from lateral a..b at the
@@ -1596,8 +1652,11 @@ vec3 nightLight(vec3 p) {
     const t1 = lerp(TH[n], TH[n + 1], f1), t2 = lerp(TH[n], TH[n + 1], f2), y1 = lerp(Y[n], Y[n + 1], f1) + yOff, y2 = lerp(Y[n], Y[n + 1], f2) + yOff;
     const c1 = Math.cos(t1), s1 = Math.sin(t1), c2 = Math.cos(t2), s2 = Math.sin(t2);
     const o1 = lerp(a1, a2, f1), o2 = lerp(b1, b2, f1), o3 = lerp(a1, a2, f2), o4 = lerp(b1, b2, f2);
+    // texture coordinates: one asphalt tile per lane across and three lane-widths along (wrapped to keep floats exact)
+    const L = segments.length, d1 = (((baseIdx + n + f1) % L) * SEG_LEN) / (TILE * 3), d2 = d1 + (f2 - f1) * SEG_LEN / (TILE * 3);   // tile is 3 lanes long
     quad(px1 + c1 * o1, y1, pz1 + s1 * o1, px1 + c1 * o2, y1, pz1 + s1 * o2,
-         px2 + c2 * o4, y2, pz2 + s2 * o4, px2 + c2 * o3, y2, pz2 + s2 * o3, col);
+         px2 + c2 * o4, y2, pz2 + s2 * o4, px2 + c2 * o3, y2, pz2 + s2 * o3, col,
+         [o1 / TILE, d1, o2 / TILE, d1, o4 / TILE, d2, o3 / TILE, d2]);
   }
   const strip = (n, o1, o2, yOff, col) => stripT(n, 0, 1, o1, o2, o1, o2, yOff, col);
   function buildRoad() {
@@ -1608,15 +1667,15 @@ vec3 nightLight(vec3 p) {
       const h1 = (seg.hw1 || 1) * U, h2 = (seg.hw2 || 1) * U;
       if (seg.junction) {
         // the cross road runs right through: road surface everywhere, its centre line, zebra crossings at the edges
-        strip(n, -26000, 26000, 0, col.road);
+        det = 1; strip(n, -26000, 26000, 0, col.road); det = 0.7;
         const j = seg.junction, k = (baseIdx + n) % L;
         if (k === j.s0 + (j.s1 - j.s0 + 1) / 2) { stripT(n, 0, 0.12, -26000, -h1 - 300, -26000, -h1 - 300, 3, colors.yellow); stripT(n, 0, 0.12, h1 + 300, 26000, h1 + 300, 26000, 3, colors.yellow); }
         if (k === j.s0 || k === j.s1) for (let x = -h1 + 60; x < h1 - 150; x += 300) stripT(n, 0.15, 0.85, x, x + 170, x, x + 170, 3, colors.white);
       } else {
-        strip(n, -26000, -h1 - rw - sw, -6, col.grass); stripT(n, 0, 1, h1 + rw + sw, 26000, h2 + rw + sw, 26000, -6, col.grass);
-        stripT(n, 0, 1, -h1 - rw - sw, -h1 - rw, -h2 - rw - sw, -h2 - rw, -3, col.shoulder); stripT(n, 0, 1, h1 + rw, h1 + rw + sw, h2 + rw, h2 + rw + sw, -3, col.shoulder);
-        stripT(n, 0, 1, -h1 - rw, -h1, -h2 - rw, -h2, 0, col.rumble); stripT(n, 0, 1, h1, h1 + rw, h2, h2 + rw, 0, col.rumble);
-        stripT(n, 0, 1, -h1, h1, -h2, h2, 0, col.road);
+        det = 0; strip(n, -26000, -h1 - rw - sw, -6, col.grass); stripT(n, 0, 1, h1 + rw + sw, 26000, h2 + rw + sw, 26000, -6, col.grass);
+        det = 0.3; stripT(n, 0, 1, -h1 - rw - sw, -h1 - rw, -h2 - rw - sw, -h2 - rw, -3, col.shoulder); stripT(n, 0, 1, h1 + rw, h1 + rw + sw, h2 + rw, h2 + rw + sw, -3, col.shoulder);
+        det = 0.45; stripT(n, 0, 1, -h1 - rw, -h1, -h2 - rw, -h2, 0, col.rumble); stripT(n, 0, 1, h1, h1 + rw, h2, h2 + rw, 0, col.rumble);
+        det = 1; stripT(n, 0, 1, -h1, h1, -h2, h2, 0, col.road); det = 0.7;                       // (paint on top: worn)
         if (seg.finish) {
           const phase = seg.finish === 2 ? 1 : 0;
           for (let q = 0; q < 12; q++) { if ((q + phase) % 2) continue; strip(n, -h1 + 2 * h1 * q / 12, -h1 + 2 * h1 * (q + 1) / 12, 3, colors.white); }
@@ -1629,10 +1688,53 @@ vec3 nightLight(vec3 p) {
           if (prev.junction && !seg.junction) stripT(n, 0.4, 0.65, 60, h1, 60, h1, 3, colors.white);
         }
       }
+      det = 1;
       for (let used = (vi - start) / 6; used < QUADS; used++) { for (let k = 0; k < 18; k++) roadPos[vi * 3 + k] = 0; vi += 6; }
     }
     road.geometry.attributes.position.needsUpdate = true;
     road.geometry.attributes.color.needsUpdate = true;
+    road.geometry.attributes.uv.needsUpdate = true; road.geometry.attributes.detail.needsUpdate = true;
+  }
+
+  // Asphalt: a painted tile (one lane wide) that the road's own colours are multiplied by, so the palette
+  // stays and the surface gets grain, darker wheel paths with tyre marks, an oily strip down the middle of
+  // the lane, patched repairs and cracks. 'detail' fades it per surface (full on the road, worn paint,
+  // a little on kerbs and pavement, none on the grass).
+  let TILE = 1200;
+  function asphaltTexture() {
+    const S = 512, c = document.createElement('canvas'); c.width = c.height = S; const x = c.getContext('2d');
+    let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    x.fillStyle = 'rgb(232,232,232)'; x.fillRect(0, 0, S, S);
+    // repair patches (slightly different tone, darker seam)
+    for (let i = 0; i < 4; i++) {
+      const w = 60 + rnd() * 120, h = 50 + rnd() * 160, px = rnd() * (S - w), py = rnd() * (S - h), t = rnd() < 0.5 ? 224 : 240;
+      x.fillStyle = `rgb(${t},${t},${t})`; x.fillRect(px, py, w, h); x.strokeStyle = 'rgba(80,80,80,.18)'; x.lineWidth = 2; x.strokeRect(px, py, w, h);
+    }
+    // wheel paths: darker, streaky; oil down the middle of the lane
+    for (const cx of [0.28, 0.72]) for (let i = 0; i < 260; i++) {
+      const px = (cx + (rnd() - 0.5) * 0.09) * S, py = rnd() * S;
+      x.fillStyle = `rgba(60,60,60,${0.03 + rnd() * 0.05})`; x.fillRect(px, py, 2 + rnd() * 6, 20 + rnd() * 90);
+    }
+    for (let i = 0; i < 9; i++) { x.fillStyle = `rgba(40,40,40,${0.05 + rnd() * 0.07})`; x.beginPath(); x.ellipse(S * (0.5 + (rnd() - 0.5) * 0.08), rnd() * S, 8 + rnd() * 18, 16 + rnd() * 40, 0, 0, 7); x.fill(); }
+    // cracks
+    x.strokeStyle = 'rgba(70,70,70,.55)'; x.lineWidth = 1.2;
+    for (let i = 0; i < 3; i++) { let px = rnd() * S, py = rnd() * S; x.beginPath(); x.moveTo(px, py); for (let k = 0; k < 12; k++) { px += (rnd() - 0.5) * 22; py += (rnd() - 0.3) * 18; x.lineTo(px, py); } x.stroke(); }
+    // grain
+    const img = x.getImageData(0, 0, S, S), d = img.data;
+    for (let i = 0; i < d.length; i += 4) { const n = (rnd() - 0.5) * 26; d[i] = Math.max(0, Math.min(255, d[i] + n)); d[i + 1] = Math.max(0, Math.min(255, d[i + 1] + n)); d[i + 2] = Math.max(0, Math.min(255, d[i + 2] + n)); }
+    x.putImageData(img, 0, 0);
+    const t = new T.CanvasTexture(c); t.wrapS = t.wrapT = T.RepeatWrapping; t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    return t;
+  }
+  function roadMaterial() {
+    const m = nightify(new T.MeshBasicMaterial({ vertexColors: true, map: asphaltTexture() }), true), night = m.onBeforeCompile;
+    m.onBeforeCompile = sh => {
+      night(sh);
+      sh.vertexShader = 'attribute float detail; varying float vDetail;\n' + sh.vertexShader.replace('#include <uv_vertex>', '#include <uv_vertex>\nvDetail = detail;');
+      sh.fragmentShader = 'varying float vDetail;\n' + sh.fragmentShader.replace('#include <map_fragment>', 'diffuseColor *= mix(vec4(1.0), texture2D(map, vUv), vDetail);');
+    };
+    m.customProgramCacheKey = () => 'road';
+    return m;
   }
 
   // ---------------------------------------------------------------- placing things
@@ -2008,6 +2110,7 @@ vec3 nightLight(vec3 p) {
       : k0 === 'rival' ? autoModel({ body: '#1a1a1a', trim: '#f5c400', canopy: '#f5c400' }, SP.rivals[0])
       : k0 === 'bus' ? busModel({ ...((cfg.BUS_LOOKS || {})[(arg || '').split('/')[0] || theme.city] || [BUS_DEFAULT])[+(arg || '').split('/')[1] || 0], ...((arg || '').split('/')[2] ? { crowd: true } : {}) }) : k0 === 'truck' ? truckModel(SP.truck) : k0 === 'car' ? carModel(arg || '#c62828')
       : k0 === 'bike' ? bikeModel(cfg.BIKE_LOOKS[+arg || 0])
+      : k0 === 'building' ? buildingModel({ img: TS.buildings[+arg || 0], offset: -1, len: 1400 })
       : k0 === 'look' ? carModelFor(cfg.CAR_LOOKS[+arg || 0]) : k0 === 'tractor' ? tractorModel(cfg.TRACTOR_LOOKS[+arg || 0])
       : k0 === 'cow' ? cowModel(COW_COATS[+arg || 0]) : k0 === 'dog' ? dogModel({ body: '#b07a45', belly: '#e8c9a0', dark: '#6d4a2a' }) : null;
     const k = Math.max(m.userData.size.l, m.userData.size.h) / 1000; m.scale.setScalar(1 / Math.max(1, k * 0.9));
