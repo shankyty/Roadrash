@@ -176,7 +176,7 @@ function deviceSummary() {
 //   error/<kind>/<problem>/<OS-browser>
 // with the details needed to reproduce them in the title (version, game state, OS/browser versions,
 // screen, audio state, stack). Nothing personal is sent. Also logged to the console.
-const GAME_VERSION = '2.9.1';
+const GAME_VERSION = '2.9.2';
 const safe = (f, fallback = '?') => { try { const v = f(); return v === undefined ? fallback : v; } catch (e) { return fallback; } };
 function envDetails() {
   const ua = navigator.userAgent || '';
@@ -717,6 +717,7 @@ addEventListener('visibilitychange', () => {
 const VEHICLE_SOUND = {
   truck: { f: 30, f2: 2, lp: 230, am: [8, 0.45], gain: 0.55, horn: { notes: [196, 247], dur: 0.75, wave: 'sawtooth', cut: 1700, blasts: 1 } },
   bus: { f: 36, f2: 2, lp: 260, am: [9, 0.35], gain: 0.5, horn: { notes: [294, 370], dur: 0.35, wave: 'sawtooth', cut: 2200, blasts: 2 } },
+  bike: { f: 58, f2: 1.7, lp: 900, am: [28, 0.35], gain: 0.16, horn: { notes: [560, 660], dur: 0.1, wave: 'square', cut: 3600, blasts: 2 } },
   car: { f: 70, f2: 1.5, lp: 600, am: [0, 0], gain: 0.25, horn: { notes: [415, 523], dur: 0.12, wave: 'square', cut: 3000, blasts: 2 } },
   auto: { f: 34, f2: 1.5, lp: 500, am: [22, 0.6], gain: 0.22, horn: { notes: [380, 300], dur: 0.16, wave: 'square', cut: 1800, blasts: 2, bulb: true } },
 };
@@ -941,6 +942,22 @@ function makeCar(color) {
   g.fillStyle = '#fff'; rr(g, 92, 104, 56, 18, 3); g.fill();
   g.fillStyle = '#111'; g.font = 'bold 11px Arial'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('MH 12 CR', 120, 113.5);
   g.fillStyle = '#2a2a2a'; rr(g, 10, 132, 220, 16, 8); g.fill();
+  return c;
+}
+
+// two-wheeler from behind: rear tyre, mudguard with tail lamp and plate, the rider's back and helmet
+function makeBike(look) {
+  const c = mk(120, 220), g = c.getContext('2d');
+  g.fillStyle = 'rgba(0,0,0,.35)'; ell(g, 60, 212, 34, 6); g.fill();
+  g.fillStyle = '#111'; rr(g, 50, 160, 20, 54, 8); g.fill();
+  g.fillStyle = look.color; rr(g, 34, 132, 52, 36, 10); g.fill();
+  g.fillStyle = '#ff2b2b'; rr(g, 48, 136, 24, 10, 3); g.fill();
+  g.fillStyle = '#fff'; rr(g, 44, 150, 32, 12, 2); g.fill();
+  g.fillStyle = '#2b2b2b'; rr(g, 22, 112, 76, 14, 6); g.fill();                       // legs / footrests
+  g.fillStyle = look.shirt; rr(g, 30, 46, 60, 74, 18); g.fill();                     // rider's back
+  g.fillStyle = look.shirt; rr(g, 12, 56, 18, 46, 8); g.fill(); rr(g, 90, 56, 18, 46, 8); g.fill();
+  g.fillStyle = look.helmet; ell(g, 60, 30, 22, 24); g.fill();
+  g.fillStyle = 'rgba(255,255,255,.25)'; ell(g, 52, 22, 8, 6); g.fill();
   return c;
 }
 
@@ -1543,6 +1560,15 @@ function makeDogSleep(coat) {
 
 // ------------------------------------------------------------------ sprites registry
 const CAR_COLORS = ['#e9e9ea', '#b71c1c', '#1f4e9c', '#9e9e9e'];
+// two-wheelers: motorcycles and scooters in a few paints, riders in different shirts and helmets
+const BIKE_LOOKS = [
+  { scooter: false, color: '#c62828', shirt: '#3949ab', helmet: '#111', pillion: false },
+  { scooter: true, color: '#e9e9ea', shirt: '#f06292', helmet: '#fdd835', pillion: false },
+  { scooter: false, color: '#111111', shirt: '#7cb342', helmet: '#e53935', pillion: true },
+  { scooter: true, color: '#1565c0', shirt: '#ffb300', helmet: '#fafafa', pillion: false },
+  { scooter: false, color: '#1f4e9c', shirt: '#5d4037', helmet: '#1e88e5', pillion: false },
+  { scooter: true, color: '#8e24aa', shirt: '#26a69a', helmet: '#111', pillion: true },
+];
 const SP = {};
 function buildSharedSprites() {
   SP.player = makeTuk('#1e9e4a', '#ffd21f', '#151515', 'DL 1R 4207');
@@ -1553,6 +1579,7 @@ function buildSharedSprites() {
     return { right: side, left: side.map(flipped), rear: [makeDogRear(coat, 0), makeDogRear(coat, 1)], sleep: makeDogSleep(coat) };
   });
   SP.cars = CAR_COLORS.map(makeCar);
+  SP.bikes = BIKE_LOOKS.map(makeBike);
   SP.bus = makeBus(); SP.truck = makeTruck();
   SP.palm = makePalm(); SP.palmF = flipped(SP.palm);
   const r = mulberry32(7); SP.trees = [makeTree(r), makeTree(r), makeTree(r)];
@@ -1744,7 +1771,7 @@ function loadTrack(idx) {
   const sky = SKYLINES[theme.city];
   bgLayers = { far: sky.far(theme, track.seed), near: sky.near(theme, track.seed + 5) };
   buildTrack(track);
-  if (use3D) World3D.setTrack({ segments, trackLength, theme, SP, themeSprites, CAR_COLORS, DOG_COATS, MAX_SPEED, LANE_W });
+  if (use3D) World3D.setTrack({ segments, trackLength, theme, SP, themeSprites, CAR_COLORS, BIKE_LOOKS, DOG_COATS, MAX_SPEED, LANE_W });
 }
 
 function findSegment(z) { return segments[Math.floor(((z % trackLength) + trackLength) % trackLength / SEG_LEN) % segments.length]; }
@@ -1787,13 +1814,16 @@ function setupRace() {
     const h = halfAt(z);
     if (type === 'cow') traffic.push({ type, z, x: rand(-h - 0.2, h + 0.2), speed: 0, vx: pick([-1, 1], tr) * rand(0.05, 0.12), nw: 0.42, len: 380, pause: 0, scared: 0, label: 'HOLY COW' });
     else {
-      const def = type === 'bus' ? { img: SP.bus, nw: 0.56, len: 3200, s: [0.28, 0.38], label: 'BUS' } : type === 'truck' ? { img: SP.truck, nw: 0.56, len: 2800, s: [0.25, 0.35], label: 'TRUCK' } : { img: pick(SP.cars, tr), nw: 0.38, len: 1500, s: [0.35, 0.5], label: 'CAR' };
-      const lanes = findSegment(z).lanes, lane = type === 'car' ? Math.floor(tr() * lanes) : lanes - 1;
+      const def = type === 'bus' ? { img: SP.bus, nw: 0.56, len: 3200, s: [0.28, 0.38], label: 'BUS' } : type === 'truck' ? { img: SP.truck, nw: 0.56, len: 2800, s: [0.25, 0.35], label: 'TRUCK' }
+        : type === 'bike' ? { img: pick(SP.bikes, tr), nw: 0.17, len: 860, s: [0.38, 0.55], label: 'BIKE' } : { img: pick(SP.cars, tr), nw: 0.38, len: 1500, s: [0.35, 0.5], label: 'CAR' };
+      const lanes = findSegment(z).lanes, lane = type === 'car' || type === 'bike' ? Math.floor(tr() * lanes) : lanes - 1;
       traffic.push({ type, dir, z, lane, x: laneX(dir, lane), img: def.img, nw: def.nw, len: def.len, speed: MAX_SPEED * rand(def.s[0], def.s[1]), label: def.label });
     }
   };
-  for (let i = 0; i < track.traffic; i++) addTraffic(pick(['car', 'car', 'bus', 'truck'], tr));
-  for (let i = 0; i < Math.round(track.traffic * 0.8); i++) addTraffic(pick(['car', 'car', 'bus', 'truck'], tr), -1); // oncoming
+  // the mix on the road: cars and bikes most, then buses, then trucks
+  const MIX = ['car', 'car', 'car', 'car', 'bike', 'bike', 'bike', 'bike', 'bus', 'bus', 'truck']; // ~36% / 36% / 18% / 9%
+  for (let i = 0; i < track.traffic; i++) addTraffic(pick(MIX, tr));
+  for (let i = 0; i < Math.round(track.traffic * 0.8); i++) addTraffic(pick(MIX, tr), -1); // oncoming
   for (let i = 0; i < track.cows; i++) addTraffic('cow');
   crossTraffic = []; for (const j of junctions) { j.busy = false; j.spawn = [0, 0]; j.fined = false; }
   for (let i = 0; i < (track.dogs || 0); i++) {
@@ -2241,7 +2271,7 @@ function stopLineAhead(z, dir, front, range) {
 }
 function driveTraffic(c, obs, dt) {
   const dir = c.dir;
-  if (c.cruise == null) { c.cruise = c.speed; c.stuck = 0; c.signal = 0; c.signalT = 0; c.checkT = rand(1, 3); c.pref = c.type === 'car' ? Math.floor(Math.random() * 3) : 2; }
+  if (c.cruise == null) { c.cruise = c.speed; c.stuck = 0; c.signal = 0; c.signalT = 0; c.checkT = rand(1, 3); c.pref = c.type === 'car' || c.type === 'bike' ? Math.floor(Math.random() * 3) : 2; }
   const reachOf = o => use3D ? (c.len + o.len) / 2 : 250;
   const hits = (x, o) => Math.abs(o.x - x) < (c.nw + o.nw) / 2 - 0.02;
   const fwd = o => wrapDelta(o.z - c.z) * dir;                 // how far ahead of me, going my way
@@ -2306,6 +2336,7 @@ function driveTraffic(c, obs, dt) {
 // every other junction fines you for jumping it.
 const CROSS_TYPES = [
   { type: 'car', nw: 0.38, len: 1500, label: 'CAR' }, { type: 'car', nw: 0.38, len: 1500, label: 'CAR' },
+  { type: 'bike', nw: 0.17, len: 860, label: 'BIKE' }, { type: 'bike', nw: 0.17, len: 860, label: 'BIKE' },
   { type: 'auto', nw: TUK_NW, len: TUK_LEN, label: 'AUTO' }, { type: 'bus', nw: 0.56, len: 3200, label: 'BUS' },
 ];
 function spawnCross(j, dirX, queued) {
@@ -2317,7 +2348,7 @@ function spawnCross(j, dirX, queued) {
   const x = queued ? back * dirX : -dirX * (j.half + 13);
   if (!queued && x * dirX > back) return;
   crossTraffic.push({ j, dirX, x, z: j.zc + dirX * 600, type: d.type, nw: d.nw, len: d.len, lenX, label: d.label, cruise: rand(1.9, 2.4), speed: queued ? 0 : 2.1,
-    img: d.type === 'bus' ? SP.bus : d.type === 'auto' ? pick(SP.rivals) : pick(SP.cars), palette: d.type === 'auto' ? pick(RIVAL_COLORS) : null, color: pick(CAR_COLORS) });
+    img: d.type === 'bus' ? SP.bus : d.type === 'auto' ? pick(SP.rivals) : d.type === 'bike' ? pick(SP.bikes) : pick(SP.cars), palette: d.type === 'auto' ? pick(RIVAL_COLORS) : null, color: pick(CAR_COLORS) });
 }
 function dropCross(gone) {
   const out = crossTraffic.filter(gone); if (!out.length) return;

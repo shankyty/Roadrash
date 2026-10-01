@@ -133,7 +133,21 @@ vec3 nightLight(vec3 p) {
     }));
     g.position.set(x, y, z); g.userData.wheel = true; return g;
   };
-  const shadow = (w, l) => { const m = new T.Mesh(blob, shadowMat); m.rotation.x = -Math.PI / 2; m.scale.set(w * 1.15, l * 1.1, 1); m.position.y = 4; m.renderOrder = 1; return m; };
+  // soft contact shadow the shape of the footprint (rounded rectangle, darkest in the middle), thrown a
+  // little away from the sun
+  let shadowTex = null;
+  function contactShadowMat() {
+    if (shadowTex) return shadowMat;
+    const c = document.createElement('canvas'); c.width = 128; c.height = 256; const x = c.getContext('2d');
+    for (let i = 0; i < 18; i++) { const k = i * 3.2; x.fillStyle = 'rgba(0,0,0,0.075)'; x.beginPath(); x.roundRect(k, k, 128 - 2 * k, 256 - 2 * k, Math.max(4, 44 - k)); x.fill(); }
+    shadowTex = new T.CanvasTexture(c);
+    shadowMat.map = shadowTex; shadowMat.color.set(0xffffff); shadowMat.opacity = 0.62; shadowMat.needsUpdate = true;
+    return shadowMat;
+  }
+  const shadow = (w, l) => {
+    const m = new T.Mesh(unitPlane, contactShadowMat()); m.rotation.x = -Math.PI / 2;
+    m.scale.set(w * 1.12, l * 1.06, 1); m.position.set(-w * 0.05, 4, -l * 0.02); m.renderOrder = 1; return m;
+  };
   // box with rounded edges and corners (a subdivided cube whose corner zones are pushed onto spheres of radius r)
   const rgeoCache = new Map();
   function roundedGeo(w, h, l, r) {
@@ -294,32 +308,60 @@ vec3 nightLight(vec3 p) {
     for (const [mat, geo] of parts) g.add(new T.Mesh(geo, mat));
     return g;
   }
-  // glossy paint and tinted glass (the flat lambert look is fine for canvas and rubber, not for car bodies)
-  const paint = (color, shininess = 60) => {
-    const key = 'paint' + color + shininess;
-    if (!matCache.has(key)) matCache.set(key, nightify(new T.MeshPhongMaterial({ color, shininess, specular: '#4a4a4a' })));
+  // Physically based paint, glass and chrome that reflect the track's sky (an environment map rebuilt per
+  // track in setTrack): clear-coated paint with a sharp highlight, dark glass that mirrors the sky at
+  // glancing angles, polished chrome. gloss 0..1 (matt canvas or tarpaulin .. showroom paint).
+  const envMats = [];
+  const envMat = m => { envMats.push(m); return nightify(m); };
+  const paint = (color, gloss = 60) => {
+    const key = 'paint' + color + gloss, k = Math.min(1, gloss / 60);
+    if (!matCache.has(key)) matCache.set(key, envMat(new T.MeshPhysicalMaterial({ color, metalness: 0.15 * k, roughness: 0.62 - 0.32 * k, clearcoat: k, clearcoatRoughness: 0.06 })));
     return matCache.get(key);
   };
-  const glass = nightify(new T.MeshPhongMaterial({ color: '#1e2b36', shininess: 110, specular: '#9fb4c4', side: T.DoubleSide }));
-  const chrome = nightify(new T.MeshPhongMaterial({ color: '#c9ced4', shininess: 120, specular: '#ffffff' }));
+  const glass = envMat(new T.MeshPhysicalMaterial({ color: '#0f1820', metalness: 0.55, roughness: 0.04, clearcoat: 1, clearcoatRoughness: 0.02, side: T.DoubleSide }));
+  const chrome = envMat(new T.MeshStandardMaterial({ color: '#e6e9ec', metalness: 1, roughness: 0.16 }));
+  const satin = envMat(new T.MeshStandardMaterial({ color: '#16181b', metalness: 0.3, roughness: 0.35 }));   // black trim, window surrounds
+  // sky dome for reflections: the theme's sky gradient, a bright sun patch and a road-grey ground
+  let envTarget = null, pmrem = null;
+  function buildEnv(night) {
+    if (!pmrem) pmrem = new T.PMREMGenerator(renderer);
+    const sc = new T.Scene(), sky = theme.sky, geo = new T.SphereGeometry(100, 32, 16), col = [];
+    const top = new T.Color(sky[0]), mid = new T.Color(sky[1]), hor = new T.Color(sky[2]), gnd = new T.Color(night ? '#0b0d14' : '#55585c'), c = new T.Color();
+    const pos = geo.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      const y = pos.getY(i) / 100;
+      if (y < 0) c.copy(hor).lerp(gnd, Math.min(1, -y * 6)); else if (y < 0.35) c.copy(hor).lerp(mid, y / 0.35); else c.copy(mid).lerp(top, (y - 0.35) / 0.65);
+      col.push(c.r, c.g, c.b);
+    }
+    geo.setAttribute('color', new T.Float32BufferAttribute(col, 3));
+    sc.add(new T.Mesh(geo, new T.MeshBasicMaterial({ vertexColors: true, side: T.BackSide })));
+    const sunM = new T.Mesh(new T.SphereGeometry(night ? 3 : 9, 12, 8), new T.MeshBasicMaterial({ color: new T.Color(theme.sun || '#fff').multiplyScalar(night ? 1 : 3) }));
+    sunM.position.set(55, 60, 40); sc.add(sunM);
+    if (envTarget) envTarget.dispose();
+    envTarget = pmrem.fromScene(sc, 0.02);
+    geo.dispose();
+    for (const m of envMats) { m.envMap = envTarget.texture; m.envMapIntensity = night ? 0.35 : 1; m.needsUpdate = true; }
+  }
   const tailGlow = lambert('#ff4033', { emissive: '#b00000', emissiveIntensity: 0.6 });
 
   // a side outline, [u, v] points (u forward, v up; bottom from the back to the front, then over the top back):
   // [u, v] a corner, [cu, cv, u, v] a curve through control point (cu, cv), [cu, cv, r] a wheel arch over (cu, cv)
   function outline(pts) {
     const s = new T.Shape();
+    let v = 0;
     pts.forEach((p, i) => {
       if (!i) s.moveTo(p[0], p[1]);
       else if (p.length === 4) s.quadraticCurveTo(p[0], p[1], p[2], p[3]);
-      else if (p.length === 3) s.absarc(p[0], p[1], p[2], Math.PI, 0, true);
+      else if (p.length === 3) { const a = Math.asin(Math.max(-1, Math.min(1, (v - p[1]) / p[2]))); s.absarc(p[0], p[1], p[2], Math.PI - a, a, true); } // arch leaves and rejoins the line it's cut from
       else s.lineTo(p[0], p[1]);
+      v = p.length === 3 ? v : p[p.length - 1];
     });
     return s;
   }
   // the outline extruded across the width with rounded edges (the bevel grows the outline by bev all round)
-  function profile(pts, width, bev, mat) {
+  function profile(pts, width, bev, mat, segs = 3) {
     const depth = Math.max(1, width - 2 * bev);
-    const geo = new T.ExtrudeGeometry(outline(pts), { depth, bevelEnabled: true, bevelSize: bev, bevelThickness: bev, bevelSegments: 3, curveSegments: 12 });
+    const geo = new T.ExtrudeGeometry(outline(pts), { depth, bevelEnabled: true, bevelSize: bev, bevelThickness: bev, bevelSegments: segs, curveSegments: 12 });
     geo.translate(0, 0, -depth / 2); geo.rotateY(Math.PI / 2);
     return new T.Mesh(geo, mat);
   }
@@ -399,12 +441,16 @@ vec3 nightLight(vec3 p) {
     const Wd = 760, L = 1500, R = L / 2, g = new T.Group();
     g.add(baked('car' + color, () => {
       const s = new T.Group(), body = paint(color), dark = lambert('#141517'), trim = lambert('#2a2c30');
-      // lower body (bevel 26 rounds every edge and makes it 26 bigger all round)
-      s.add(profile([[-724, 140], [-700, 110], [-635, 110], [-635, 125], [-470, 125, 165], [-305, 110], [315, 110], [315, 125], [480, 125, 165],
-        [645, 110], [705, 110], [730, 115, 730, 180], [728, 280], [720, 330, 640, 345], [330, 385], [-560, 400], [-700, 400, -715, 330]], Wd - 10, 26, body));
-      // glasshouse, narrower than the body (tumblehome), with the roof in the body colour
+      // lower body: a deep bevel (50) gives round shoulders, corners and bumpers, and makes it 50 bigger all
+      // round (so the arches here are 50 wider than they end up)
+      s.add(profile([[-700, 220], [-700, 165, -665, 150], [-470, 128, 192], [288, 150], [480, 128, 192],
+        [700, 160, 702, 220], [700, 270], [690, 312, 610, 320], [320, 352], [-540, 372], [-682, 372, -697, 300]], Wd - 10, 50, body, 5));
+      // glasshouse, narrower than the body (tumblehome): black pillars and window surrounds under a roof
+      // panel in the body colour
       const gw = Wd * 0.82;
-      s.add(profile([[330, 370], [90, 590], [60, 612, 10, 614], [-420, 606], [-470, 604, -500, 580], [-620, 370]], gw, 30, body));
+      s.add(profile([[330, 370], [90, 590], [60, 612, 10, 614], [-420, 606], [-470, 604, -500, 580], [-620, 370]], gw, 30, satin));
+      s.add(profile([[100, 586], [62, 616, 10, 620], [-420, 612], [-472, 610, -496, 584], [-200, 600]], gw + 6, 30, body));
+      for (const sx of [-1, 1]) s.add(rbox(6, 10, 860, chrome, sx * (gw / 2 + 3), 404, 140, 4));    // chrome strip under the windows
       for (const sx of [-1, 1]) {
         s.add(sidePane([[265, 410], [92, 570], [-100, 578], [-100, 410]], glass, sx * (gw / 2 + 1)));
         s.add(sidePane([[-130, 410], [-130, 578], [-400, 574], [-470, 560], [-560, 410]], glass, sx * (gw / 2 + 1)));
@@ -418,13 +464,16 @@ vec3 nightLight(vec3 p) {
       s.add(rbox(Wd * 0.44, 50, 24, dark, 0, 252, -R - 4, 10));
       s.add(rbox(Wd * 0.6, 32, 24, dark, 0, 124, -R - 2, 10));
       for (const sx of [-1, 1]) {
-        const hl = rbox(150, 52, 40, headGlow, sx * (Wd / 2 - 118), 306, -R + 12, 18); hl.rotation.y = -sx * 0.18; s.add(hl);
+        const hh = rbox(168, 66, 40, satin, sx * (Wd / 2 - 118), 306, -R + 8, 22); hh.rotation.y = -sx * 0.18; s.add(hh);   // housing
+        const hl = rbox(70, 40, 40, headGlow, sx * (Wd / 2 - 90), 308, -R + 2, 16); hl.rotation.y = -sx * 0.18; s.add(hl); // projector
+        const re = rbox(60, 36, 40, chrome, sx * (Wd / 2 - 158), 306, -R + 8, 14); re.rotation.y = -sx * 0.18; s.add(re);  // reflector
+        const drl = rbox(130, 8, 40, headGlow, sx * (Wd / 2 - 118), 280, -R + 6, 4); drl.rotation.y = -sx * 0.18; s.add(drl); // DRL strip
         s.add(rbox(48, 22, 20, chrome, sx * (Wd / 2 - 205), 252, -R - 8, 8));   // grille chrome ends
       }
       s.add(facePanel(plate('MH 12 CR', '#fff'), 150, 38, 0, 184, -R - 8, Math.PI));
       // back: tail lamps wrapping the corners, bumper, plate
       for (const sx of [-1, 1]) {
-        s.add(rbox(136, 84, 40, dark, sx * (Wd / 2 - 80), 345, R - 18, 18));             // tail lamp: dark bezel, bright lens
+        s.add(rbox(136, 84, 40, satin, sx * (Wd / 2 - 80), 345, R - 18, 18));            // tail lamp: dark bezel, bright lens
         s.add(rbox(112, 60, 40, tailGlow, sx * (Wd / 2 - 80), 345, R - 10, 14));
         s.add(rbox(30, 60, 90, tailGlow, sx * (Wd / 2 - 12), 345, R - 40, 12));
       }
@@ -433,17 +482,17 @@ vec3 nightLight(vec3 p) {
       // sides: door shut lines, handles, mirrors, a rubbing strip
       for (const sx of [-1, 1]) {
         const x = sx * ((Wd - 10) / 2 + 1);
-        s.add(box(3, 280, 5, dark, x, 270, -290));
-        s.add(box(3, 280, 5, dark, x, 270, 110));
-        s.add(box(3, 110, 5, dark, x, 355, 440));
-        for (const z of [-40, 330]) s.add(rbox(8, 14, 60, trim, x, 365, z, 4));
-        s.add(rbox(10, 22, 700, trim, x, 215, -80, 6));
-        s.add(rbox(60, 20, 30, dark, sx * (Wd / 2 + 4), 415, -290, 6));                 // mirror arm
+        s.add(box(3, 200, 5, dark, x, 255, -290));
+        s.add(box(3, 200, 5, dark, x, 255, 110));
+        s.add(box(3, 90, 5, dark, x, 310, 440));
+        for (const z of [-40, 330]) s.add(rbox(8, 14, 60, chrome, x, 330, z, 4));
+        s.add(rbox(10, 20, 640, satin, x, 205, -80, 6));
+        s.add(rbox(60, 20, 30, satin, sx * (Wd / 2 + 4), 415, -290, 6));                // mirror arm
         s.add(rbox(28, 58, 86, body, sx * (Wd / 2 + 34), 432, -300, 14));               // mirror
       }
       return s;
     }));
-    for (const z of [-480, 470]) for (const sx of [-1, 1]) g.add(wheel(122, 100, sx * (Wd / 2 - 64), 122, z));
+    for (const z of [-480, 470]) for (const sx of [-1, 1]) g.add(wheel(128, 104, sx * (Wd / 2 - 66), 128, z));
     g.add(shadow(Wd, L));
     indicators(g, Wd, L, 300, 0.7); g.userData.headY = 306;
     g.userData.size = { w: Wd, h: 700, l: L };
@@ -545,7 +594,7 @@ vec3 nightLight(vec3 p) {
       s.add(rbox(Wd, 650, 50, bodyC, 0, 825, R - 25, 12));
       s.add(rbox(Wd + 16, 40, bl, '#d32f2f', 0, 1155, bz, 12));
       // tarpaulin bulging over the load, tied down with ropes
-      s.add(rbox(Wd * 0.97, 420, bl - 60, paint('#1565c0', 15), 0, 1270, bz + 10, 190));
+      s.add(rbox(Wd * 0.97, 420, bl - 60, lambert('#1565c0'), 0, 1270, bz + 10, 190));
       for (let i = 0; i < 5; i++) {
         const z = bz - bl / 2 + 250 + i * 375;
         s.add(rbox(Wd * 0.7, 12, 16, '#e0c080', 0, 1482, z, 5));
@@ -565,6 +614,96 @@ vec3 nightLight(vec3 p) {
     g.add(shadow(Wd, L));
     indicators(g, Wd, L, 450); g.userData.headY = 560;
     g.userData.size = { w: Wd, h: 1500, l: L };
+    return g;
+  }
+  // a capsule from point a to point b (arms, legs, forks, exhausts)
+  const UP = new T.Vector3(0, 1, 0);
+  function limb(a, b, r, mat) {
+    const va = new T.Vector3(...a), d = new T.Vector3(...b).sub(va), len = d.length();
+    const m = new T.Mesh(capsule(r, Math.max(1, len)), mat);
+    m.position.copy(va).addScaledVector(d, 0.5); m.quaternion.setFromUnitVectors(UP, d.normalize());
+    return m;
+  }
+  // a rider sitting at hip (y, z), hands on the grips, feet on the pegs or floorboard; a pillion keeps
+  // their hands on their knees
+  function rider(s, look, hipY, hipZ, grip, foot, pillion = false) {
+    const shirt = lambert(pillion ? '#6d4c41' : look.shirt), pants = lambert('#2f3542'), skin = lambert('#8d5524'), shoe = lambert('#1a1a1a');
+    const lean = pillion ? 10 : -40, neck = [0, hipY + 270, hipZ + lean];
+    s.add(limb([0, hipY + 50, hipZ + 10], neck, 92, shirt));                                        // torso
+    const helmet = pillion ? lambert('#2b2b2b') : paint(look.helmet, 90);
+    const h = new T.Mesh(unitSphere, helmet); h.scale.set(150, 160, 175); h.position.set(0, hipY + 360, hipZ + lean - 10); s.add(h);
+    if (!pillion) { const v = new T.Mesh(unitSphere, glass); v.scale.set(120, 70, 60); v.position.set(0, hipY + 360, hipZ + lean - 80); s.add(v); }
+    for (const sx of [-1, 1]) {
+      const sh = [sx * 112, hipY + 235, hipZ + lean + 10];
+      const hand = pillion ? [sx * 120, hipY + 60, hipZ - 150] : [sx * grip[0], grip[1], grip[2]];
+      const elbow = [sx * 150, (sh[1] + hand[1]) / 2 - 20, (sh[2] + hand[2]) / 2 + 30];
+      s.add(limb(sh, elbow, 34, shirt)); s.add(limb(elbow, hand, 28, skin));
+      const hip = [sx * 72, hipY + 20, hipZ], knee = [sx * (pillion ? 120 : 110), hipY + 40, hipZ - (pillion ? 150 : 230)], ft = [sx * foot[0], foot[1], foot[2]];
+      s.add(limb(hip, knee, 50, pants)); s.add(limb(knee, ft, 40, pants));
+      const sho = new T.Mesh(unitSphere, shoe); sho.scale.set(70, 50, 120); sho.position.set(ft[0], ft[1], ft[2] - 30); s.add(sho);
+    }
+  }
+  // Two-wheelers: a commuter motorcycle (Splendor / Pulsar style: tank, engine, exhaust, telescopic forks,
+  // round headlamp, spoked wheels) or a scooter (Activa style: front apron and leg shield, floorboard,
+  // rounded rear body, small alloy wheels), with a helmeted rider and sometimes a pillion.
+  function bikeModel(look) {
+    const sc = look.scooter, r = sc ? 108 : 132, wb = sc ? 255 : 268, g = new T.Group();
+    g.add(baked('bike' + JSON.stringify(look), () => {
+      const s = new T.Group(), body = paint(look.color), dark = lambert('#1a1a1a'), engine = lambert('#4a4f55');
+      let hipY, hipZ, grip, foot;
+      if (sc) {
+        const apron = rbox(240, 360, 80, body, 0, 400, -wb + 70, 38); apron.rotation.x = 0.28; s.add(apron);   // front apron
+        s.add(rbox(210, 300, 40, satin, 0, 380, -wb + 140, 18));                                            // leg shield (inside)
+        s.add(rbox(210, 40, 300, satin, 0, 200, -10, 14));                                                  // floorboard
+        s.add(rbox(250, 240, 430, body, 0, 330, 150, 100));                                                 // rear body over the engine
+        s.add(rbox(200, 60, 390, dark, 0, 478, 130, 28));                                                   // seat
+        s.add(rbox(130, 40, 220, body, 0, r * 2 + 22, -wb, 18));                                            // front mudguard
+        s.add(limb([0, r, -wb], [0, 620, -wb + 120], 20, satin));                                          // fork
+        s.add(rbox(330, 80, 130, body, 0, 650, -wb + 130, 34));                                             // handlebar cowl
+        const hl = rbox(110, 56, 30, headGlow, 0, 652, -wb + 62, 20); hl.rotation.x = 0.2; s.add(hl);
+        s.add(rbox(150, 44, 30, tailGlow, 0, 420, 368, 14));
+        s.add(facePanel(plate('DL 3S', '#fff'), 110, 30, 0, 340, 368));
+        hipY = 520; hipZ = 140; grip = [165, 660, -wb + 150]; foot = [85, 228, -60];
+      } else {
+        s.add(rbox(160, 170, 250, engine, 0, 265, -20, 30));                                                // engine
+        for (let i = 0; i < 4; i++) s.add(rbox(176, 10, 120, chrome, 0, 220 + i * 28, -90, 4));            // cylinder fins
+        const tank = rbox(200, 130, 310, body, 0, 480, -95, 58); tank.rotation.x = -0.1; s.add(tank);      // fuel tank
+        for (const sx of [-1, 1]) s.add(rbox(10, 60, 120, chrome, sx * 101, 480, -110, 8));                // tank badges
+        s.add(rbox(150, 120, 180, body, 0, 395, 150, 30));                                                  // side panels
+        s.add(rbox(170, 52, 360, dark, 0, 530, 170, 24));                                                   // seat
+        const tail = rbox(140, 40, 280, body, 0, 470, 330, 18); tail.rotation.x = -0.18; s.add(tail);      // tail and rear mudguard
+        s.add(rbox(120, 40, 26, tailGlow, 0, 500, 455, 12));
+        s.add(facePanel(plate('DL 3S', '#fff'), 110, 30, 0, 410, 452));
+        s.add(limb([92, 225, -60], [104, 300, 410], 24, chrome));                                         // exhaust
+        s.add(rbox(20, 60, 300, dark, -76, 225, 130, 10));                                                  // chain guard
+        for (const sx of [-1, 1]) {
+          s.add(limb([sx * 58, r, -wb], [sx * 58, 610, -wb + 125], 16, chrome));                           // telescopic forks
+          s.add(limb([sx * 82, r, wb], [sx * 82, 480, 190], 14, chrome));                                  // rear shocks
+        }
+        s.add(rbox(80, 26, 230, body, 0, r * 2 + 18, -wb, 12));                                             // front mudguard
+        s.add(rbox(160, 140, 100, body, 0, 610, -wb + 95, 44));                                             // headlamp cowl
+        const hl = cyl(56, 30, '#fff', 0, 610, -wb + 42); hl.material = headGlow; hl.rotation.x = Math.PI / 2; s.add(hl);
+        hipY = 560; hipZ = 175; grip = [168, 665, -wb + 185]; foot = [112, 250, 55];
+      }
+      s.add(limb([-170, grip[1], grip[2]], [170, grip[1], grip[2]], 12, satin));                          // handlebar
+      for (const sx of [-1, 1]) {
+        s.add(limb([sx * 120, grip[1], grip[2]], [sx * 175, grip[1] + 130, grip[2] - 10], 6, chrome));    // mirror stalks
+        const mir = new T.Mesh(unitSphere, satin); mir.scale.set(70, 50, 16); mir.position.set(sx * 180, grip[1] + 150, grip[2] - 12); s.add(mir);
+      }
+      rider(s, look, hipY, hipZ, grip, foot);
+      if (look.pillion) rider(s, look, hipY + 30, hipZ + 250, grip, [118, foot[1] + 30, hipZ + 200], true);
+      return s;
+    }));
+    g.add(wheel(r, sc ? 62 : 52, 0, r, -wb, sc ? '#b9bec4' : '#cfd3d7'));
+    g.add(wheel(r, sc ? 62 : 56, 0, r, wb, sc ? '#b9bec4' : '#cfd3d7'));
+    g.add(shadow(260, 860));
+    // indicators: front on stalks by the headlamp, rear by the tail lamp
+    g.userData.ind = { '-1': [], '1': [] };
+    for (const sx of [-1, 1]) for (const [y, z] of [[sc ? 640 : 600, -wb + (sc ? 80 : 70)], [sc ? 430 : 495, sc ? 360 : 440]]) {
+      const m = new T.Mesh(unitSphere, indOff); m.scale.set(36, 28, 28); m.position.set(sx * 120, y, z); g.add(m); g.userData.ind[sx].push(m);
+    }
+    g.userData.headY = sc ? 652 : 610;
+    g.userData.size = { w: 340, h: (sc ? 520 : 560) + 450, l: 860 };
     return g;
   }
   function legs(g, color, spots, h, r, dz) {
@@ -792,6 +931,7 @@ vec3 nightLight(vec3 p) {
     hemi.intensity = night ? 0.3 : 0.95; sun.intensity = night ? 0.05 : 0.55;
     nightU.uNight.value = night ? 1 : 0; headGlow.emissiveIntensity = night ? 1.6 : 0.25;
     lampGlow.emissiveIntensity = night ? 1.4 : 0.3;
+    buildEnv(night);
   }
 
   // ---------------------------------------------------------------- per-frame track frame (camera space)
@@ -910,6 +1050,7 @@ vec3 nightLight(vec3 p) {
     else if (obj.type === 'bus') m = busModel(SP.bus);
     else if (obj.type === 'truck') m = truckModel(SP.truck);
     else if (obj.type === 'car') { const i = Math.max(0, SP.cars.indexOf(obj.img)); m = carModel(obj.color || cfg.CAR_COLORS[i] || '#e9e9ea'); }
+    else if (obj.type === 'bike') { const i = Math.max(0, SP.bikes.indexOf(obj.img)); m = bikeModel(cfg.BIKE_LOOKS[i]); }
     else if (obj.type === 'cow') m = cowModel();
     else if (obj.type === 'dog') { const i = Math.max(0, SP.dogs.indexOf(obj.look)); m = dogModel(cfg.DOG_COATS[i]); }
     else return null;
@@ -1102,7 +1243,8 @@ vec3 nightLight(vec3 p) {
         m.scale.y = c.mode === 'sleep' ? 0.45 : 1;
         for (const leg of m.userData.legs) leg.visible = c.mode !== 'sleep';
       }
-      m.position.set(p.x, p.y, p.z); m.rotation.set(animal ? 0 : back ? -p.pitch : p.pitch, yaw, 0, 'YXZ');
+      const lean = c.type === 'bike' ? (back ? 1 : -1) * sy * 1.4 : 0;           // bikes lean into lane changes
+      m.position.set(p.x, p.y, p.z); m.rotation.set(animal ? 0 : back ? -p.pitch : p.pitch, yaw, lean, 'YXZ');
       if (c.type === 'cow' || c.type === 'dog') walk(m, t * (c.type === 'dog' ? 14 : 6), c.type === 'dog' ? (c.mode === 'chase' || c.mode === 'cross' ? 1 : 0) : (c.pause > 0 ? 0 : Math.abs(c.vx || 0)));
       else {
         spinWheels(m, c.z);
@@ -1140,21 +1282,27 @@ vec3 nightLight(vec3 p) {
 
   // debug: render one model from four angles into a canvas (used to check models without driving)
   function turntable(kind, size = 360) {
-    const cv = document.createElement('canvas'); cv.width = size * 2; cv.height = size * 2;
-    const r = new T.WebGLRenderer({ canvas: cv, antialias: true, preserveDrawingBuffer: true }); r.setClearColor('#8a8f99');
-    const sc = new T.Scene(); sc.add(new T.HemisphereLight(0xffffff, 0x666666, 1)); const d = new T.DirectionalLight(0xffffff, 0.6); d.position.set(1, 2, 1); sc.add(d);
-    const m = kind === 'player' ? autoModel({ body: '#1e9e4a', trim: '#ffd21f', canopy: '#151515' }, SP.player)
-      : kind === 'rival' ? autoModel({ body: '#1a1a1a', trim: '#f5c400', canopy: '#f5c400' }, SP.rivals[0])
-      : kind === 'bus' ? busModel(SP.bus) : kind === 'truck' ? truckModel(SP.truck) : kind === 'car' ? carModel('#c62828')
-      : kind === 'cow' ? cowModel() : kind === 'dog' ? dogModel({ body: '#b07a45', belly: '#e8c9a0', dark: '#6d4a2a' }) : null;
+    // drawn by the game's own renderer (so materials share its sky reflections) into a render target, then
+    // copied onto a 2D canvas: four views, front three-quarters both sides, the back and the side
+    const cv = document.createElement('canvas'); cv.width = size * 2; cv.height = size * 2; const ctx = cv.getContext('2d');
+    const sc = new T.Scene(); sc.background = new T.Color('#8a8f99');
+    sc.add(new T.HemisphereLight(0xffffff, 0x666666, 1)); const d = new T.DirectionalLight(0xffffff, 0.6); d.position.set(1, 2, 1); sc.add(d);
+    const [k0, arg] = kind.split(':');
+    const m = k0 === 'player' ? autoModel({ body: '#1e9e4a', trim: '#ffd21f', canopy: '#151515' }, SP.player)
+      : k0 === 'rival' ? autoModel({ body: '#1a1a1a', trim: '#f5c400', canopy: '#f5c400' }, SP.rivals[0])
+      : k0 === 'bus' ? busModel(SP.bus) : k0 === 'truck' ? truckModel(SP.truck) : k0 === 'car' ? carModel(arg || '#c62828')
+      : k0 === 'bike' ? bikeModel(cfg.BIKE_LOOKS[+arg || 0])
+      : k0 === 'cow' ? cowModel() : k0 === 'dog' ? dogModel({ body: '#b07a45', belly: '#e8c9a0', dark: '#6d4a2a' }) : null;
     const k = Math.max(m.userData.size.l, m.userData.size.h) / 1000; m.scale.setScalar(1 / Math.max(1, k * 0.9));
     sc.add(m);
-    const cam = new T.PerspectiveCamera(35, 1, 10, 20000); r.setScissorTest(true);
+    const cam = new T.PerspectiveCamera(35, 1, 10, 20000), rt = new T.WebGLRenderTarget(size, size), px = new Uint8Array(size * size * 4), img = ctx.createImageData(size, size);
     [[-0.8, 0], [0.8, 0], [Math.PI, 0], [Math.PI / 2, 0]].forEach(([a], i) => {
-      const x = (i % 2) * size, y = (1 - Math.floor(i / 2)) * size;
       cam.position.set(Math.sin(a) * 2600, 1100, -Math.cos(a) * 2600); cam.lookAt(0, 420, 0);
-      r.setViewport(x, y, size, size); r.setScissor(x, y, size, size); r.render(sc, cam);
+      renderer.setRenderTarget(rt); renderer.render(sc, cam); renderer.readRenderTargetPixels(rt, 0, 0, size, size, px);
+      for (let y = 0; y < size; y++) img.data.set(px.subarray((size - 1 - y) * size * 4, (size - y) * size * 4), y * size * 4);
+      ctx.putImageData(img, (i % 2) * size, Math.floor(i / 2) * size);
     });
+    renderer.setRenderTarget(null); rt.dispose();
     return cv;
   }
 
