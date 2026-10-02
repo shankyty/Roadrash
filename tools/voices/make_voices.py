@@ -8,7 +8,9 @@ Three sets of clips, each made only when asked for; everything else already in v
                      trained ("<Speaker> speaks in a very loud, angry tone with a high pitch ..."). A named
                      speaker is the same voice every time. Takes differ a lot, so unless a `seed` is pinned
                      (on the curse, or on the voice for every line of an unnamed speaker), --takes are made
-                     and the highest-pitched one, the most shouted, is kept. A driver's clips for lines
+                     and the highest-pitched one is kept: a weak guess, so the takes that matter are
+                     picked by ear with audition.py and pinned on the curse (its own `describe` and
+                     `seed`). A driver's clips for lines
                      that are no longer in the config are dropped.
   --player           your driver's curses (lines.json, kind "curse"), also Indic Parler-TTS.
   --hawkers          the hawker calls (lines.json, kind "hawker"). Meta MMS-TTS (CC BY-NC 4.0); each
@@ -153,7 +155,7 @@ if args.rivals:
             pinned = c.get("seed", d["voice"].get("seed"))
             base = zlib.crc32(key.encode()) % 100000   # the same line always gets the same takes
             seeds = [pinned] if pinned is not None else [base + k for k in range(args.takes)]
-            jobs.append((key, f"{d['id']:8s} {c['say']}", lambda c=c, d=d, seeds=seeds: shouted(c["say"], d["voice"]["describe"] + CLEAN, seeds), SHOUT))
+            jobs.append((key, f"{d['id']:8s} {c['say']}", lambda c=c, d=d, seeds=seeds: shouted(c["say"], c.get("describe", d["voice"]["describe"]) + CLEAN, seeds), SHOUT))
 for e in lines:
     if e["kind"] == "curse" and args.player:
         jobs.append((e["line"], f"player   {e['say']}", lambda e=e: parler(e["say"], PLAYER_VOICE + CLEAN, e["seed"]), SHOUT))
