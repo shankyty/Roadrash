@@ -1,5 +1,13 @@
 # Changelog
 
+## v3.3.4: Space is the handbrake
+
+- **Handbrake on Space:**
+  - Hold a steer and pull Space above about 25 km/h to throw the auto into a drift. Let go of Space and keep steering to hold the slide.
+  - Space on its own just slows you down hard.
+  - The brake tap still starts a drift, so it works on phones too.
+- **The horn moves off Space:** it's on **W** and **S** (or **↑** and **↓** in the WASD layout), plus the touch horn button. The controls card shows the new keys.
+
 ## v3.3.3: A drift anthem
 
 - **Drift music:**

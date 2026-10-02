@@ -183,7 +183,7 @@ function deviceSummary() {
 //   error/<kind>/<problem>/<OS-browser>
 // with the details needed to reproduce them in the title (version, game state, OS/browser versions,
 // screen, audio state, stack). Nothing personal is sent. Also logged to the console.
-const GAME_VERSION = '3.3.3';
+const GAME_VERSION = '3.3.4';
 // 3D quality tier: mobile browsers < laptop/desktop browsers < the Mac app. 'smooth' (phones and tablets,
 // when 3D is forced there with ?3d) keeps the frame rate up with fewer polygons and a lower resolution; 'high' for computer browsers; 'ultra'
 // in the Mac app (loaded from file://): finest models, detail kept farther away, full Retina resolution.
@@ -2036,15 +2036,15 @@ function setupRace() {
 const LAYOUTS = [
   { id: 'arrows', label: 'DRIVE: ARROWS  ·  LATHI: A / D',
     up: ['ArrowUp'], down: ['ArrowDown'], left: ['ArrowLeft'], right: ['ArrowRight'],
-    hitL: ['KeyA'], hitR: ['KeyD'], horn: ['Space', 'KeyW', 'KeyS'] },
+    hitL: ['KeyA'], hitR: ['KeyD'], horn: ['KeyW', 'KeyS'], hand: ['Space'] },
   { id: 'wasd', label: 'DRIVE: W A S D  ·  LATHI: ← / →',
     up: ['KeyW'], down: ['KeyS'], left: ['KeyA'], right: ['KeyD'],
-    hitL: ['ArrowLeft'], hitR: ['ArrowRight'], horn: ['Space', 'ArrowUp', 'ArrowDown'] },
+    hitL: ['ArrowLeft'], hitR: ['ArrowRight'], horn: ['ArrowUp', 'ArrowDown'], hand: ['Space'] },
 ];
 let layoutIdx = clamp(store.get('layout', 0), 0, LAYOUTS.length - 1);
 const keys = {};
 const held = action => keys['T_' + action] || LAYOUTS[layoutIdx][action].some(c => keys[c]);
-const I = { left: () => held('left'), right: () => held('right'), up: () => held('up'), down: () => held('down') };
+const I = { left: () => held('left'), right: () => held('right'), up: () => held('up'), down: () => held('down'), hand: () => held('hand') }; // hand: handbrake (Space)
 const actionFor = code => {
   if (code.startsWith('T_')) return code.slice(2);
   const L = LAYOUTS[layoutIdx];
@@ -2303,8 +2303,8 @@ function updatePlayer(dt, controlled) {
   const seg = findSegment(player.dist);
   const sp = player.speed / MAX_SPEED;
   const dx = dt * 2 * sp;
-  let steer = 0, acc = false, brk = false;
-  if (controlled) { steer = (I.right() ? 1 : 0) - (I.left() ? 1 : 0); acc = I.up(); brk = I.down(); }
+  let steer = 0, acc = false, brk = false, hand = false;
+  if (controlled) { steer = (I.right() ? 1 : 0) - (I.left() ? 1 : 0); acc = I.up(); brk = I.down(); hand = I.hand(); }
   else { acc = player.speed < MAX_SPEED * 0.45; steer = clamp((clamp((laneX(1, 0) - player.x) * 0.8, -0.3, 0.3) - player.heading) * 4, -1, 1); }
   player.steer = lerp(player.steer, steer, Math.min(1, dt * 10));
   player.hornCd -= dt; player.inv -= dt; player.hurt -= dt;
@@ -2333,9 +2333,11 @@ function updatePlayer(dt, controlled) {
     player.x += player.speed * Math.sin(player.heading) * dt / ROAD_W;  // the sideways part of where you're heading
     player.x -= dx * sp * seg.curve * CENTRIFUGAL;
     if (acc) player.speed += ACCEL * dt; else if (brk) player.speed += BRAKE * dt; else player.speed += DECEL * dt;
+    if (hand) player.speed += BRAKE * 0.5 * dt; // handbrake: rear wheels locked
     // drift: steer + brake tap at speed kicks the back out; the body slides at an angle while you keep going
     const tap = brk && !player.brkWas; player.brkWas = brk;
-    if (!player.drift && steer && tap && player.speed > DRIFT_MIN) { player.drift = Math.sign(steer); Sfx.noise(0.25, 0.25, 2500); }
+    // a brake tap or the handbrake (Space) kicks the back out
+    if (!player.drift && steer && (tap || hand) && player.speed > DRIFT_MIN) { player.drift = Math.sign(steer); Sfx.noise(0.25, 0.25, 2500); }
     if (player.drift && (!steer || Math.sign(steer) !== player.drift || player.speed < DRIFT_END)) player.drift = 0;
     player.slip += (player.drift * DRIFT_SLIP - player.slip) * Math.min(1, dt * (player.drift ? 3.5 : 6));
     if (player.drift) player.speed -= player.speed * 0.22 * dt;   // tyres scrubbing
@@ -3206,14 +3208,15 @@ function drawControls(top) {
   const drive = cx => {
     text('DRIVE', cx, top + 18, 14, '#8bc34a');
     keycap(cx, top + 50, cap(L.up[0])); keycap(cx - 46, top + 90, cap(L.left[0])); keycap(cx, top + 90, cap(L.down[0])); keycap(cx + 46, top + 90, cap(L.right[0]));
-    text('gas · brake · steer', cx, top + 124, 12, '#ddd', 'center', 'system-ui, sans-serif');
+    text('gas · brake · steer', cx, top + 120, 12, '#ddd', 'center', 'system-ui, sans-serif');
+    text('SPACE handbrake: steer + SPACE to drift', cx, top + 135, 11, '#ffcc80', 'center', 'system-ui, sans-serif');
   };
   const fight = cx => {
     text('LATHI', cx, top + 18, 14, '#ff8a65');
     keycap(cx - 34, top + 60, cap(L.hitL[0]), 44, true); keycap(cx + 34, top + 60, cap(L.hitR[0]), 44, true);
     text('◀ swing', cx - 34, top + 88, 11, '#ddd', 'center', 'system-ui, sans-serif');
     text('swing ▶', cx + 34, top + 88, 11, '#ddd', 'center', 'system-ui, sans-serif');
-    text(`horn: SPACE · ${cap(L.horn[1])} · ${cap(L.horn[2])}`, cx, top + 120, 12, '#ddd', 'center', 'system-ui, sans-serif');
+    text(`horn: ${cap(L.horn[0])} · ${cap(L.horn[1])}`, cx, top + 120, 12, '#ddd', 'center', 'system-ui, sans-serif');
   };
   panel(W / 2 - 300, top, 600, 176, 0.55);
   text('LEFT HAND', W / 2 - 150, top + 2 + 150, 10, '#aaa'); text('RIGHT HAND', W / 2 + 150, top + 2 + 150, 10, '#aaa');
