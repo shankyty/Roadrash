@@ -11,7 +11,7 @@ class RaceStats {
     this.scoring = scoring;
     this.driftScore = 0; this.passes = 0; this.chain = 0; this.bestChain = 0; this.chainT = 0; this.time = null; this.rank = null;
   }
-  // a moment of sliding: speedPct and slipPct are shares (0 to 1) of top speed and of a full slide. Returns the points it earned
+  // a moment of sliding: speedPct is the speed as a share of top speed (it goes above 1 on speed tracks and under a boost, so points per metre stay constant); slipPct is the share (0 to 1) of a full slide. Returns the points it earned
   drift(dt, speedPct, slipPct) { const pts = 100 * speedPct * slipPct * dt; this.driftScore += pts; return pts; }
   // a close pass: lengthens the chain and restarts its timer. Returns the chain's length
   closePass() {

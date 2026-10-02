@@ -1813,8 +1813,11 @@ function updatePlayer(dt, controlled) {
     player.slip += (player.drift * DRIFT_SLIP - player.slip) * Math.min(1, dt * (player.drift ? 3.5 : 6));
     if (player.drift) {
       player.speed -= player.speed * def.handling.driftScrub * dt;   // tyres scrubbing
-      player.driftT += dt;
-      if (controlled && player.speed > DRIFT_END) player.driftPts += stats.drift(dt, player.speed / MAX_SPEED, Math.abs(player.slip) / DRIFT_SLIP);
+      // only a slide into a bend counts: weaving on a straight earns no points and no exit boost
+      if (player.drift === Math.sign(seg.curve) && Math.abs(seg.curve) >= DRIFT_BEND) {
+        player.driftT += dt;
+        if (controlled && player.speed > DRIFT_END) player.driftPts += stats.drift(dt, player.speed / MAX_SPEED, Math.abs(player.slip) / DRIFT_SLIP);
+      }
     }
     if (Math.abs(player.slip) > 0.12 && player.speed > DRIFT_END * 0.8) layTyreMarks();
     else player.markAt = null;
@@ -1851,7 +1854,7 @@ function updatePlayer(dt, controlled) {
 
 // A drift ends: its points pop up, and one held for DRIFT_HOLD seconds kicks the auto forward on tracks whose
 // style gives a drift-exit boost.
-const DRIFT_HOLD = 0.6, BOOST_SECS = 1.2;
+const DRIFT_HOLD = 0.6, DRIFT_BEND = 1, BOOST_SECS = 1.2; // seconds · the least road curve that counts as a bend · seconds
 function endDrift() {
   if (player.driftPts >= 10) popup(`DRIFT +${Math.round(player.driftPts)}`, W / 2, H - 250, '#ffd21f', 28);
   if (player.driftT >= DRIFT_HOLD && def.handling.driftExitBoost > 0) { player.boost = def.handling.driftExitBoost; player.boostT = BOOST_SECS; Sfx.whoosh(); }
@@ -1861,7 +1864,7 @@ function endDrift() {
 // Lane surfing: overtaking same-way traffic with little room to spare is a close pass. Each one counts in the
 // race's stats; on tracks whose style has a slipstream it also raises your top speed for a moment, more for
 // each pass in a quick chain.
-const CLOSE_GAP = 0.25, PASS_AGAIN = 5; // road units between the two bodies · seconds before the same vehicle counts again
+const CLOSE_GAP = 0.15, PASS_AGAIN = 5, PASS_MIN_SPEED = MAX_SPEED * 0.1; // road units between the two bodies · seconds before the same vehicle counts again · slower vehicles (a queue) don't count
 function updateClosePasses(dt) {
   stats.advance(dt);
   for (const c of traffic) {
@@ -1869,7 +1872,7 @@ function updateClosePasses(dt) {
     const dz = wrapDelta(c.z - player.dist), was = c.passDz;
     c.passDz = dz; if (c.passCd > 0) c.passCd -= dt;
     // it was just ahead and now it isn't (a jump from far ahead is the lap wrapping round, not a pass)
-    if (!(was > 0 && was < 2000 && dz <= 0) || c.passCd > 0 || player.crash > 0 || player.speed <= c.speed) continue;
+    if (!(was > 0 && was < 2000 && dz <= 0) || c.passCd > 0 || player.crash > 0 || player.speed <= c.speed || c.speed < PASS_MIN_SPEED) continue;
     const gap = Math.abs(c.x - player.x) - (c.nw + playerW()) / 2;
     if (gap < 0 || gap > CLOSE_GAP) continue;
     c.passCd = PASS_AGAIN;
@@ -2223,7 +2226,7 @@ function checkCollisions() {
     if (use3D && dz < reach - 260 && c.type !== 'dog') {
       const dir = player.x >= c.x ? 1 : -1;
       player.x = c.x + dir * (pw + c.nw) / 2 + dir * 0.01;
-      player.lean = dir * 0.5; player.speed *= 0.92; shake = 0.12; bumpPlayer(2, dir);
+      player.lean = dir * 0.5; player.speed *= 0.92; shake = 0.12; bumpPlayer(2, dir); c.passCd = PASS_AGAIN;  // (a touched vehicle isn't a close pass)
       if (c.type === 'cow') { Animals.mooFrom(c); c.vx = -dir * 0.8; c.scared = 2; }
       return;
     }
@@ -2238,7 +2241,7 @@ function checkCollisions() {
     const rel = (player.speed - c.speed) / MAX_SPEED;
     if (c.type === 'cow') { Animals.mooFrom(c); c.vx = (c.x >= player.x ? 1 : -1) * 0.8; c.scared = 2; }
     if (rel > 0.3) { crashPlayer(`SMASHED INTO A ${c.label}!`, 20 + rel * 25); player.speed = c.speed * 0.3; }
-    else { player.speed = c.speed * 0.8; if (rel > 0.02) { shake = 0.15; bumpPlayer(3); } }  // (leaning on its bumper isn't a bump)
+    else { player.speed = c.speed * 0.8; if (rel > 0.02) { shake = 0.15; bumpPlayer(3); c.passCd = PASS_AGAIN; } }  // (leaning on its bumper isn't a bump)
     player.dist -= reach - dz;
     return;
   }
@@ -2626,8 +2629,8 @@ function drawHUD() {
   text(fmtTime(raceTime), 190, 34, 18, '#fff', 'right');
   text(`TRACK ${level + 1}`, 190, 58, 12, '#ffcc80', 'right');
   text(`KO ${player.kos}`, 190, 80, 12, '#ff8a80', 'right');
-  if (player.drift && player.driftPts >= 1) text(`DRIFT ${Math.round(player.driftPts)}`, W / 2, 66, 22, '#ffd21f');
-  if (stats.chain > 1 && def.handling.slipstream > 0) text(`SLIPSTREAM \u00d7${stats.chain}`, W / 2, 92, 16, '#80deea');
+  if (player.drift && player.driftPts >= 1) text(`DRIFT ${Math.round(player.driftPts)}`, W / 2, 90, 22, '#ffd21f');
+  if (stats.chain > 1 && player.boostT > 0 && def.handling.slipstream > 0) text(`SLIPSTREAM \u00d7${stats.chain}`, W / 2, 114, 16, '#80deea');
   if (touch) text(`${Math.round(player.speed / MAX_SPEED * KMH)} KM/H`, 24, 84, 11, '#ffd21f', 'left');
   else {
     text('ESC MENU', 24, 84, 9, 'rgba(255,255,255,.55)', 'left');
