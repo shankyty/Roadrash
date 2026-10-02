@@ -39,10 +39,11 @@ One entry per driver:
   },
   "voice": { "lang": "pan", "speaker": "Gurpreet", "describe": "a loud, deep, hearty man shouting angrily, fast", "rate": 1.0 },
   "curses": [ { "text": "OYE KHOTEYA!", "say": "ਓਏ ਖੋਤਿਆ!" } ],
-  "weapon": { "kind": "swing", "shape": "hockey", "color": "#c8a165", "reach": 1.15, "sound": "wood",
+  "weapon": { "kind": "swing", "shape": "hockey", "color": "#c8a165", "power": 1.4, "reach": 1.15,
+              "cooldown": 1.3, "sound": "wood",
               "hitWords": ["HOCKEY!", "CHAK DE!", "DHISHOOM!"] },
   "style": {
-    "pace": 0.02, "bends": 0.30, "aggression": 1.0, "power": 1.3, "chase": 900,
+    "pace": 0.02, "bends": 0.30, "aggression": 1.0, "chase": 900,
     "weave": [4, 8], "nerve": 0.5, "launch": [0.1, 0.3], "grudge": 1.0
   }
 }
@@ -61,14 +62,14 @@ Each replaces a value that is random or constant in `updateRivals` / `setupRace`
 | `pace` | added to the top-speed factor (`track.skill * diff + pace ± 0.01`, clamped 0.7 to 1.02) | random −0.06 to +0.02 | −0.06 to +0.02 |
 | `bends` | how much speed is lost in a full curve | 0.22 | 0.12 to 0.32 |
 | `aggression` | attack rate (divides the attack cooldown); 0 means never attacks unprovoked | random 0.6 to 1.2 | 0 to 1.3 |
-| `power` | multiplies the damage of their hits | 1 | 0.8 to 1.3 |
 | `chase` | distance (track units) within which they come at you to fight | 900 | 500 to 1300 |
 | `weave` | seconds between lane changes, [min, max] | [3, 8] | [1.5, 4] to [6, 12] |
 | `nerve` | 0 to 1: side gap left when passing traffic (0.22 down to 0.10) and how late they brake behind it | gap 0.16 | 0 to 1 |
 | `launch` | reaction time at the start, [min, max] seconds | [0.05, 0.5] | within 0.05 to 0.6 |
 | `grudge` | for 10 s after you hit them, aggression becomes `max(aggression, 0.8) × grudge` | 1 | 1 to 2.5 |
 
-Balance rule: the cast's mean `pace` stays at −0.02 (today's mean), and no driver is best at everything.
+Balance rule: the cast's mean `pace` stays at −0.02 (today's mean), the mean weapon `power` stays near
+1.0, and no driver is best at everything.
 
 ## The cast
 
@@ -76,7 +77,7 @@ Balance rule: the cast's mean `pace` stays at −0.02 (today's mean), and no dri
 |---|---|---|---|
 | Mumbai | Ganpat | Bambaiya Hindi | Weaves through traffic with tight gaps, changes lanes often |
 | Delhi | Bunty | Delhi Hindi | Bully: hunts you from far, swings often, fast on straights, sloppy in bends |
-| Hyderabad | Saleem | Dakhni | Slow off the line and relaxed, but holds a grudge and hits hard |
+| Hyderabad | Saleem | Dakhni | Slow off the line and relaxed, but holds a grudge and slaps fast |
 | Chennai | Murugan | Tamil | Fearless: brakes late, high pace, rarely fights |
 | Kolkata | Bablu-da | Bengali | Steady and defensive, holds his lane, seldom swings |
 | Chandigarh | Jassi (the Sardar) | Punjabi | Fastest on straights, hardest hitter, slow in bends |
@@ -120,21 +121,25 @@ Each driver attacks in their own way. `weapon.kind` is `swing` (an arm swings so
 does today) or `kick` (a leg shoots out of the auto's open side). Three drivers kick; nobody else
 shares a weapon.
 
-| Driver | Attack | Hit words |
-|---|---|---|
-| Ganpat | cricket bat | SIXER!, DHISHOOM! |
-| Bunty | kick | LAAT!, DHAM! |
-| Saleem | open-hand slap (no weapon) | JHAAPAD!, CHATAAK! |
-| Murugan | kick, film-hero style | KICK-U!, DISHUM! |
-| Bablu-da | umbrella | CHHATA!, DHOPAASH! |
-| Jassi | hockey stick | HOCKEY!, CHAK DE! |
-| Jintu | kick, footballer's | GOAL!, DHAM! |
-| Banwari | jooti (his shoe) | JOOTI!, PATAAK! |
-| Manju | laptop bag swung by the strap | THUD!, DHAM! |
-| Nawab | walking cane | CHHADI!, SATAAK! |
-| Bhola | wet gamchha, cracked like a whip | SATAAK!, CHATAAK! |
-| Lallan | oiled lathi | LATTH!, DHISHOOM! |
-| Kokila-ben | dandiya sticks | DANDIYA!, THAK THAK! |
+| Driver | Attack | Power | Reach | Cooldown | Hit words |
+|---|---|---|---|---|---|
+| Jassi | hockey stick | 1.4 | 1.15 | 1.3 | HOCKEY!, CHAK DE! |
+| Ganpat | cricket bat | 1.3 | 1.05 | 1.3 | SIXER!, DHISHOOM! |
+| Murugan | kick, film-hero style | 1.25 | 0.8 | 1.2 | KICK-U!, DISHUM! |
+| Jintu | kick, footballer's | 1.2 | 0.85 | 1.1 | GOAL!, DHAM! |
+| Lallan | oiled lathi | 1.15 | 1.2 | 1.2 | LATTH!, DHISHOOM! |
+| Bunty | kick | 1.1 | 0.8 | 1.0 | LAAT!, DHAM! |
+| Manju | laptop bag swung by the strap | 1.1 | 0.9 | 1.2 | THUD!, DHAM! |
+| Bablu-da | umbrella | 0.9 | 1.1 | 1.0 | CHHATA!, DHOPAASH! |
+| Nawab | walking cane | 0.9 | 1.1 | 0.9 | CHHADI!, SATAAK! |
+| Saleem | open-hand slap (no weapon) | 0.8 | 0.8 | 0.8 | JHAAPAD!, CHATAAK! |
+| Banwari | jooti (his shoe) | 0.8 | 0.85 | 0.8 | JOOTI!, PATAAK! |
+| Kokila-ben | dandiya sticks | 0.75 | 0.9 | 0.7 | DANDIYA!, THAK THAK! |
+| Bhola | wet gamchha, cracked like a whip | 0.7 | 1.2 | 0.7 | SATAAK!, CHATAAK! |
+
+Power, reach and cooldown are multiples of today's lathi (1.0 each). Heavy weapons hit hard but are slow
+to come round again; light ones sting less but come fast. The cast's mean power is about 1.0, so races
+are no harder overall than today.
 
 Weapon fields:
 
@@ -143,12 +148,14 @@ Weapon fields:
 | `kind` | `swing` or `kick` |
 | `shape` | for a swing, what is drawn in the hand: `lathi`, `bat`, `hockey`, `umbrella`, `cane`, `cloth`, `shoe`, `bag`, `dandiya`, `hand` |
 | `color` | main colour of the weapon (a kick uses the driver's trouser colour) |
+| `power` | damage of a hit, as a multiple of the lathi's (0.7 to 1.4) |
 | `reach` | sideways reach, as a multiple of the lathi's (0.8 to 1.2); a kick is short, a hockey stick long |
+| `cooldown` | time before the next attack, as a multiple of the lathi's (0.7 to 1.3); combines with `style.aggression` |
 | `sound` | impact sound: `wood` (today's thwack), `slap` or `thud` |
 | `hitWords` | the comic popup words when it lands, replacing the shared `HIT_WORDS` for this driver |
 
-How hard a hit lands stays in `style.power`; the weapon only changes reach, look, sound and words. You
-keep the lathi.
+How hard a hit lands is a property of the weapon alone; the style numbers no longer carry it. You keep
+the lathi (1.0 across the board).
 
 ## Game changes (`web/game.js`, `web/world3d.js`, `web/index.html`)
 
@@ -162,8 +169,9 @@ keep the lathi.
 - **Rivals.** `setupRace` builds each rival from its driver: name, look and style. `updateRivals` and
   `resolveAttack` read the style fields in place of the constants in the table above. `grudge` starts a
   10 s timer when you hit that rival.
-- **Attacks.** `startAttack` and `resolveAttack` use the attacker's `weapon`: `reach` scales the sideways
-  range at which a rival starts an attack and at which it lands, the popup word comes from `hitWords`,
+- **Attacks.** `startAttack` and `resolveAttack` use the attacker's `weapon`: `power` scales the damage,
+  `cooldown` scales the wait before the next attack, `reach` scales the sideways range at which a rival
+  starts an attack and at which it lands, the popup word comes from `hitWords`,
   and `Sfx.hit` takes the `sound` variant. In 3D the auto's swing arm carries a mesh built from `shape`
   (simple primitives), and a kicking driver gets a leg that pivots out from the footboard instead. In 2D
   `drawLathi` becomes `drawAttack`, drawing the same shapes as strokes, or a leg for a kick.
@@ -217,7 +225,7 @@ rest are generated only after those are accepted.
 The web game has no test runner; checks are a script plus the running game.
 
 - `tools/drivers/check.mjs` (node): loads `drivers.js`, checks the schema and ranges, one driver per
-  city, every track city has a driver, mean `pace` is −0.02 ± 0.005, and every curse has a clip in
+  city, every track city has a driver, mean `pace` is −0.02 ± 0.005, mean weapon `power` is 1.0 ± 0.05, and every curse has a clip in
   `voices.js`. Run before each release.
 - In the browser preview through `window.__rrr`: for each of the seven tracks, `setupRace` 50 times and
   confirm the home driver is always on the grid and nobody appears twice; step a race and confirm style
