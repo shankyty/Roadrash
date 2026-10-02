@@ -729,6 +729,8 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 
 ### Task 5: Play each style and tune
 
+Note, added after execution: Tasks 1 to 4 and 6 are done, and a review fix pass changed some values this plan shows above: `CLOSE_GAP` is 0.15, stopped and just-touched vehicles do not count as close passes, drift points and the exit boost accrue only while sliding into a bend, and the HUD labels sit at y 90 and 114. `web/game.js` is the source of truth. Step 1 of this task (both renderers at sharpness 8) is done.
+
 The numbers so far were checked with scripted driving, which cannot judge feel. This task needs a person at the keyboard; if you are an agent that cannot play in real time, do Step 1, then stop and ask the user to do Steps 2 and 3.
 
 **Files:**
@@ -754,7 +756,8 @@ Race Sea Link (speed), Marine Drive (drift), Western Express (traffic) and Charm
 | Rivals are untouchable on drift tracks without drifting | That is intended; if it is too harsh lower `curves` to `[5, 7]` |
 | The slipstream is too strong or too weak | Change `slipstream` (0.04 per pass) |
 | Traffic tracks are a wall of vehicles | Lower `countScale` (1.6) towards 1.3 |
-| Close passes are too hard to get | Not a style value: raise `CLOSE_GAP` (0.25) in `web/game.js` towards 0.35 |
+| Close passes are too hard to get | Not a style value: raise `CLOSE_GAP` (0.15) in `web/game.js` towards 0.25 |
+| Close passes are too easy (they come without trying) | Lower `CLOSE_GAP` towards 0.1 |
 
 After any change run `node --test tests/*.test.js`; `tests/styles.test.js` pins `topSpeed: 1.25` for speed and sharpness 8 for drift, so update those expectations with the values.
 

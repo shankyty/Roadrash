@@ -259,10 +259,10 @@ Bend sharpness 8 is above today's maximum of 6. At 8, taking the bend flat out w
 - **Top speed.** The player's speed cap and each rival's top speed are multiplied by `topSpeed`. Traffic speeds are unchanged. The speedo reads up to `80 × topSpeed` km/h.
 - **Drift grip.** While drifting into a bend, only `driftGrip` of the bend's outward push is applied. Classic is 1 (today's behaviour).
 - **Boost.** One mechanism, `player.boost` (a share of top speed) while `player.boostT` lasts, raises the speed cap and is cleared by a crash.
-  - Drift exit: a drift held for at least 0.6 s gives `driftExitBoost` for 1.2 s when it ends.
+  - Drift exit: a drift held into a bend for at least 0.6 s gives `driftExitBoost` for 1.2 s when it ends.
   - Slipstream: each close pass gives `slipstream × chain` for 1.5 s, where `chain` counts passes made before the timer lapses, up to 5.
-- **Close pass.** A same-way vehicle (not a cow, dog or oncoming vehicle) goes from ahead of the player to behind, the player is faster and not crashed, and the sideways gap between the two bodies is under 0.25 road units. A vehicle counts once per 5 s.
-- **Drift score.** While drifting above the drift-end speed, points grow by `100 × (speed ÷ max speed) × (slip ÷ full slip)` per second.
+- **Close pass.** A moving same-way vehicle (not a cow, dog, oncoming vehicle or a stopped queue) goes from ahead of the player to behind, the player is faster and not crashed, and the sideways gap between the two bodies is under 0.15 road units. A vehicle counts once per 5 s, and not within 5 s of the player touching it.
+- **Drift score.** While sliding into a bend (road curve of 1 or more, in the drift's direction) above the drift-end speed, points grow by `100 × (speed ÷ 80 km/h) × (slip ÷ full slip)` per second. A drift on a straight scores nothing.
 
 ### `engine/race-stats.js`
 
@@ -321,4 +321,6 @@ Both steps were prototyped outside the repo before the plans were written. These
 - **`engine/util.js`** holds the helpers the engine and `game.js` share.
 - **`RaceStats` method names** are `advance` and `bonuses`, because the game's error reporter attributes `tick` and `cash` to the audio code.
 - **Pack files are generated once** from the old tables by a throwaway script, then maintained by hand.
+- **Close passes are stricter and drifts count only in bends** (from step 2's whole-branch review). At a 0.25 gap every bus or truck passed from the centre of the next lane counted as close, so the gap is 0.15, and stopped or just-touched vehicles do not count. Drift points and the exit boost accrue only while sliding into a bend, because otherwise weaving in short drifts was the fastest line down a straight on drift tracks.
+- **Pack validation is stricter than first specified** (from step 1's whole-branch review): empty or mistyped road recipes, traffic mixes and scenery are reported, and a failure while building the first track shows the error screen.
 
