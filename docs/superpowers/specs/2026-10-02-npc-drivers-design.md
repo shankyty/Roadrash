@@ -14,7 +14,8 @@ Tamil, Meta MMS) varied only by playback pitch, so they sound robotic and alike.
 
 A fixed cast of thirteen drivers, one per city, defined entirely in one config file. Each driver has a
 name and personality, an auto that looks like the autos of their city, a voice of their own that curses
-in their own language, and a driving style of their own.
+in their own language, a driving style of their own, and their own local way of attacking: a weapon from
+their city, or a kick.
 
 ## The config: `web/drivers.js`
 
@@ -30,7 +31,7 @@ One entry per driver:
   "name": "JASSI",
   "city": "chandigarh",
   "cityName": "CHANDIGARH",
-  "tag": "Flat out on the straights, and his lathi lands like a tractor",
+  "tag": "Flat out on the straights, and his hockey stick lands like a tractor",
   "look": {
     "body": "#1e8e3e", "trim": "#ff8f00", "canopy": "#f5c400",
     "plate": "CH 01 TA", "slogan": "CHAK DE PHATTE",
@@ -38,6 +39,8 @@ One entry per driver:
   },
   "voice": { "lang": "pan", "speaker": "Gurpreet", "describe": "a loud, deep, hearty man shouting angrily, fast", "rate": 1.0 },
   "curses": [ { "text": "OYE KHOTEYA!", "say": "ਓਏ ਖੋਤਿਆ!" } ],
+  "weapon": { "kind": "swing", "shape": "hockey", "color": "#c8a165", "reach": 1.15, "sound": "wood",
+              "hitWords": ["HOCKEY!", "CHAK DE!", "DHISHOOM!"] },
   "style": {
     "pace": 0.02, "bends": 0.30, "aggression": 1.0, "power": 1.3, "chase": 900,
     "weave": [4, 8], "nerve": 0.5, "launch": [0.1, 0.3], "grudge": 1.0
@@ -57,7 +60,7 @@ Each replaces a value that is random or constant in `updateRivals` / `setupRace`
 |---|---|---|---|
 | `pace` | added to the top-speed factor (`track.skill * diff + pace ± 0.01`, clamped 0.7 to 1.02) | random −0.06 to +0.02 | −0.06 to +0.02 |
 | `bends` | how much speed is lost in a full curve | 0.22 | 0.12 to 0.32 |
-| `aggression` | swing rate (divides the lathi cooldown); 0 means never swings unprovoked | random 0.6 to 1.2 | 0 to 1.3 |
+| `aggression` | attack rate (divides the attack cooldown); 0 means never attacks unprovoked | random 0.6 to 1.2 | 0 to 1.3 |
 | `power` | multiplies the damage of their hits | 1 | 0.8 to 1.3 |
 | `chase` | distance (track units) within which they come at you to fight | 900 | 500 to 1300 |
 | `weave` | seconds between lane changes, [min, max] | [3, 8] | [1.5, 4] to [6, 12] |
@@ -76,12 +79,12 @@ Balance rule: the cast's mean `pace` stays at −0.02 (today's mean), and no dri
 | Hyderabad | Saleem | Dakhni | Slow off the line and relaxed, but holds a grudge and hits hard |
 | Chennai | Murugan | Tamil | Fearless: brakes late, high pace, rarely fights |
 | Kolkata | Bablu-da | Bengali | Steady and defensive, holds his lane, seldom swings |
-| Chandigarh | Jassi (the Sardar) | Punjabi | Fastest on straights, heaviest lathi, slow in bends |
+| Chandigarh | Jassi (the Sardar) | Punjabi | Fastest on straights, hardest hitter, slow in bends |
 | Guwahati | Jintu | Assamese | Hill driver: quickest through bends, calm |
 | Jaipur | Banwari | Marwari-flavoured Hindi | Showy and erratic, sudden lane changes |
 | Bengaluru | Manju | Kannada | Patient and consistent, quick start, brakes early for traffic |
 | Lucknow | Nawab | Lakhnavi Urdu | "Pehle aap": never swings first, polite even when cursing, strong grudge once hit |
-| Varanasi | Bhola | Bhojpuri (Banarasi) | Mast-maula: unhurried and never comes looking for you, but pull alongside and the lathi is out at once |
+| Varanasi | Bhola | Bhojpuri (Banarasi) | Mast-maula: unhurried and never comes looking for you, but pull alongside and the gamchha cracks at once |
 | Patna | Lallan | Magahi-flavoured Hindi | Brawler: never backs off in traffic, swings a lot, average pace |
 | Ahmedabad | Kokila-ben (the cast's one woman driver) | Gujarati | No-nonsense: fast steady pace, clean through bends, scolds more than she swings, but never forgets a hit |
 
@@ -111,6 +114,42 @@ slogan and the driver figure.
 
 These are config values, so any of them can be changed without touching code.
 
+### Weapons
+
+Each driver attacks in their own way. `weapon.kind` is `swing` (an arm swings something, as the lathi
+does today) or `kick` (a leg shoots out of the auto's open side). Three drivers kick; nobody else
+shares a weapon.
+
+| Driver | Attack | Hit words |
+|---|---|---|
+| Ganpat | cricket bat | SIXER!, DHISHOOM! |
+| Bunty | kick | LAAT!, DHAM! |
+| Saleem | open-hand slap (no weapon) | JHAAPAD!, CHATAAK! |
+| Murugan | kick, film-hero style | KICK-U!, DISHUM! |
+| Bablu-da | umbrella | CHHATA!, DHOPAASH! |
+| Jassi | hockey stick | HOCKEY!, CHAK DE! |
+| Jintu | kick, footballer's | GOAL!, DHAM! |
+| Banwari | jooti (his shoe) | JOOTI!, PATAAK! |
+| Manju | laptop bag swung by the strap | THUD!, DHAM! |
+| Nawab | walking cane | CHHADI!, SATAAK! |
+| Bhola | wet gamchha, cracked like a whip | SATAAK!, CHATAAK! |
+| Lallan | oiled lathi | LATTH!, DHISHOOM! |
+| Kokila-ben | dandiya sticks | DANDIYA!, THAK THAK! |
+
+Weapon fields:
+
+| Field | Meaning |
+|---|---|
+| `kind` | `swing` or `kick` |
+| `shape` | for a swing, what is drawn in the hand: `lathi`, `bat`, `hockey`, `umbrella`, `cane`, `cloth`, `shoe`, `bag`, `dandiya`, `hand` |
+| `color` | main colour of the weapon (a kick uses the driver's trouser colour) |
+| `reach` | sideways reach, as a multiple of the lathi's (0.8 to 1.2); a kick is short, a hockey stick long |
+| `sound` | impact sound: `wood` (today's thwack), `slap` or `thud` |
+| `hitWords` | the comic popup words when it lands, replacing the shared `HIT_WORDS` for this driver |
+
+How hard a hit lands stays in `style.power`; the weapon only changes reach, look, sound and words. You
+keep the lathi.
+
 ## Game changes (`web/game.js`, `web/world3d.js`, `web/index.html`)
 
 - **Loading.** `index.html` loads `drivers.js`. On start the game validates each entry (required fields,
@@ -123,15 +162,20 @@ These are config values, so any of them can be changed without touching code.
 - **Rivals.** `setupRace` builds each rival from its driver: name, look and style. `updateRivals` and
   `resolveAttack` read the style fields in place of the constants in the table above. `grudge` starts a
   10 s timer when you hit that rival.
+- **Attacks.** `startAttack` and `resolveAttack` use the attacker's `weapon`: `reach` scales the sideways
+  range at which a rival starts an attack and at which it lands, the popup word comes from `hitWords`,
+  and `Sfx.hit` takes the `sound` variant. In 3D the auto's swing arm carries a mesh built from `shape`
+  (simple primitives), and a kicking driver gets a leg that pivots out from the footboard instead. In 2D
+  `drawLathi` becomes `drawAttack`, drawing the same shapes as strokes, or a leg for a kick.
 - **Curses.** `curse(who)` picks from the rival's own `curses` and plays the clip keyed
   `"<id>|<text>"`. The random `voicePitch` goes; `voice.rate` is the only playback adjustment. Your own
   driver still curses in the track city's slang (the existing `CURSES` table, now used only for you).
 - **2D sprites.** `makeTuk` takes the slogan; `SP.rivals` is built from the cast.
-- **3D autos.** `autoModel(pal, rearCanvas, look)` paints the driver's shirt and lathi sleeve from
+- **3D autos.** `autoModel(pal, rearCanvas, look)` paints the driver's shirt and sleeve from
   `look.shirt` and adds the headgear (turban and safa: a wrapped shape over the head; cap: a flat one; pallu: cloth draped
   over the head and one shoulder).
 - **Traffic autos.** Autos in traffic take the track city's livery instead of a random rival palette, so
-  Delhi's streets have green and yellow autos. They have no named driver, slogan or lathi.
+  Delhi's streets have green and yellow autos. They have no named driver, slogan or weapon.
 - **HUD and screens.** The nearest-rival bar and the results table show `NAME · CITY`. The start screen
   names the local driver with their `tag`.
 - **Debug hook.** `window.__rrr` exposes `drivers` and `pickGrid` for checks.
@@ -177,13 +221,15 @@ The web game has no test runner; checks are a script plus the running game.
   `voices.js`. Run before each release.
 - In the browser preview through `window.__rrr`: for each of the seven tracks, `setupRace` 50 times and
   confirm the home driver is always on the grid and nobody appears twice; step a race and confirm style
-  fields change behaviour (Jintu's bend speed above Jassi's, Nawab never swings before being hit, Bhola never chases from beyond his short range).
-- Screenshots of all thirteen autos in 3D and in 2D (`?2d`).
+  fields change behaviour (Jintu's bend speed above Jassi's, Jassi's hockey stick lands from further out
+  than Bunty's kick, Nawab never swings before being hit, Bhola never chases from beyond his short range).
+- Screenshots of all thirteen autos in 3D and in 2D (`?2d`), and of each attack mid-swing or mid-kick.
 - No console errors over a full race on a Mumbai and a Chennai track.
 
 ## Out of scope
 
-The Unreal fork, new tracks for the new cities, hawker voices, and the player's choice of driver.
+The Unreal fork, new tracks for the new cities, hawker voices, and the player's choice of driver or
+weapon.
 
 ## Delivery
 
