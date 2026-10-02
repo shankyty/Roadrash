@@ -1,6 +1,6 @@
 cask "roadrash" do
-  version "3.3.2"
-  sha256 "16e2b8b600eb10cb7583bbac27a8eaac834f5d04b4580a7b4164d9a0f69467af"
+  version "3.3.3"
+  sha256 "68bd5db0cb472a9c366b226d300d76c4efb1b612697ac9aa48af3e0e34987c42"
 
   url "https://github.com/shankyty/Roadrash/releases/download/v#{version}/RoadRash.dmg"
   name "Road Rash: Rickshaw Rumble"
