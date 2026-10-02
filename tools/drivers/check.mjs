@@ -34,7 +34,7 @@ for (const d of drivers) {
   must(HEADGEAR.includes(l.headgear), `look.headgear must be one of ${HEADGEAR}`);
   must(l.neon === null || hex(l.neon), 'look.neon must be #rrggbb or null');
   for (const k of ['lang', 'describe']) must(typeof v[k] === 'string' && v[k], `voice.${k} missing`);
-  must(typeof v.speaker === 'string', 'voice.speaker missing ("" for none)');
+  must(v.seed === undefined || Number.isInteger(v.seed), 'voice.seed must be a whole number');
   must(within(v.rate, 0.8, 1.2), 'voice.rate must be 0.8 to 1.2');
   must(Array.isArray(d.curses) && d.curses.length === 5, 'needs exactly five curses');
   for (const c of d.curses || []) must(c.text && c.say && c.text === c.text.toUpperCase(), `curse "${c.text}" needs upper-case text and say`);

@@ -278,7 +278,7 @@ const store = {
 // than seven are left (the biggest grid), so a race always starts.
 const PLAIN_DRIVER = { id: 'plain', name: 'RAJU', city: '', cityName: '', tag: '',
   look: { body: '#d7263d', trim: '#ffd166', canopy: '#141414', plate: 'UP 32 BT', slogan: 'HORN OK PLEASE', shirt: '#3949ab', headgear: 'none', headgearColor: '#000000', neon: null },
-  voice: { lang: 'hi', speaker: '', describe: '', rate: 1 }, curses: [],
+  voice: { lang: 'hi', describe: '', rate: 1 }, curses: [],
   weapon: { kind: 'swing', shape: 'lathi', color: '#c8a165', power: 1, reach: 1, cooldown: 1, sound: 'wood', hitWords: HIT_WORDS },
   style: { pace: -0.02, bends: 0.22, aggression: 0.9, chase: 900, weave: [3, 8], nerve: 0.5, launch: [0.05, 0.5], grudge: 1 } };
 const LATHI = PLAIN_DRIVER.weapon; // what you swing

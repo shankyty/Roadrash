@@ -4,11 +4,17 @@ Three sets of clips, each made only when asked for; everything else already in v
 
   --rivals [id,id]   each rival driver's own curses (web/drivers.js), in their own voice and language.
                      Clip key "<driver id>|<bubble text>". AI4Bharat Indic Parler-TTS (Apache 2.0): the
-                     driver's `voice.speaker` and `voice.describe` make the description prompt.
+                     driver's `voice.describe` is the description prompt, written the way the model was
+                     trained ("<Speaker> speaks in a very loud, angry tone with a high pitch ..."). A named
+                     speaker is the same voice every time. Takes differ a lot, so unless a `seed` is pinned
+                     (on the curse, or on the voice for every line of an unnamed speaker), --takes are made
+                     and the highest-pitched one, the most shouted, is kept. A driver's clips for lines
+                     that are no longer in the config are dropped.
   --player           your driver's curses (lines.json, kind "curse"), also Indic Parler-TTS.
   --hawkers          the hawker calls (lines.json, kind "hawker"). Meta MMS-TTS (CC BY-NC 4.0); each
                      entry has the take (`seed`) that was picked as the clearest.
   --samples DIR      also write every clip made in this run to DIR as .mp3, to listen to.
+  --takes N          takes per unpinned curse (default 3).
 
 In lines.json `line` is the bubble text and `say` what the voice actually says (native script; hawker
 calls stretch the key vowel).
@@ -21,6 +27,7 @@ Indic Parler-TTS is a gated model: accept its terms at huggingface.co/ai4bharat/
 log in (`hf auth login`) first.
 """
 import argparse, base64, json, os, re, subprocess, tempfile, zlib
+import librosa
 import numpy as np
 import scipy.io.wavfile as wav
 import torch
@@ -40,15 +47,17 @@ HAWKER = dict(rate=0.9, noise=0.7, gap=0.28, fx=(
     "highpass=f=100,vibrato=f=5.2:d=0.12,equalizer=f=1800:t=q:w=1.4:g=2,aecho=0.85:0.6:70:0.18,"
     "areverse,afade=t=in:d=0.3,areverse,loudnorm=I=-17:TP=-1.5:LRA=7,aresample=22050"))
 TRIM = "silenceremove=start_periods=1:start_threshold=-45dB,areverse,silenceremove=start_periods=1:start_threshold=-45dB,areverse,"
-CLEAN = "The recording is very clear and close-up, with no background noise."
+CLEAN = " Very clear audio, very close recording with no background noise."
 # your driver: one voice for every city, unlike any rival's
-PLAYER_VOICE = "A young man shouting in annoyance in a clear, medium-pitched voice, speaking fast."
+PLAYER_VOICE = ("A young male speaker speaks in a very loud, angry tone with a high pitch and a fast pace, shouting with great "
+                "emotional depth. The speech is very expressive and animated.")
 
 args = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
 args.add_argument("--rivals", nargs="?", const="all", help="all rival drivers, or a comma-separated list of ids")
 args.add_argument("--player", action="store_true")
 args.add_argument("--hawkers", action="store_true")
 args.add_argument("--samples", metavar="DIR")
+args.add_argument("--takes", type=int, default=3)
 args = args.parse_args()
 if not (args.rivals or args.player or args.hawkers):
     raise SystemExit("nothing to do: pass --rivals, --player and/or --hawkers")
@@ -107,9 +116,18 @@ def voiced(w, sr):
 
 
 # ---------------------------------------------------------------- what to make: (key, label, audio maker, fx)
-def describe(voice):
-    who = voice["describe"].strip().rstrip(".")
-    return (f"{voice['speaker']}, {who}. " if voice["speaker"] else f"{who[0].upper()}{who[1:]}. ") + CLEAN
+def shouted(text, description, seeds):
+    """the take that sits highest in pitch (a shout does), among those of a sensible length"""
+    takes = []
+    for seed in seeds:
+        a, sr = parler(text, description, seed)
+        f0, ok, _ = librosa.pyin(a, fmin=60, fmax=500, sr=sr)
+        f0 = f0[ok & ~np.isnan(f0)]
+        takes.append((float(np.median(f0)) if len(f0) > 4 else 0.0, len(a) / sr, a, sr))
+    mid = float(np.median([t[1] for t in takes]))
+    sane = [t for t in takes if 0.6 * mid <= t[1] <= 1.6 * mid] or takes
+    best = max(sane, key=lambda t: t[0])
+    return best[2], best[3]
 
 
 jobs = []
@@ -121,14 +139,18 @@ if args.rivals:
     for d in drivers:
         if want and d["id"] not in want:
             continue
+        keep = {f"{d['id']}|{c['text']}" for c in d["curses"]}
+        for stale in [k for k in clips if k.startswith(d["id"] + "|") and k not in keep]:
+            del clips[stale]
         for c in d["curses"]:
             key = f"{d['id']}|{c['text']}"
-            # the same line always gets the same take; put "seed" on a curse to pick another
-            seed = c.get("seed", zlib.crc32(key.encode()) % 100000)
-            jobs.append((key, f"{d['id']:8s} {c['say']}", lambda c=c, d=d, seed=seed: parler(c["say"], describe(d["voice"]), seed), SHOUT))
+            pinned = c.get("seed", d["voice"].get("seed"))
+            base = zlib.crc32(key.encode()) % 100000   # the same line always gets the same takes
+            seeds = [pinned] if pinned is not None else [base + k for k in range(args.takes)]
+            jobs.append((key, f"{d['id']:8s} {c['say']}", lambda c=c, d=d, seeds=seeds: shouted(c["say"], d["voice"]["describe"] + CLEAN, seeds), SHOUT))
 for e in lines:
     if e["kind"] == "curse" and args.player:
-        jobs.append((e["line"], f"player   {e['say']}", lambda e=e: parler(e["say"], PLAYER_VOICE + " " + CLEAN, e["seed"]), SHOUT))
+        jobs.append((e["line"], f"player   {e['say']}", lambda e=e: parler(e["say"], PLAYER_VOICE + CLEAN, e["seed"]), SHOUT))
     if e["kind"] == "hawker" and args.hawkers:
         def hawk(e=e):
             torch.manual_seed(e["seed"])

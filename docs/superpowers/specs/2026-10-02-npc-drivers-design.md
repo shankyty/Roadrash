@@ -38,7 +38,7 @@ One entry per driver:
     "shirt": "#f5f5f5", "headgear": "turban", "headgearColor": "#e65100",
     "neon": "#ff9100"
   },
-  "voice": { "lang": "pan", "speaker": "Gurpreet", "describe": "a loud, deep, hearty man shouting angrily, fast", "rate": 1.0 },
+  "voice": { "lang": "pa", "describe": "A male speaker with a deep voice speaks in a very loud, angry tone with a high pitch and a fast pace, shouting with great emotional depth. The speech is very expressive and animated.", "seed": 23, "rate": 1.0 },
   "curses": [ { "text": "OYE KHOTEYA!", "say": "ਓਏ ਖੋਤਿਆ!" } ],
   "weapon": { "kind": "swing", "shape": "hockey", "color": "#c8a165", "power": 1.4, "reach": 1.15,
               "cooldown": 1.3, "sound": "wood",
@@ -205,8 +205,10 @@ the lathi (1.0 across the board).
 `make_voices.py` gains a second engine, AI4Bharat Indic Parler-TTS (`ai4bharat/indic-parler-tts`,
 Apache 2.0), used for all curses:
 
-- **Rival curses** come from `web/drivers.js`: each line is spoken by the driver's `speaker` with their
-  `describe` prompt, then goes through the existing shout chain (compressor, soft clip, presence boost),
+- **Rival curses** come from `web/drivers.js`: each line is spoken with the driver's `describe` prompt
+  (written the way the model was trained: who speaks, in what tone, pitch and pace; a named speaker gives
+  the same voice every time). Without a pinned `seed`, three takes are made and the highest-pitched one
+  (the most shouted) is kept, then goes through the existing shout chain (compressor, soft clip, presence boost),
   retuned so it no longer pitch-shifts the voice. 13 drivers × 5 lines = 65 clips, keyed `"<id>|<text>"`.
 - **Your curses** (28 lines in `lines.json`) are regenerated with Parler using one Hindi and one Tamil
   speaker that no rival uses.

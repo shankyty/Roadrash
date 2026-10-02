@@ -4,10 +4,10 @@ window.RRR_DRIVERS = [
     "tag": "Knows every gap in Mumbai traffic, and takes all of them",
     "look": { "body": "#1a1a1a", "trim": "#f5c400", "canopy": "#f5c400", "plate": "MH 02 GP", "slogan": "AAMCHI MUMBAI",
               "shirt": "#f5f5f5", "headgear": "cap", "headgearColor": "#f5f5f5", "neon": "#ff2bd6" },
-    "voice": { "lang": "hi", "speaker": "Rohit", "describe": "a street-smart man shouting angrily in a rough, slightly high-pitched voice, speaking fast", "rate": 1.0 },
+    "voice": {"lang": "hi", "describe": "Sanjay speaks in a very loud, angry tone with a high pitch and a fast pace, shouting with great emotional depth. The speech is very expressive and animated.", "rate": 1.0},
     "curses": [
       { "text": "ABE O HERO!", "say": "अबे ओ हीरो!" },
-      { "text": "KYA RE, DIMAAG KHARAB?", "say": "क्या रे, दिमाग खराब?" },
+      { "text": "DIMAAG KHARAB HAI KYA?!", "say": "दिमाग खराब है क्या?!", "seed": 11 },
       { "text": "AYE BHIDU, SAMBHAL KE!", "say": "ए भिड़ू, संभल के!" },
       { "text": "APUN KO MAARA?!", "say": "अपुन को मारा?!" },
       { "text": "WAAT LAGA DUNGA!", "say": "वाट लगा दूंगा!" }
@@ -21,7 +21,7 @@ window.RRR_DRIVERS = [
     "tag": "Thinks he owns the road, and comes looking for you to prove it",
     "look": { "body": "#1e8e3e", "trim": "#f5c400", "canopy": "#f5c400", "plate": "DL 1R BT", "slogan": "DILLI KA BOSS",
               "shirt": "#e53935", "headgear": "none", "headgearColor": "#000000", "neon": "#2b6bff" },
-    "voice": { "lang": "hi", "speaker": "Aman", "describe": "a loud, cocky young man shouting angrily in a deep, booming voice", "rate": 1.0 },
+    "voice": {"lang": "hi", "describe": "Rohit speaks in a very loud, angry tone with a high pitch and a fast pace, shouting with great emotional depth. The speech is very expressive and animated.", "rate": 1.0},
     "curses": [
       { "text": "OYE! JAANTA HAI MERA BAAP KAUN HAI?", "say": "ओए! जानता है मेरा बाप कौन है?" },
       { "text": "ABEY OYE!", "say": "अबे ओए!" },
@@ -38,7 +38,7 @@ window.RRR_DRIVERS = [
     "tag": "In no hurry at all, until you hit him",
     "look": { "body": "#f5c400", "trim": "#1a1a1a", "canopy": "#1a1a1a", "plate": "TS 09 SL", "slogan": "HAULE HAULE",
               "shirt": "#e8e0d0", "headgear": "cap", "headgearColor": "#f5f5f5", "neon": null },
-    "voice": { "lang": "hi", "speaker": "Rohit", "describe": "a laid-back middle-aged man scolding loudly in a slow, drawling, low-pitched voice", "rate": 0.95 },
+    "voice": {"lang": "hi", "describe": "Nikhil speaks in a very loud, angry tone with a high pitch and a moderate pace, shouting with great emotional depth. The speech is very expressive and animated.", "rate": 1.0},
     "curses": [
       { "text": "KYA RE MIYAN!", "say": "क्या रे मियाँ!" },
       { "text": "NAKKO RE!", "say": "नक्को रे!" },
@@ -55,7 +55,7 @@ window.RRR_DRIVERS = [
     "tag": "Brakes are for other people; drives like the hero of his own film",
     "look": { "body": "#f5c400", "trim": "#1a1a1a", "canopy": "#f5c400", "plate": "TN 09 MU", "slogan": "THALAIVA",
               "shirt": "#8d7b4a", "headgear": "none", "headgearColor": "#000000", "neon": "#39ff14" },
-    "voice": { "lang": "ta", "speaker": "", "describe": "a man with a deep, powerful voice shouting angrily, speaking fast", "rate": 1.0 },
+    "voice": {"lang": "ta", "describe": "A male speaker with a deep voice speaks in a very loud, angry tone with a high pitch and a fast pace, shouting with great emotional depth. The speech is very expressive and animated.", "seed": 23, "rate": 1.0},
     "curses": [
       { "text": "DEI!", "say": "டேய்!" },
       { "text": "ENNA DA?!", "say": "என்ன டா?!" },
@@ -72,7 +72,7 @@ window.RRR_DRIVERS = [
     "tag": "Steady as a tram: holds his lane and would rather argue than fight",
     "look": { "body": "#1e8e3e", "trim": "#f5c400", "canopy": "#1a1a1a", "plate": "WB 04 BD", "slogan": "ABAR ASHBO",
               "shirt": "#f5f5f5", "headgear": "none", "headgearColor": "#000000", "neon": null },
-    "voice": { "lang": "bn", "speaker": "Tapan", "describe": "an indignant older man complaining loudly in a nasal, expressive voice", "rate": 1.0 },
+    "voice": {"lang": "bn", "describe": "Arjun speaks in a very loud, angry tone with a high pitch and a fast pace, shouting with great emotional depth. The speech is very expressive and animated.", "rate": 1.0},
     "curses": [
       { "text": "EI JE DADA!", "say": "এই যে দাদা!" },
       { "text": "KI KORCHHO TA KI?!", "say": "কী করছো টা কী?!" },
@@ -89,12 +89,12 @@ window.RRR_DRIVERS = [
     "tag": "Flat out on the straights, and his hockey stick lands like a tractor",
     "look": { "body": "#1e8e3e", "trim": "#ff8f00", "canopy": "#f5c400", "plate": "CH 01 TA", "slogan": "CHAK DE PHATTE",
               "shirt": "#f5f5f5", "headgear": "turban", "headgearColor": "#e65100", "neon": "#ff9100" },
-    "voice": { "lang": "pa", "speaker": "Gurpreet", "describe": "a big, hearty man shouting angrily in a loud, deep voice, speaking fast", "rate": 1.0 },
+    "voice": {"lang": "pa", "describe": "A male speaker with a deep voice speaks in a very loud, angry tone with a high pitch and a fast pace, shouting with great emotional depth. The speech is very expressive and animated.", "seed": 23, "rate": 1.0},
     "curses": [
       { "text": "OYE KHOTEYA!", "say": "ਓਏ ਖੋਤਿਆ!" },
       { "text": "KI KARDA PAYA?!", "say": "ਕੀ ਕਰਦਾ ਪਿਆ?!" },
       { "text": "OYE PAAJI, AARAAM NAAL!", "say": "ਓਏ ਭਾਜੀ, ਆਰਾਮ ਨਾਲ!" },
-      { "text": "TERI AISI TAISI!", "say": "ਤੇਰੀ ਐਸੀ ਤੈਸੀ!" },
+      { "text": "TERI AISI KI TAISI!", "say": "ਤੇਰੀ ਐਸੀ ਕੀ ਤੈਸੀ!" },
       { "text": "CHAL OYE!", "say": "ਚੱਲ ਓਏ!" }
     ],
     "weapon": { "kind": "swing", "shape": "hockey", "color": "#c8a165", "power": 1.4, "reach": 1.15, "cooldown": 1.3, "sound": "wood",
@@ -106,7 +106,7 @@ window.RRR_DRIVERS = [
     "tag": "Learned to drive on hill roads: nobody is quicker through a bend",
     "look": { "body": "#1e8e3e", "trim": "#d32f2f", "canopy": "#f5c400", "plate": "AS 01 JN", "slogan": "JOI AAI AXOM",
               "shirt": "#f5f5f5", "headgear": "none", "headgearColor": "#000000", "neon": null },
-    "voice": { "lang": "as", "speaker": "Amit", "describe": "a calm young man raising his voice in annoyance, clear and slightly high-pitched", "rate": 1.0 },
+    "voice": {"lang": "as", "describe": "Amit speaks in a very loud, angry tone with a high pitch and a fast pace, shouting with great emotional depth. The speech is very expressive and animated.", "rate": 1.0},
     "curses": [
       { "text": "OI! KI KORA?!", "say": "ঐ! কি কৰা?!" },
       { "text": "DHET TERI!", "say": "ধেৎ তেৰি!" },
@@ -123,7 +123,7 @@ window.RRR_DRIVERS = [
     "tag": "All show: swerves across the road just to be looked at",
     "look": { "body": "#f5c400", "trim": "#ff4f9a", "canopy": "#1a1a1a", "plate": "RJ 14 BW", "slogan": "PADHARO SA",
               "shirt": "#f5f5f5", "headgear": "safa", "headgearColor": "#e53935", "neon": "#ff4fa3" },
-    "voice": { "lang": "hi", "speaker": "Aman", "describe": "a theatrical older man exclaiming angrily in a raspy, sing-song voice", "rate": 1.0 },
+    "voice": {"lang": "hi", "describe": "Karan speaks in a very loud, angry tone with a high pitch and a fast pace, shouting with great emotional depth. The speech is very expressive and animated.", "rate": 1.0},
     "curses": [
       { "text": "ARE BAAVLA HAI KE?!", "say": "अरे बावळा है के?!" },
       { "text": "KHAMMA GHANI, PAN AB DEKH!", "say": "खम्मा घणी, पण अब देख!" },
@@ -140,7 +140,7 @@ window.RRR_DRIVERS = [
     "tag": "Has sat in every jam in Bengaluru: patient, tidy and first off the line",
     "look": { "body": "#1e8e3e", "trim": "#e53935", "canopy": "#f5c400", "plate": "KA 05 MJ", "slogan": "SWALPA ADJUST MAADI",
               "shirt": "#8d7b4a", "headgear": "none", "headgearColor": "#000000", "neon": null },
-    "voice": { "lang": "kn", "speaker": "Suresh", "describe": "an exasperated man raising his voice, speaking clearly at a moderate pace", "rate": 1.0 },
+    "voice": {"lang": "kn", "describe": "Suresh speaks in a very loud, angry tone with a high pitch and a fast pace, shouting with great emotional depth. The speech is very expressive and animated.", "rate": 1.0},
     "curses": [
       { "text": "YENO GURU?!", "say": "ಏನೋ ಗುರು?!" },
       { "text": "LO MAGA!", "say": "ಲೋ ಮಗಾ!" },
@@ -157,7 +157,7 @@ window.RRR_DRIVERS = [
     "tag": "Pehle aap: never strikes first, but never forgets who did",
     "look": { "body": "#1e8e3e", "trim": "#f3e9d2", "canopy": "#f5c400", "plate": "UP 32 NW", "slogan": "PEHLE AAP",
               "shirt": "#f3e9d2", "headgear": "cap", "headgearColor": "#f3e9d2", "neon": null },
-    "voice": { "lang": "ur", "speaker": "", "describe": "a refined, well-spoken older man scolding sternly in a smooth, measured voice", "rate": 0.95 },
+    "voice": {"lang": "ur", "describe": "A male speaker with a deep, refined voice speaks in a loud, stern, scolding tone with a low pitch and a measured pace, with great emotional depth. The speech is very expressive.", "seed": 23, "rate": 1.0},
     "curses": [
       { "text": "AREY HUZOOR, TAMEEZ SE!", "say": "ارے حضور، تمیز سے!" },
       { "text": "QIBLA, YEH KYA HARKAT HAI?", "say": "قبلہ، یہ کیا حرکت ہے؟" },
@@ -174,7 +174,7 @@ window.RRR_DRIVERS = [
     "tag": "Mast-maula: won't come looking for you, but don't pull up beside him",
     "look": { "body": "#1e8e3e", "trim": "#ff9933", "canopy": "#f5c400", "plate": "UP 65 BH", "slogan": "KA GURU",
               "shirt": "#f5f5f5", "headgear": "safa", "headgearColor": "#c62828", "neon": null },
-    "voice": { "lang": "bho", "speaker": "Rohit", "describe": "a jovial, earthy man shouting in a loud, gravelly voice with a rustic lilt", "rate": 1.0 },
+    "voice": {"lang": "bho", "describe": "Aman speaks in a very loud, angry tone with a high pitch and a fast pace, shouting with great emotional depth. The speech is very expressive and animated.", "rate": 1.0},
     "curses": [
       { "text": "KA HO GURU?!", "say": "का हो गुरु?!" },
       { "text": "KA KARAT BAADA?!", "say": "का करत बाड़ा?!" },
@@ -191,7 +191,7 @@ window.RRR_DRIVERS = [
     "tag": "Backs off for nobody: not for a bus, and certainly not for you",
     "look": { "body": "#1f64c8", "trim": "#f5c400", "canopy": "#f5c400", "plate": "BR 01 LL", "slogan": "JIYA HO BIHAR KE LALA",
               "shirt": "#7cb342", "headgear": "none", "headgearColor": "#000000", "neon": null },
-    "voice": { "lang": "mag", "speaker": "Aman", "describe": "a tough, brash man shouting angrily in a rough, forceful voice, speaking fast", "rate": 1.0 },
+    "voice": {"lang": "mag", "describe": "Varun speaks in a very loud, angry tone with a high pitch and a fast pace, shouting with great emotional depth. The speech is very expressive and animated.", "rate": 1.0},
     "curses": [
       { "text": "KA RE BABUA?!", "say": "का रे बबुआ?!" },
       { "text": "E KA KAR HAHI?!", "say": "ई का कर हहीं?!" },
@@ -208,7 +208,7 @@ window.RRR_DRIVERS = [
     "tag": "No nonsense: scolds more than she swings, and never forgets a hit",
     "look": { "body": "#1e8e3e", "trim": "#b71c1c", "canopy": "#f5c400", "plate": "GJ 01 KB", "slogan": "AAVJO",
               "shirt": "#c2185b", "headgear": "pallu", "headgearColor": "#d81b60", "neon": null },
-    "voice": { "lang": "gu", "speaker": "Neha", "describe": "a stern middle-aged woman scolding sharply in a loud, piercing voice, speaking fast", "rate": 1.0 },
+    "voice": {"lang": "gu", "describe": "Neha speaks in a very loud, angry tone with a high pitch and a fast pace, shouting with great emotional depth. The speech is very expressive and animated.", "rate": 1.0},
     "curses": [
       { "text": "AY GANDA!", "say": "એય ગાંડા!" },
       { "text": "SHU KARE CHHE?!", "say": "શું કરે છે?!" },
