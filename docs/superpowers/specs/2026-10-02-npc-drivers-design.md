@@ -57,13 +57,13 @@ Each replaces a value that is random or constant in `updateRivals` / `setupRace`
 |---|---|---|---|
 | `pace` | added to the top-speed factor (`track.skill * diff + pace ± 0.01`, clamped 0.7 to 1.02) | random −0.06 to +0.02 | −0.06 to +0.02 |
 | `bends` | how much speed is lost in a full curve | 0.22 | 0.12 to 0.32 |
-| `aggression` | swing rate (divides the lathi cooldown) | random 0.6 to 1.2 | 0.4 to 1.3 |
+| `aggression` | swing rate (divides the lathi cooldown); 0 means never swings unprovoked | random 0.6 to 1.2 | 0 to 1.3 |
 | `power` | multiplies the damage of their hits | 1 | 0.8 to 1.3 |
 | `chase` | distance (track units) within which they come at you to fight | 900 | 500 to 1300 |
 | `weave` | seconds between lane changes, [min, max] | [3, 8] | [1.5, 4] to [6, 12] |
 | `nerve` | 0 to 1: side gap left when passing traffic (0.22 down to 0.10) and how late they brake behind it | gap 0.16 | 0 to 1 |
 | `launch` | reaction time at the start, [min, max] seconds | [0.05, 0.5] | within 0.05 to 0.6 |
-| `grudge` | aggression multiplier for 10 s after you hit them | 1 | 1 to 2.5 |
+| `grudge` | for 10 s after you hit them, aggression becomes `max(aggression, 0.8) × grudge` | 1 | 1 to 2.5 |
 
 Balance rule: the cast's mean `pace` stays at −0.02 (today's mean), and no driver is best at everything.
 
@@ -80,8 +80,8 @@ Balance rule: the cast's mean `pace` stays at −0.02 (today's mean), and no dri
 | Guwahati | Jintu | Assamese | Hill driver: quickest through bends, calm |
 | Jaipur | Banwari | Marwari-flavoured Hindi | Showy and erratic, sudden lane changes |
 | Bengaluru | Manju | Kannada | Patient and consistent, quick start, brakes early for traffic |
-| Lucknow | Nawab | Lakhnavi Urdu | "Pehle aap": never swings first, polite even when cursing, strong grudge once hit |
-| Patna | Lallan | Bhojpuri-flavoured Hindi | Brawler: never backs off in traffic, swings a lot, average pace |
+| Varanasi | Bhola | Bhojpuri (Banarasi) | Mast-maula: cruises easy and never swings first, but hit him and he comes for you |
+| Patna | Lallan | Magahi-flavoured Hindi | Brawler: never backs off in traffic, swings a lot, average pace |
 
 Curses stay as mild as today's (street slang, no real abuse). Characters are affectionate, not mocking.
 
@@ -102,8 +102,8 @@ slogan and the driver figure.
 | Jintu | green / red and white (gamosa) / yellow | AS 01 | gamosa scarf colour, no headgear |
 | Banwari | yellow / pink / black | RJ 14 | Rajasthani safa |
 | Manju | green / red and yellow / yellow | KA 05 | khaki shirt, no headgear |
-| Nawab | green / cream / yellow | UP 32 | cream kurta, cap |
-| Lallan | blue / yellow / yellow | BR 01 | gamchha colour, no headgear |
+| Bhola | green / saffron / yellow | UP 65 | white kurta, red gamchha tied round the head |
+| Lallan | blue / yellow / yellow | BR 01 | checked shirt, no headgear |
 
 These are config values, so any of them can be changed without touching code.
 
@@ -146,15 +146,17 @@ Apache 2.0), used for all curses:
 `voices.js` grows from 48 to about 103 clips, roughly 355 KB to 760 KB. The credits line adds Indic
 Parler-TTS.
 
-Speaker plan: Bengali, Kannada, Assamese, Tamil and Punjabi have their own named speakers. Lucknow uses
-an Urdu voice. The Hindi variants (Mumbai, Delhi, Jaipur, Patna, Hyderabad) share the model's Hindi
-speakers, so they are separated by description (pitch, pace, gruffness) and, where it sounds better,
-by a neighbouring language's speaker (Marathi for Mumbai, Telugu for Hyderabad, Maithili for Patna).
+Speaker plan: Bengali, Kannada, Assamese, Tamil and Punjabi have their own named speakers. The model has
+no Bhojpuri or Magahi voice, so Bhola's Bhojpuri and Lallan's Magahi lines are written in Devanagari and
+spoken by a Hindi or Maithili speaker. The Hindi-script drivers (Mumbai, Delhi, Jaipur, Varanasi, Patna,
+Hyderabad) share the model's Hindi speakers, so they are separated by description (pitch, pace,
+gruffness) and, where it sounds better, by a neighbouring language's speaker (Marathi for Mumbai, Telugu
+or Urdu for Hyderabad, Maithili for Patna or Varanasi).
 
 Risks, tested before the full run:
 
 1. Punjabi is only unofficially supported by the model. Fallback: Punjabi lines with a Hindi speaker.
-2. The five Hindi-variant drivers may sound too alike. Fallback: neighbouring-language speakers as above.
+2. The six Hindi-script drivers may sound too alike. Fallback: neighbouring-language speakers as above.
 3. `python3` here is 3.14; if torch or parler-tts lack wheels for it, the venv uses an older Python.
 
 So the first build step is a sample run: Jassi's and Ganpat's five clips each, sent for a listen. The
@@ -169,7 +171,7 @@ The web game has no test runner; checks are a script plus the running game.
   `voices.js`. Run before each release.
 - In the browser preview through `window.__rrr`: for each of the seven tracks, `setupRace` 50 times and
   confirm the home driver is always on the grid and nobody appears twice; step a race and confirm style
-  fields change behaviour (Jintu's bend speed above Jassi's, Nawab never swings before being hit).
+  fields change behaviour (Jintu's bend speed above Jassi's, Bhola never swings before being hit).
 - Screenshots of all eleven autos in 3D and in 2D (`?2d`).
 - No console errors over a full race on a Mumbai and a Chennai track.
 
