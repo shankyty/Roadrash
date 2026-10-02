@@ -12,7 +12,7 @@ Tamil, Meta MMS) varied only by playback pitch, so they sound robotic and alike.
 
 ## Goal
 
-A fixed cast of eleven drivers, one per city, defined entirely in one config file. Each driver has a
+A fixed cast of twelve drivers, one per city, defined entirely in one config file. Each driver has a
 name and personality, an auto that looks like the autos of their city, a voice of their own that curses
 in their own language, and a driving style of their own.
 
@@ -80,7 +80,8 @@ Balance rule: the cast's mean `pace` stays at −0.02 (today's mean), and no dri
 | Guwahati | Jintu | Assamese | Hill driver: quickest through bends, calm |
 | Jaipur | Banwari | Marwari-flavoured Hindi | Showy and erratic, sudden lane changes |
 | Bengaluru | Manju | Kannada | Patient and consistent, quick start, brakes early for traffic |
-| Varanasi | Bhola | Bhojpuri (Banarasi) | Mast-maula: cruises easy and never swings first, but hit him and he comes for you |
+| Lucknow | Nawab | Lakhnavi Urdu | "Pehle aap": never swings first, polite even when cursing, strong grudge once hit |
+| Varanasi | Bhola | Bhojpuri (Banarasi) | Mast-maula: unhurried and never comes looking for you, but pull alongside and the lathi is out at once |
 | Patna | Lallan | Magahi-flavoured Hindi | Brawler: never backs off in traffic, swings a lot, average pace |
 
 Curses stay as mild as today's (street slang, no real abuse). Characters are affectionate, not mocking.
@@ -102,6 +103,7 @@ slogan and the driver figure.
 | Jintu | green / red and white (gamosa) / yellow | AS 01 | gamosa scarf colour, no headgear |
 | Banwari | yellow / pink / black | RJ 14 | Rajasthani safa |
 | Manju | green / red and yellow / yellow | KA 05 | khaki shirt, no headgear |
+| Nawab | green / cream / yellow | UP 32 | cream kurta, cap |
 | Bhola | green / saffron / yellow | UP 65 | white kurta, red gamchha tied round the head |
 | Lallan | blue / yellow / yellow | BR 01 | checked shirt, no headgear |
 
@@ -138,15 +140,16 @@ Apache 2.0), used for all curses:
 
 - **Rival curses** come from `web/drivers.js`: each line is spoken by the driver's `speaker` with their
   `describe` prompt, then goes through the existing shout chain (compressor, soft clip, presence boost),
-  retuned so it no longer pitch-shifts the voice. 11 drivers × 5 lines = 55 clips, keyed `"<id>|<text>"`.
+  retuned so it no longer pitch-shifts the voice. 12 drivers × 5 lines = 60 clips, keyed `"<id>|<text>"`.
 - **Your curses** (28 lines in `lines.json`) are regenerated with Parler using one Hindi and one Tamil
   speaker that no rival uses.
 - **Hawker calls** (20 lines) stay on MMS, untouched.
 
-`voices.js` grows from 48 to about 103 clips, roughly 355 KB to 760 KB. The credits line adds Indic
+`voices.js` grows from 48 to about 108 clips, roughly 355 KB to 800 KB. The credits line adds Indic
 Parler-TTS.
 
-Speaker plan: Bengali, Kannada, Assamese, Tamil and Punjabi have their own named speakers. The model has
+Speaker plan: Bengali, Kannada, Assamese, Tamil and Punjabi have their own named speakers, and Lucknow
+uses an Urdu voice. The model has
 no Bhojpuri or Magahi voice, so Bhola's Bhojpuri and Lallan's Magahi lines are written in Devanagari and
 spoken by a Hindi or Maithili speaker. The Hindi-script drivers (Mumbai, Delhi, Jaipur, Varanasi, Patna,
 Hyderabad) share the model's Hindi speakers, so they are separated by description (pitch, pace,
@@ -171,8 +174,8 @@ The web game has no test runner; checks are a script plus the running game.
   `voices.js`. Run before each release.
 - In the browser preview through `window.__rrr`: for each of the seven tracks, `setupRace` 50 times and
   confirm the home driver is always on the grid and nobody appears twice; step a race and confirm style
-  fields change behaviour (Jintu's bend speed above Jassi's, Bhola never swings before being hit).
-- Screenshots of all eleven autos in 3D and in 2D (`?2d`).
+  fields change behaviour (Jintu's bend speed above Jassi's, Nawab never swings before being hit, Bhola never chases from beyond his short range).
+- Screenshots of all twelve autos in 3D and in 2D (`?2d`).
 - No console errors over a full race on a Mumbai and a Chennai track.
 
 ## Out of scope
