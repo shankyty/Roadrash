@@ -2626,8 +2626,8 @@ function drawHUD() {
   text(fmtTime(raceTime), 190, 34, 18, '#fff', 'right');
   text(`TRACK ${level + 1}`, 190, 58, 12, '#ffcc80', 'right');
   text(`KO ${player.kos}`, 190, 80, 12, '#ff8a80', 'right');
-  if (player.drift && player.driftPts >= 1) text(`DRIFT ${Math.round(player.driftPts)}`, W / 2, 30, 22, '#ffd21f');
-  if (stats.chain > 1 && def.handling.slipstream > 0) text(`SLIPSTREAM \u00d7${stats.chain}`, W / 2, 58, 16, '#80deea');
+  if (player.drift && player.driftPts >= 1) text(`DRIFT ${Math.round(player.driftPts)}`, W / 2, 66, 22, '#ffd21f');
+  if (stats.chain > 1 && def.handling.slipstream > 0) text(`SLIPSTREAM \u00d7${stats.chain}`, W / 2, 92, 16, '#80deea');
   if (touch) text(`${Math.round(player.speed / MAX_SPEED * KMH)} KM/H`, 24, 84, 11, '#ffd21f', 'left');
   else {
     text('ESC MENU', 24, 84, 9, 'rgba(255,255,255,.55)', 'left');
