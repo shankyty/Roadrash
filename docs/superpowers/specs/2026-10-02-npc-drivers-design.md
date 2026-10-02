@@ -35,7 +35,8 @@ One entry per driver:
   "look": {
     "body": "#1e8e3e", "trim": "#ff8f00", "canopy": "#f5c400",
     "plate": "CH 01 TA", "slogan": "CHAK DE PHATTE",
-    "shirt": "#f5f5f5", "headgear": "turban", "headgearColor": "#e65100"
+    "shirt": "#f5f5f5", "headgear": "turban", "headgearColor": "#e65100",
+    "neon": "#ff9100"
   },
   "voice": { "lang": "pan", "speaker": "Gurpreet", "describe": "a loud, deep, hearty man shouting angrily, fast", "rate": 1.0 },
   "curses": [ { "text": "OYE KHOTEYA!", "say": "ਓਏ ਖੋਤਿਆ!" } ],
@@ -49,7 +50,8 @@ One entry per driver:
 }
 ```
 
-`headgear` is one of `none`, `turban`, `safa`, `cap`, `pallu`. Each driver has five curses: `text` is the bubble
+`headgear` is one of `none`, `turban`, `safa`, `cap`, `pallu`. `neon` is a colour, or `null` for an auto
+without neon lights. Each driver has five curses: `text` is the bubble
 (Latin capitals, as today), `say` is what the voice speaks in native script.
 
 ### Style numbers
@@ -114,6 +116,12 @@ slogan and the driver figure.
 | Kokila-ben | green / bandhani red / yellow | GJ 01 | sari, pallu over the head; slogan AAVJO |
 
 These are config values, so any of them can be changed without touching code.
+
+### Neon lights
+
+Five of the autos carry neon strip lights, the way decked-out autos do: Ganpat (magenta), Bunty (blue),
+Murugan (green), Jassi (orange) and Banwari (pink). The rest have `"neon": null`. Neon only shows on
+night tracks (`theme.night`, today only Mumbai's Sea Link); by day those autos look like the others.
 
 ### Weapons
 
@@ -182,6 +190,10 @@ the lathi (1.0 across the board).
 - **3D autos.** `autoModel(pal, rearCanvas, look)` paints the driver's shirt and sleeve from
   `look.shirt` and adds the headgear (turban and safa: a wrapped shape over the head; cap: a flat one; pallu: cloth draped
   over the head and one shoulder).
+- **Neon.** On a night track, an auto with `look.neon` gets glowing strips in that colour along the foot
+  of the tub and the edge of the hood, and a soft pool of the same colour on the road beneath it. The
+  strips are unlit materials, so they glow in the dark like the headlamp does. In 2D the sprite gets a
+  glowing line along the tub and a coloured glow under it. Traffic autos and your auto have no neon.
 - **Traffic autos.** Autos in traffic take the track city's livery instead of a random rival palette, so
   Delhi's streets have green and yellow autos. They have no named driver, slogan or weapon.
 - **HUD and screens.** The nearest-rival bar and the results table show `NAME · CITY`. The start screen
@@ -231,7 +243,8 @@ The web game has no test runner; checks are a script plus the running game.
   confirm the home driver is always on the grid and nobody appears twice; step a race and confirm style
   fields change behaviour (Jintu's bend speed above Jassi's, Jassi's hockey stick lands from further out
   than Bunty's kick, Nawab never swings before being hit, Bhola never chases from beyond his short range).
-- Screenshots of all thirteen autos in 3D and in 2D (`?2d`), and of each attack mid-swing or mid-kick.
+- Screenshots of all thirteen autos in 3D and in 2D (`?2d`), and of each attack mid-swing or mid-kick; the five neon
+  autos on the Sea Link at night, and the same five by day showing no neon.
 - No console errors over a full race on a Mumbai and a Chennai track.
 
 ## Out of scope
