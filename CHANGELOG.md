@@ -1,5 +1,14 @@
 # Changelog
 
+## v3.3.2: Drifts with tyre marks
+
+- **Drift your auto:**
+  - Above about 25 km/h, hold a steer and tap the brake. The back kicks out, and the auto slides at up to 45 degrees while still travelling down the road.
+  - Let go of the steer (or slow below 20 km/h) and it snaps straight again.
+  - It won't tip over mid-slide.
+- **Tyre marks:** the rear wheels leave dark streaks on the road that follow their real path, and the streaks fade over about 10 seconds.
+- **Squeal and smoke:** a tyre squeal that rises with the slide, and white tyre smoke off the rear wheels.
+
 ## v3.3.1: Sharp pivot turns, no accidental zoom
 
 - **Pivot turns like a real auto:**

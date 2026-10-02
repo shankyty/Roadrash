@@ -20,6 +20,10 @@ const KMH = 80; // top speed shown on the speedo
 // heading: the way your auto faces relative to the road (radians, + = right). Under PIVOT_SPEED (15 km/h)
 // steering pivots it almost on the spot, up to 90 degrees; at racing speed it's held to a gentle angle
 const PIVOT_SPEED = MAX_SPEED * 15 / KMH, MAX_PIVOT = Math.PI / 2, MAX_RACE_HEADING = 0.33;
+// drift: above DRIFT_MIN, steering + a brake tap kicks the back out (body swings up to DRIFT_SLIP off the
+// way you're travelling); it ends when you let go of the steer, change sides, or drop under DRIFT_END
+const DRIFT_MIN = MAX_SPEED * 25 / KMH, DRIFT_END = MAX_SPEED * 20 / KMH, DRIFT_SLIP = Math.PI / 4;
+let skidMarks = []; // tyre marks on the road: { d1, x1, d2, x2, t } in track coordinates
 const TUK_NW = 0.27; // auto-rickshaw width, normalised to half road width
 const TUK_LEN = 1060; // auto-rickshaw length in track units (the 3D model; vehicles are centred on their position)
 const FONT = '"Bungee", Impact, "Arial Black", sans-serif';
@@ -179,7 +183,7 @@ function deviceSummary() {
 //   error/<kind>/<problem>/<OS-browser>
 // with the details needed to reproduce them in the title (version, game state, OS/browser versions,
 // screen, audio state, stack). Nothing personal is sent. Also logged to the console.
-const GAME_VERSION = '3.3.1';
+const GAME_VERSION = '3.3.2';
 // 3D quality tier: mobile browsers < laptop/desktop browsers < the Mac app. 'smooth' (phones and tablets,
 // when 3D is forced there with ?3d) keeps the frame rate up with fewer polygons and a lower resolution; 'high' for computer browsers; 'ultra'
 // in the Mac app (loaded from file://): finest models, detail kept farther away, full Retina resolution.
@@ -440,6 +444,20 @@ const Sfx = {
     g.gain.exponentialRampToValueAtTime(vol, t + 0.015); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     let node = o; if (filter) { const fl = a.createBiquadFilter(); fl.type = 'lowpass'; fl.frequency.value = filter; o.connect(fl); node = fl; }
     node.connect(g); g.connect(this.raceBus); o.start(t); o.stop(t + dur + 0.05);
+  },
+  // tyre squeal while drifting: two detuned saws through a narrow band plus hiss, level set every frame
+  squeal(level) {
+    if (!this.ctx) return; const a = this.ctx, t = a.currentTime;
+    if (!this.sq) {
+      const g = a.createGain(); g.gain.value = 0; const bp = a.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1150; bp.Q.value = 9;
+      const o1 = a.createOscillator(), o2 = a.createOscillator(); o1.type = o2.type = 'sawtooth'; o1.frequency.value = 1080; o2.frequency.value = 1210;
+      const lfo = a.createOscillator(), lg = a.createGain(); lfo.frequency.value = 7; lg.gain.value = 60; lfo.connect(lg); lg.connect(o1.frequency); lg.connect(o2.frequency);
+      const n = a.createBufferSource(); n.buffer = this.noiseBuf; n.loop = true; const hp = a.createBiquadFilter(); hp.type = 'bandpass'; hp.frequency.value = 2600; hp.Q.value = 3;
+      o1.connect(bp); o2.connect(bp); n.connect(hp); bp.connect(g); hp.connect(g); g.connect(this.raceBus);
+      for (const s of [o1, o2, lfo, n]) s.start();
+      this.sq = g;
+    }
+    this.sq.gain.setTargetAtTime(level * 0.11, t, 0.06);
   },
   noise(dur, vol, filter = 1000, delay = 0) {
     if (!this.ctx) return; const a = this.ctx, t = a.currentTime + delay;
@@ -1679,11 +1697,12 @@ let particles = [], popups = [], messages = [], bubbles = [], frameNo = 0, hawke
 const player = {};
 
 // your auto's footprint on the road turns with it: across the road it's wider and shorter
-const playerW = () => (Math.abs(Math.cos(player.heading || 0)) * TUK_NW * ROAD_W + Math.abs(Math.sin(player.heading || 0)) * TUK_LEN) / ROAD_W;
-const playerL = () => Math.abs(Math.cos(player.heading || 0)) * TUK_LEN + Math.abs(Math.sin(player.heading || 0)) * TUK_NW * ROAD_W;
+const bodyAngle = () => (player.heading || 0) + (player.slip || 0); // where the auto points (heading + drift slip)
+const playerW = () => (Math.abs(Math.cos(bodyAngle())) * TUK_NW * ROAD_W + Math.abs(Math.sin(bodyAngle())) * TUK_LEN) / ROAD_W;
+const playerL = () => Math.abs(Math.cos(bodyAngle())) * TUK_LEN + Math.abs(Math.sin(bodyAngle())) * TUK_NW * ROAD_W;
 function resetPlayer() {
   Object.assign(player, { x: 0, dist: PLAYER_Z, speed: 0, health: 100, lean: 0, rot: 0, tip: 0, crash: 0, crashDir: 1,
-    atk: null, hurt: 0, inv: 0, kos: 0, finished: false, time: 0, name: 'YOU', steer: 0, puff: 0, hornCd: 0, isPlayer: true, heading: 0 });
+    atk: null, hurt: 0, inv: 0, kos: 0, finished: false, time: 0, name: 'YOU', steer: 0, puff: 0, hornCd: 0, isPlayer: true, heading: 0, slip: 0, drift: 0, brkWas: false });
 }
 
 // ------------------------------------------------------------------ track building
@@ -1910,7 +1929,7 @@ function setupRace() {
   for (const type of deck(track.traffic)) addTraffic(type);
   for (const type of deck(Math.round(track.traffic * 0.8))) addTraffic(type, -1); // oncoming
   for (let i = 0; i < track.cows; i++) addTraffic('cow');
-  crossTraffic = []; for (const j of junctions) { j.busy = false; j.spawn = [0, 0]; j.fined = false; }
+  skidMarks = []; crossTraffic = []; for (const j of junctions) { j.busy = false; j.spawn = [0, 0]; j.fined = false; }
   for (let i = 0; i < (track.dogs || 0); i++) {
     const z = startZ + 3000 + tr() * (trackLength - 8000), r = tr();
     const mode = r < 0.28 ? 'sleep' : r < 0.8 ? 'sit' : 'cross';
@@ -1993,7 +2012,7 @@ const PAUSE_MENU = [{ label: 'RESUME', cmd: 'resume' }, { label: 'RESTART RACE',
 const MIXER = [['master', 'ALL SOUND'], ['race', 'RACE', 'engines, horns, traffic, fights'], ['voices', 'VOICES', 'curses & hawker shouts'], ['music', 'MUSIC'], ['city', 'CITY NOISE', 'street sounds & animals']];
 let mixer = null;
 function openMixer() { mixer = { sel: 0 }; }
-function openPause() { paused = true; pauseSel = 0; Voice.stopVoices(); }
+function openPause() { paused = true; pauseSel = 0; Voice.stopVoices(); Sfx.squeal(0); }
 // Commands shared by the pause menu, mouse clicks and the macOS app menu (window.rrrCommand).
 function runCommand(cmd) {
   if (cmd === 'mixer') { openMixer(); return; }
@@ -2128,6 +2147,17 @@ function resolveAttack(att, side) {
   }
 }
 
+// lay a tyre mark under each rear wheel from where it was last frame to where it is now
+function layTyreMarks() {
+  const a = bodyAngle(), f = [Math.cos(a), Math.sin(a)], r = [-Math.sin(a), Math.cos(a)]; // forward / right, as (dist, world x)
+  const now = [-1, 1].map(k => ({ d: player.dist - 340 * f[0] + k * 240 * r[0], x: (player.x * ROAD_W - 340 * f[1] + k * 240 * r[1]) / ROAD_W }));
+  if (player.markAt) for (let k = 0; k < 2; k++) {
+    const was = player.markAt[k];
+    if (Math.abs(now[k].d - was.d) < 600) skidMarks.push({ d1: was.d, x1: was.x, d2: now[k].d, x2: now[k].x, t: worldT });
+  }
+  player.markAt = now;
+  if (skidMarks.length > 700) skidMarks.splice(0, skidMarks.length - 700);
+}
 function crashPlayer(reason, dmg, dir) {
   if (player.crash > 0) return;
   player.crash = 2.4; player.crashDir = dir || (Math.random() < 0.5 ? -1 : 1);
@@ -2179,6 +2209,8 @@ function updateEngine() {
   const racing = state === 'race' || state === 'countdown';
   const throttle = racing && player.crash <= 0 ? (I.up() ? 1 : 0) : (state === 'finished' ? 0.3 : 0.15);
   Sfx.setEngine(player.speed / MAX_SPEED, state !== 'title' && state !== 'champion', throttle);
+  const sliding = state === 'race' && player.crash <= 0 && player.speed > DRIFT_END * 0.8;
+  Sfx.squeal(sliding ? clamp(Math.abs(player.slip || 0) / DRIFT_SLIP, 0, 1) : 0);
 }
 
 function updatePlayer(dt, controlled) {
@@ -2199,7 +2231,7 @@ function updatePlayer(dt, controlled) {
     player.rot = lerp(player.rot, player.crashDir * 1.45, Math.min(1, dt * 7));
     player.x += player.crashDir * dt * 0.35 * sp;
     if (player.crash <= 0) {
-      player.rot = 0; player.lean = 0; player.tip = 0; player.speed = 0; player.heading = 0; player.x = clamp(player.x, -halfAt(player.dist) + 0.3, -0.3);
+      player.rot = 0; player.lean = 0; player.tip = 0; player.speed = 0; player.heading = 0; player.slip = 0; player.drift = 0; player.x = clamp(player.x, -halfAt(player.dist) + 0.3, -0.3);
       if (player.health <= 0) player.health = 60;
       player.inv = 1.5; msg('BACK ON THE ROAD!', '#8bc34a', 1.2);
     }
@@ -2215,12 +2247,20 @@ function updatePlayer(dt, controlled) {
     player.x += player.speed * Math.sin(player.heading) * dt / ROAD_W;  // the sideways part of where you're heading
     player.x -= dx * sp * seg.curve * CENTRIFUGAL;
     if (acc) player.speed += ACCEL * dt; else if (brk) player.speed += BRAKE * dt; else player.speed += DECEL * dt;
+    // drift: steer + brake tap at speed kicks the back out; the body slides at an angle while you keep going
+    const tap = brk && !player.brkWas; player.brkWas = brk;
+    if (!player.drift && steer && tap && player.speed > DRIFT_MIN) { player.drift = Math.sign(steer); Sfx.noise(0.25, 0.25, 2500); }
+    if (player.drift && (!steer || Math.sign(steer) !== player.drift || player.speed < DRIFT_END)) player.drift = 0;
+    player.slip += (player.drift * DRIFT_SLIP - player.slip) * Math.min(1, dt * (player.drift ? 3.5 : 6));
+    if (player.drift) player.speed -= player.speed * 0.22 * dt;   // tyres scrubbing
+    if (Math.abs(player.slip) > 0.12 && player.speed > DRIFT_END * 0.8) layTyreMarks();
+    else player.markAt = null;
     if (Math.abs(player.x) > seg.half) {
       if (player.speed > OFFROAD_LIMIT) player.speed += OFFROAD_DECEL * dt;
       if (Math.random() < sp * 0.8) particles.push({ x: (playerScr ? playerScr.x : W / 2) + rand(-100, 100), y: playerScr ? playerScr.y - 6 : H - 30, vx: rand(-60, 60), vy: rand(-80, -20), t: 0.6, size: rand(6, 12), color: 'rgba(160,120,70,.6)' });
     }
     // three wheels are tippy: lateral load from curves + steering
-    const lat = sp * sp * (seg.curve / 6 * 0.85 + player.steer * 0.38);
+    const lat = sp * sp * (seg.curve / 6 * 0.85 + player.steer * 0.38) * (player.drift ? 0.15 : 1); // a slide unloads the wheels
     player.lean = lerp(player.lean, -lat, Math.min(1, dt * 5));
     if (Math.abs(player.lean) > 0.95) {
       player.tip += dt;
@@ -2875,7 +2915,7 @@ function render() {
 function render3D() {
   try {
     drawBackground(bgCtx, World3D.horizonY());
-    const info = World3D.frame({ player, rivals, traffic, frameNo, shake, t: performance.now() / 1000, cross: crossTraffic, lightOf });
+    const info = World3D.frame({ player, rivals, traffic, frameNo, shake, t: performance.now() / 1000, cross: crossTraffic, lightOf, marks: skidMarks, now: worldT });
     playerScr = info ? info.player : null;
     ctx.clearRect(0, 0, W, H);
     return true;
@@ -3240,5 +3280,5 @@ function step(now) {
 requestAnimationFrame(frame);
 // expose for debugging
 window.__rrr = { get state() { return state; }, player, get rivals() { return rivals; }, get results() { return results; }, setupRace,
-  step(n) { for (let i = 0; i < n; i++) update(STEP); render(); }, keys, Sfx, Music, Ambience, VehicleAudio, VoiceClips, Animals, SKYLINES, THEMES, SP, get traffic() { return traffic; }, get segments() { return segments; }, get bubbles() { return bubbles; }, get junctions() { return junctions; }, get cross() { return crossTraffic; }, lightOf, setLevel(l) { level = l; attractSetup(); } };
+  step(n) { for (let i = 0; i < n; i++) update(STEP); render(); }, keys, Sfx, Music, Ambience, VehicleAudio, VoiceClips, Animals, SKYLINES, THEMES, SP, get traffic() { return traffic; }, get segments() { return segments; }, get bubbles() { return bubbles; }, get junctions() { return junctions; }, get cross() { return crossTraffic; }, get marks() { return skidMarks; }, lightOf, setLevel(l) { level = l; attractSetup(); } };
 })();

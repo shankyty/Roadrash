@@ -1909,7 +1909,7 @@ vec3 nightLight(vec3 p) {
   function placeAuto(obj, m, d, x, rot, atk, hurt, bounce) {
     const p = onGround(placeAt(d, x), d, x, m.userData.size.l);
     // your auto faces its real heading (sharp pivots); rivals point the way they're moving
-    const yaw = obj.crash > 0 || obj.ko > 0 ? 0 : obj.isPlayer ? (obj.heading || 0) : steerYaw(obj, obj.dist || 0, x);
+    const yaw = obj.crash > 0 || obj.ko > 0 ? 0 : obj.isPlayer ? (obj.heading || 0) + (obj.slip || 0) : steerYaw(obj, obj.dist || 0, x);
     m.position.set(p.x + (hurt > 0 ? Math.sin(hurt * 90) * 18 : 0), p.y + bounce, p.z);
     m.rotation.set(p.pitch, -p.th - yaw, -rot, 'YXZ');
     // tipping over: roll about the wheel edge it falls onto (rolling about the middle sinks half the auto into
@@ -1973,6 +1973,16 @@ vec3 nightLight(vec3 p) {
         puff.visible = true;
       }
     }
+    // tyre smoke off the rear wheels while drifting
+    if (dt > 0 && Math.abs(player.slip || 0) > 0.2 && player.speed > 2400 && Math.random() < 0.7) {
+      const puff = smoke.find(m => m.userData.p.age >= m.userData.p.life);
+      if (puff) {
+        const ang = (player.heading || 0) + player.slip, k = Math.random() < 0.5 ? -1 : 1;
+        Object.assign(puff.userData.p, { d: player.dist - 340 * Math.cos(ang) - k * 240 * Math.sin(ang), x: player.x + (-340 * Math.sin(ang) + k * 240 * Math.cos(ang)) / ROAD_W,
+          h: 50, age: 0, life: 1.1, s0: 90, s1: 420, op: 0.32, shade: 0.94, rise: 30, drift: (Math.random() - 0.5) * 120, back: 0 });
+        puff.visible = true;
+      }
+    }
     const lit = hemi.intensity / 0.95;
     for (const m of smoke) {
       const q = m.userData.p;
@@ -2014,11 +2024,41 @@ vec3 nightLight(vec3 p) {
     }
   }
 
+  // ---------------------------------------------------------------- tyre marks
+  // dark streaks the rear wheels leave on the road while drifting; each fades out over MARK_LIFE seconds
+  const MARK_N = 700, MARK_LIFE = 10, MARK_W = 55;
+  let marksMesh = null;
+  function updateMarks(marks, now) {
+    if (!marksMesh) {
+      const g = new T.BufferGeometry();
+      g.setAttribute('position', new T.BufferAttribute(new Float32Array(MARK_N * 18), 3).setUsage(T.DynamicDrawUsage));
+      g.setAttribute('color', new T.BufferAttribute(new Float32Array(MARK_N * 24), 4).setUsage(T.DynamicDrawUsage));
+      marksMesh = new T.Mesh(g, new T.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
+      marksMesh.frustumCulled = false; marksMesh.renderOrder = 2; scene.add(marksMesh);
+    }
+    const pos = marksMesh.geometry.attributes.position.array, col = marksMesh.geometry.attributes.color.array, a = {}, b = {};
+    let n = 0;
+    for (let i = Math.max(0, marks.length - MARK_N); i < marks.length; i++) {
+      const m = marks[i], age = now - m.t; if (age > MARK_LIFE) continue;
+      const d1 = wrapD(m.d1 - camAbs), d2 = wrapD(m.d2 - camAbs);
+      if (d1 < -600 || d1 > 30000) continue;
+      placeAt(d1, m.x1, a); placeAt(d2, m.x2, b);
+      let px = -(b.z - a.z), pz = b.x - a.x; const l = Math.hypot(px, pz) || 1; px = px / l * MARK_W / 2; pz = pz / l * MARK_W / 2;
+      const q = [a.x - px, a.y + 3, a.z - pz, a.x + px, a.y + 3, a.z + pz, b.x + px, b.y + 3, b.z + pz, a.x - px, a.y + 3, a.z - pz, b.x + px, b.y + 3, b.z + pz, b.x - px, b.y + 3, b.z - pz];
+      for (let k = 0; k < 18; k++) pos[n * 18 + k] = q[k];
+      const alpha = 0.55 * (1 - age / MARK_LIFE);
+      for (let k = 0; k < 6; k++) { col[n * 24 + k * 4] = 0.06; col[n * 24 + k * 4 + 1] = 0.06; col[n * 24 + k * 4 + 2] = 0.07; col[n * 24 + k * 4 + 3] = alpha; }
+      n++;
+    }
+    marksMesh.geometry.setDrawRange(0, n * 6);
+    marksMesh.geometry.attributes.position.needsUpdate = true; marksMesh.geometry.attributes.color.needsUpdate = true;
+  }
+
   // ---------------------------------------------------------------- frame
   let lastVisible = new Set();
   function frame(state) {
     if (!ready || !segments.length) return null;
-    const { player, rivals, traffic, frameNo, shake, t, cross = [], lightOf = null } = state;
+    const { player, rivals, traffic, frameNo, shake, t, cross = [], lightOf = null, marks = [], now = 0 } = state;
     if (warmQueue.length) warmStep(6);
     buildFrame(player);
     buildRoad();
@@ -2113,6 +2153,7 @@ vec3 nightLight(vec3 p) {
     for (const m of lastVisible) if (!visible.has(m)) m.visible = false;
     lastVisible = visible;
     updateSmoke(player, t);
+    updateMarks(marks, now);
     if (nightU.uNight.value) feedNightLights(pp, visible);
     if (TIER.shadow) {                                           // the shadow box follows you, reaching mostly ahead
       const day = !nightU.uNight.value, e = TIER.shadow.reach;
