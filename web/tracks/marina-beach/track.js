@@ -4,7 +4,7 @@ RRR.tracks.register({
   id: 'marina-beach',
   name: 'CHENNAI · MARINA BEACH ROAD',
   city: 'chennai',
-  style: 'classic',
+  style: 'speed',
   seed: 73, length: 3400, laps: 1,
   rivals: { count: 7, skill: 0.96 },
   traffic: { count: 44, cows: 16, dogs: 20 },

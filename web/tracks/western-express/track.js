@@ -4,7 +4,7 @@ RRR.tracks.register({
   id: 'western-express',
   name: 'MUMBAI · WESTERN EXPRESS HIGHWAY',
   city: 'mumbai',
-  style: 'classic',
+  style: 'traffic',
   seed: 53, length: 3200, laps: 1,
   rivals: { count: 7, skill: 0.94 },
   traffic: { count: 52, cows: 14, dogs: 12 },

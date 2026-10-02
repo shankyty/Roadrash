@@ -4,7 +4,7 @@ RRR.tracks.register({
   id: 'marine-drive',
   name: 'MUMBAI · MARINE DRIVE',
   city: 'mumbai',
-  style: 'classic',
+  style: 'drift',
   seed: 11, length: 2600, laps: 1,
   rivals: { count: 5, skill: 0.86 },
   traffic: { count: 34, cows: 8, dogs: 14 },

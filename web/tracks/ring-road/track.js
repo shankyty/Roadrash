@@ -4,7 +4,7 @@ RRR.tracks.register({
   id: 'ring-road',
   name: 'DELHI · RING ROAD',
   city: 'delhi',
-  style: 'classic',
+  style: 'traffic',
   seed: 61, length: 3100, laps: 1,
   rivals: { count: 7, skill: 0.92 },
   traffic: { count: 50, cows: 16, dogs: 18 },
