@@ -183,7 +183,7 @@ function deviceSummary() {
 //   error/<kind>/<problem>/<OS-browser>
 // with the details needed to reproduce them in the title (version, game state, OS/browser versions,
 // screen, audio state, stack). Nothing personal is sent. Also logged to the console.
-const GAME_VERSION = '3.3.4';
+const GAME_VERSION = '3.3.5';
 // 3D quality tier: mobile browsers < laptop/desktop browsers < the Mac app. 'smooth' (phones and tablets,
 // when 3D is forced there with ?3d) keeps the frame rate up with fewer polygons and a lower resolution; 'high' for computer browsers; 'ultra'
 // in the Mac app (loaded from file://): finest models, detail kept farther away, full Retina resolution.
@@ -2250,6 +2250,11 @@ function crashPlayer(reason, dmg, dir) {
   Sfx.crash(); shake = 0.6; msg(reason, '#ff5252', 2);
   for (let i = 0; i < 18; i++) particles.push({ x: W / 2 + rand(-60, 60), y: H - 80, vx: rand(-200, 200), vy: rand(-260, -60), t: rand(0.5, 1), size: rand(3, 7), color: pick(['#ffd54f', '#bdbdbd', '#795548', '#ff7043']), g: 500 });
 }
+// a knock from traffic: it costs a little health, and running out knocks you out (like a lathi hit)
+function bumpPlayer(dmg, dir) {
+  player.health = Math.max(0, player.health - dmg); Sfx.bump();
+  if (player.health <= 0) crashPlayer('KNOCKED OUT!', 0, dir);
+}
 
 // ------------------------------------------------------------------ update
 let lastBeep = 4;
@@ -2714,7 +2719,7 @@ function checkCollisions() {
     if (use3D && dz < reach - 260 && c.type !== 'dog') {
       const dir = player.x >= c.x ? 1 : -1;
       player.x = c.x + dir * (pw + c.nw) / 2 + dir * 0.01;
-      player.lean = dir * 0.5; player.speed *= 0.92; player.health -= 2; Sfx.bump(); shake = 0.12;
+      player.lean = dir * 0.5; player.speed *= 0.92; shake = 0.12; bumpPlayer(2, dir);
       if (c.type === 'cow') { Animals.mooFrom(c); c.vx = -dir * 0.8; c.scared = 2; }
       return;
     }
@@ -2729,7 +2734,7 @@ function checkCollisions() {
     const rel = (player.speed - c.speed) / MAX_SPEED;
     if (c.type === 'cow') { Animals.mooFrom(c); c.vx = (c.x >= player.x ? 1 : -1) * 0.8; c.scared = 2; }
     if (rel > 0.3) { crashPlayer(`SMASHED INTO A ${c.label}!`, 20 + rel * 25); player.speed = c.speed * 0.3; }
-    else { player.speed = c.speed * 0.8; player.health -= 3; Sfx.bump(); shake = 0.15; }
+    else { player.speed = c.speed * 0.8; if (rel > 0.02) { shake = 0.15; bumpPlayer(3); } }  // (leaning on its bumper isn't a bump)
     player.dist -= reach - dz;
     return;
   }

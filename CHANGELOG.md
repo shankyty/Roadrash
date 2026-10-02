@@ -1,5 +1,10 @@
 # Changelog
 
+## v3.3.5: Bumps can knock you out
+
+- **Running out of health from bumps knocks you out:** rear-ending or scraping traffic with no health left now tips you over with "KNOCKED OUT!", the same as a lathi hit, and you're back on the road with 60 health. Before, bumps kept draining health far below zero and nothing happened.
+- **Leaning on a bumper isn't a bump:** holding the accelerator against a stopped vehicle (a queue at a red light, say) no longer costs health every frame. Only the knock itself does.
+
 ## v3.3.4: Space is the handbrake
 
 - **Handbrake on Space:**
