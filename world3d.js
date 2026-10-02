@@ -1907,7 +1907,9 @@ vec3 nightLight(vec3 p) {
     return p;
   }
   function placeAuto(obj, m, d, x, rot, atk, hurt, bounce) {
-    const p = onGround(placeAt(d, x), d, x, m.userData.size.l), yaw = obj.crash > 0 || obj.ko > 0 ? 0 : steerYaw(obj, obj.dist || 0, x);
+    const p = onGround(placeAt(d, x), d, x, m.userData.size.l);
+    // your auto faces its real heading (sharp pivots); rivals point the way they're moving
+    const yaw = obj.crash > 0 || obj.ko > 0 ? 0 : obj.isPlayer ? (obj.heading || 0) : steerYaw(obj, obj.dist || 0, x);
     m.position.set(p.x + (hurt > 0 ? Math.sin(hurt * 90) * 18 : 0), p.y + bounce, p.z);
     m.rotation.set(p.pitch, -p.th - yaw, -rot, 'YXZ');
     // tipping over: roll about the wheel edge it falls onto (rolling about the middle sinks half the auto into
@@ -1918,7 +1920,7 @@ vec3 nightLight(vec3 p) {
       const px = Math.sign(rot) * m.userData.size.w / 2, side = px * (1 - Math.cos(rot)), a = m.rotation.y;
       m.position.x += side * Math.cos(a); m.position.z -= side * Math.sin(a); m.position.y += Math.abs(px * Math.sin(rot));
     }
-    if (m.userData.frontWheel) m.userData.frontWheel.rotation.y = -yaw * 1.6;
+    if (m.userData.frontWheel) m.userData.frontWheel.rotation.y = obj.isPlayer ? -(obj.steer || 0) * 0.7 : -yaw * 1.6;
     const arm = m.userData.arm;
     if (atk) {
       const k = Math.min(1, atk.t / atk.dur), a = -1.9 + 2.25 * (1 - (1 - k) * (1 - k));
