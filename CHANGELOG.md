@@ -1,5 +1,14 @@
 # Changelog
 
+## v3.3.1: Sharp pivot turns, no accidental zoom
+
+- **Pivot turns like a real auto:**
+  - Below about 15 km/h, steering swings your auto round almost on the spot, up to 90 degrees, in about half a second.
+  - Drive off and it straightens back down the road.
+  - At racing speed, steering stays gentle as before, so the handling is unchanged in a race.
+  - The front wheel turns with your steering, and a turned auto takes up more of the road's width in collisions.
+- **No more accidental zoom:** double-tapping or pinching on phones (especially iPhone Safari) no longer zooms the page. Taps on the pause menu and the mixer still work.
+
 ## v3.3.0: A Blender-made Ambassador, and the BEST double-decker's rear platform
 
 - **The Hindustan Ambassador is modelled in Blender, after Sketchfab references:**

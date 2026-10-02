@@ -17,6 +17,9 @@ const MAX_SPEED = SEG_LEN * 60;
 const ACCEL = MAX_SPEED / 6, BRAKE = -MAX_SPEED, DECEL = -MAX_SPEED / 5;
 const OFFROAD_DECEL = -MAX_SPEED / 2, OFFROAD_LIMIT = MAX_SPEED / 4, CENTRIFUGAL = 0.25;
 const KMH = 80; // top speed shown on the speedo
+// heading: the way your auto faces relative to the road (radians, + = right). Under PIVOT_SPEED (15 km/h)
+// steering pivots it almost on the spot, up to 90 degrees; at racing speed it's held to a gentle angle
+const PIVOT_SPEED = MAX_SPEED * 15 / KMH, MAX_PIVOT = Math.PI / 2, MAX_RACE_HEADING = 0.33;
 const TUK_NW = 0.27; // auto-rickshaw width, normalised to half road width
 const TUK_LEN = 1060; // auto-rickshaw length in track units (the 3D model; vehicles are centred on their position)
 const FONT = '"Bungee", Impact, "Arial Black", sans-serif';
@@ -176,7 +179,7 @@ function deviceSummary() {
 //   error/<kind>/<problem>/<OS-browser>
 // with the details needed to reproduce them in the title (version, game state, OS/browser versions,
 // screen, audio state, stack). Nothing personal is sent. Also logged to the console.
-const GAME_VERSION = '3.3.0';
+const GAME_VERSION = '3.3.1';
 // 3D quality tier: mobile browsers < laptop/desktop browsers < the Mac app. 'smooth' (phones and tablets,
 // when 3D is forced there with ?3d) keeps the frame rate up with fewer polygons and a lower resolution; 'high' for computer browsers; 'ultra'
 // in the Mac app (loaded from file://): finest models, detail kept farther away, full Retina resolution.
@@ -1675,9 +1678,12 @@ let junctions = [], crossTraffic = [], worldT = 0; // road junctions (with signa
 let particles = [], popups = [], messages = [], bubbles = [], frameNo = 0, hawkerT = 2;
 const player = {};
 
+// your auto's footprint on the road turns with it: across the road it's wider and shorter
+const playerW = () => (Math.abs(Math.cos(player.heading || 0)) * TUK_NW * ROAD_W + Math.abs(Math.sin(player.heading || 0)) * TUK_LEN) / ROAD_W;
+const playerL = () => Math.abs(Math.cos(player.heading || 0)) * TUK_LEN + Math.abs(Math.sin(player.heading || 0)) * TUK_NW * ROAD_W;
 function resetPlayer() {
   Object.assign(player, { x: 0, dist: PLAYER_Z, speed: 0, health: 100, lean: 0, rot: 0, tip: 0, crash: 0, crashDir: 1,
-    atk: null, hurt: 0, inv: 0, kos: 0, finished: false, time: 0, name: 'YOU', steer: 0, puff: 0, hornCd: 0, isPlayer: true });
+    atk: null, hurt: 0, inv: 0, kos: 0, finished: false, time: 0, name: 'YOU', steer: 0, puff: 0, hornCd: 0, isPlayer: true, heading: 0 });
 }
 
 // ------------------------------------------------------------------ track building
@@ -1963,6 +1969,20 @@ const unlockAudio = e => {
   }, 1500);
 };
 for (const ev of ['pointerup', 'touchend', 'click', 'keydown']) addEventListener(ev, unlockAudio, { capture: true, passive: true });
+// iPhone Safari ignores user-scalable=no: block its pinch gestures, and stop a quick second tap from zooming
+// (it would otherwise zoom on accidental double taps); taps on the game canvas still reach the menus
+for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(ev, e => e.preventDefault(), { passive: false });
+let lastTapEnd = 0;
+document.addEventListener('touchend', e => {
+  const now = performance.now();
+  if (now - lastTapEnd < 350) {
+    e.preventDefault();
+    const t = e.changedTouches[0];
+    if (t && e.target === canvas) canvas.dispatchEvent(new MouseEvent('click', { clientX: t.clientX, clientY: t.clientY, bubbles: true }));
+  }
+  lastTapEnd = now;
+}, { passive: false });
+document.addEventListener('dblclick', e => e.preventDefault(), { passive: false });
 // swallow every non-shortcut key so the macOS WKWebView shell never plays the "unhandled key" beep
 addEventListener('keydown', e => { if (!e.metaKey && !e.ctrlKey && !/^F\d+$/.test(e.code)) e.preventDefault(); if (!e.repeat) keyDown(e.code); else keys[e.code] = true; });
 addEventListener('keyup', e => keyUp(e.code));
@@ -2167,7 +2187,7 @@ function updatePlayer(dt, controlled) {
   const dx = dt * 2 * sp;
   let steer = 0, acc = false, brk = false;
   if (controlled) { steer = (I.right() ? 1 : 0) - (I.left() ? 1 : 0); acc = I.up(); brk = I.down(); }
-  else { acc = player.speed < MAX_SPEED * 0.45; steer = clamp((laneX(1, 0) - player.x) * 1.5, -1, 1) * 0.6; }
+  else { acc = player.speed < MAX_SPEED * 0.45; steer = clamp((clamp((laneX(1, 0) - player.x) * 0.8, -0.3, 0.3) - player.heading) * 4, -1, 1); }
   player.steer = lerp(player.steer, steer, Math.min(1, dt * 10));
   player.hornCd -= dt; player.inv -= dt; player.hurt -= dt;
 
@@ -2179,12 +2199,20 @@ function updatePlayer(dt, controlled) {
     player.rot = lerp(player.rot, player.crashDir * 1.45, Math.min(1, dt * 7));
     player.x += player.crashDir * dt * 0.35 * sp;
     if (player.crash <= 0) {
-      player.rot = 0; player.lean = 0; player.tip = 0; player.speed = 0; player.x = clamp(player.x, -halfAt(player.dist) + 0.3, -0.3);
+      player.rot = 0; player.lean = 0; player.tip = 0; player.speed = 0; player.heading = 0; player.x = clamp(player.x, -halfAt(player.dist) + 0.3, -0.3);
       if (player.health <= 0) player.health = 60;
       player.inv = 1.5; msg('BACK ON THE ROAD!', '#8bc34a', 1.2);
     }
   } else {
-    player.x += dx * player.steer;
+    // heading: pivot almost on the spot when slow, gentle at speed; straightens up as you drive off
+    const slow = player.speed < PIVOT_SPEED;
+    const maxH = MAX_PIVOT + (MAX_RACE_HEADING - MAX_PIVOT) * clamp((player.speed - PIVOT_SPEED) / (MAX_SPEED * 0.25), 0, 1);
+    if (steer) {
+      const rate = slow ? (player.speed < 60 ? 2.2 : 3.2) : 2.0;   // ~90 degrees in half a second when creeping
+      player.heading = clamp(player.heading + steer * rate * dt, -maxH, maxH);
+    } else if (acc || player.speed > PIVOT_SPEED) player.heading *= Math.exp(-(0.8 + 3 * sp) * dt);
+    if (Math.abs(player.heading) > maxH) player.heading += (Math.sign(player.heading) * maxH - player.heading) * Math.min(1, dt * 4);
+    player.x += player.speed * Math.sin(player.heading) * dt / ROAD_W;  // the sideways part of where you're heading
     player.x -= dx * sp * seg.curve * CENTRIFUGAL;
     if (acc) player.speed += ACCEL * dt; else if (brk) player.speed += BRAKE * dt; else player.speed += DECEL * dt;
     if (Math.abs(player.x) > seg.half) {
@@ -2203,7 +2231,7 @@ function updatePlayer(dt, controlled) {
   }
   player.x = clamp(player.x, -seg.half - 1.8, seg.half + 1.8);
   player.speed = clamp(player.speed, 0, MAX_SPEED);
-  const move = player.speed * dt;
+  const move = player.speed * Math.cos(player.crash > 0 ? 0 : player.heading) * dt; // the down-the-road part
   player.dist += move;
   position = ((player.dist - PLAYER_Z) % trackLength + trackLength) % trackLength;
   const segDelta = move / SEG_LEN;
@@ -2338,7 +2366,7 @@ function updateTraffic(dt) {
 // out towards the centre) and moves back out once past, always indicating first and never into a lane with
 // something alongside. They merge before a lane ends and stop at red lights (and for a busy junction).
 function trafficObstacles() {
-  const obs = [{ z: player.dist, x: player.x, vz: player.speed, nw: TUK_NW, len: TUK_LEN, who: player }];
+  const obs = [{ z: player.dist, x: player.x, vz: player.speed * Math.cos(player.heading), nw: playerW(), len: playerL(), who: player }];
   for (const r of rivals) obs.push({ z: r.dist, x: r.x, vz: r.ko > 0 ? 0 : r.speed, nw: TUK_NW, len: TUK_LEN, who: r });
   for (const c of traffic) if (c.type !== 'dog') obs.push({ z: c.z, x: c.x, vz: (c.dir || 0) * c.speed, nw: c.nw, len: c.type === 'cow' ? 900 : c.len, who: c });
   return obs;
@@ -2484,7 +2512,7 @@ function updateCross(dt) {
       if (j.spawn[k] <= 0) { const go = crossGo(j); j.spawn[k] = go ? rand(1.2, 2.4) : rand(2.5, 5); spawnCross(j, dx, !go); }
     }
   }
-  const bodies = [{ x: player.x, z: player.dist, w: TUK_NW, l: TUK_LEN, who: player }, ...rivals.map(r => ({ x: r.x, z: r.dist, w: TUK_NW, l: TUK_LEN, who: r })),
+  const bodies = [{ x: player.x, z: player.dist, w: playerW(), l: playerL(), who: player }, ...rivals.map(r => ({ x: r.x, z: r.dist, w: TUK_NW, l: TUK_LEN, who: r })),
     ...traffic.filter(c => c.type !== 'dog').map(c => ({ x: c.x, z: c.z, w: c.nw, l: c.type === 'cow' ? 900 : c.len, who: c }))];
   for (const j of junctions) j.busy = false;
   for (const c of crossTraffic) {
@@ -2529,7 +2557,7 @@ function checkCollisions() {
   if (player.crash > 0) return;
   // in 3D every vehicle is a solid body centred on its position, so contact happens when the bodies' ends
   // meet (half of each length apart); the flat 2D sprites only touch just ahead of the auto
-  const pw = TUK_NW, half = use3D ? TUK_LEN / 2 : 0, seg = findSegment(player.dist + half * 0.8);
+  const pw = playerW(), half = use3D ? playerL() / 2 : 0, seg = findSegment(player.dist + half * 0.8);
   if (Math.abs(player.x) > seg.half) {
     for (const s of seg.solids) {
       if (Math.sign(s.offset) !== Math.sign(player.x)) continue;
@@ -2577,7 +2605,7 @@ function checkCollisions() {
     player.dist -= reach - dz;
     return;
   }
-  const reachR = use3D ? TUK_LEN : 200;
+  const reachR = use3D ? TUK_LEN / 2 + half : 200;
   for (const r of rivals) {
     const dz = r.dist - player.dist;
     if (Math.abs(dz) > reachR || !overlap(player.x, pw, r.x, r.nw)) continue;
@@ -2613,8 +2641,8 @@ function separateRivals() {
     }
     if (a.ko > 0) continue;
     // alongside you: the rival gives way sideways (nose to tail is handled in checkCollisions)
-    const pdz = player.dist - a.dist, pdx = a.x - player.x, pov = TUK_NW - Math.abs(pdx);
-    if (Math.abs(pdz) < reachR - 260 && pov > 0) a.x += (pdx >= 0 ? 1 : -1) * pov;
+    const pdz = player.dist - a.dist, pdx = a.x - player.x, pov = (TUK_NW + playerW()) / 2 - Math.abs(pdx);
+    if (Math.abs(pdz) < (use3D ? (TUK_LEN + playerL()) / 2 : 200) - 260 && pov > 0) a.x += (pdx >= 0 ? 1 : -1) * pov;
     for (const c of traffic) {
       if (c.type === 'dog' || c.type === 'cow' || c.dir === -1) continue;
       const reach = use3D ? (c.len || 0) / 2 + TUK_LEN / 2 : 200, dz = wrapDelta(c.z - a.dist), cw = use3D ? c.nw : c.nw * 0.85;
