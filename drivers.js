@@ -129,7 +129,7 @@ window.RRR_DRIVERS = [
       { "text": "KHAMMA GHANI, PAN AB DEKH!", "say": "खम्मा घणी, पण अब देख!" },
       { "text": "THAARI TOH...!", "say": "थारी तो!" },
       { "text": "KAAIN KARE HAI?!", "say": "कांई करे है?!" },
-      { "text": "CHHORA, SAMBHAL!", "say": "छोरा, संभळ!" }
+      { "text": "AE CHHORE, SAMBHAL KE!", "say": "ऐ छोरे, संभल के!" }
     ],
     "weapon": { "kind": "swing", "shape": "shoe", "color": "#b5651d", "power": 0.8, "reach": 0.85, "cooldown": 0.8, "sound": "slap",
                 "hitWords": ["JOOTI!", "PATAAK!"] },
