@@ -7,3 +7,4 @@ Screen Recording*
 *.mov
 tools/voices/.venv/
 __pycache__/
+tools/voices/samples/
