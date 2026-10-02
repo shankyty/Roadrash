@@ -4,7 +4,7 @@ RRR.tracks.register({
   id: 'juhu-beach',
   name: 'MUMBAI · JUHU BEACH ROAD',
   city: 'mumbai',
-  style: 'classic',
+  style: 'drift',
   seed: 91, length: 3600, laps: 1,
   rivals: { count: 7, skill: 0.97 },
   traffic: { count: 44, cows: 18, dogs: 18 },

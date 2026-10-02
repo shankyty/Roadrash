@@ -4,7 +4,7 @@ RRR.tracks.register({
   id: 'sea-link',
   name: 'MUMBAI · BANDRA-WORLI SEA LINK',
   city: 'mumbai',
-  style: 'classic',
+  style: 'speed',
   seed: 27, length: 3000, laps: 1,
   rivals: { count: 6, skill: 0.9 },
   traffic: { count: 46, cows: 0, dogs: 0 },
