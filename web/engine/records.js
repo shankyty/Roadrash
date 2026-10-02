@@ -3,16 +3,20 @@
 // and set(key, value)), so this runs under Node for tests.
 (() => {
 const RRR = (globalThis.RRR = globalThis.RRR || {});
-const EMPTY = { bestTime: null, bestDrift: 0, bestPasses: 0, wins: 0 };
+// a saved value counts only if it is a real number of the right kind: a hand-edited or corrupt save must not poison later comparisons
+const count = v => (Number.isFinite(v) && v >= 0 ? v : 0), time = v => (Number.isFinite(v) && v > 0 ? v : null);
 
 class Records {
   constructor(store) { this.store = store; }
   all() { const v = this.store.get('records', {}); return v && typeof v === 'object' && !Array.isArray(v) ? v : {}; }
-  get(trackId) { const r = this.all()[trackId]; return { ...EMPTY, ...(r && typeof r === 'object' ? r : {}) }; }
+  get(trackId) {
+    const saved = this.all()[trackId], r = saved && typeof saved === 'object' ? saved : {};
+    return { bestTime: time(r.bestTime), bestDrift: count(r.bestDrift), bestPasses: count(r.bestPasses), wins: count(r.wins) };
+  }
   // stats: { time, rank, driftScore, passes }; time is null when you didn't finish. Returns which bests were beaten.
   submit(trackId, stats) {
     const old = this.get(trackId), next = { ...old }, beaten = { time: false, drift: false, passes: false };
-    if (stats.time != null && (old.bestTime === null || stats.time < old.bestTime)) { next.bestTime = stats.time; beaten.time = true; }
+    if (time(stats.time) !== null && (old.bestTime === null || stats.time < old.bestTime)) { next.bestTime = stats.time; beaten.time = true; }
     if (stats.driftScore > old.bestDrift) { next.bestDrift = stats.driftScore; beaten.drift = true; }
     if (stats.passes > old.bestPasses) { next.bestPasses = stats.passes; beaten.passes = true; }
     if (stats.rank === 1) next.wins = old.wins + 1;

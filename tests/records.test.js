@@ -41,6 +41,17 @@ test('corrupt saved records are treated as empty', () => {
   for (const bad of ['oops', 7, null, [1, 2], { 'sea-link': 'oops' }])
     assert.deepStrictEqual(new Records(memoryStore({ records: bad })).get('sea-link'), { bestTime: null, bestDrift: 0, bestPasses: 0, wins: 0 });
 });
+test('saved fields of the wrong type are treated as unset', () => {
+  const rec = new Records(memoryStore({ records: { 'sea-link': { bestTime: 'x', bestDrift: null, bestPasses: -3, wins: '1' } } }));
+  assert.deepStrictEqual(rec.get('sea-link'), { bestTime: null, bestDrift: 0, bestPasses: 0, wins: 0 });
+  assert.deepStrictEqual(rec.submit('sea-link', { time: 90, rank: 1, driftScore: 5, passes: 1 }), { time: true, drift: true, passes: true });
+  assert.deepStrictEqual(rec.get('sea-link'), { bestTime: 90, bestDrift: 5, bestPasses: 1, wins: 1 });
+});
+test('a time that is not a number sets no best time', () => {
+  const rec = new Records(memoryStore());
+  assert.deepStrictEqual(rec.submit('sea-link', { time: NaN, rank: 2, driftScore: 0, passes: 0 }), { time: false, drift: false, passes: false });
+  assert.strictEqual(rec.get('sea-link').bestTime, null);
+});
 
 test('the selected race is read from the saved track id', () => {
   assert.strictEqual(selectedTrackIndex(memoryStore({ track: 'sea-link', level: 1 }), ORDER), 2);
