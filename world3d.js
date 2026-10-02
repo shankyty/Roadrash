@@ -305,8 +305,35 @@ vec3 nightLight(vec3 p) {
   }
   // an auto's windscreen is clear (you see the driver through it), unlike a car's dark tinted glass
   const autoScreen = nightify(new T.MeshPhongMaterial({ color: '#cfe6f2', transparent: true, opacity: 0.32, shininess: 120, specular: '#ffffff', side: T.DoubleSide, depthWrite: false }));
-  function autoModel(pal, rearCanvas) {
+  // what a driver swings: built along +x from the hand (x = 230), in the weapon's own colour
+  function weaponMesh(wp) {
+    const s = new T.Group(), c = (wp && wp.color) || '#c8a165', shape = (wp && wp.shape) || 'lathi';
+    if (shape === 'bat') { s.add(cylX(15, 210, '#6d4c41', 300)); s.add(rbox(440, 34, 112, c, 620, 0, 0, 14)); }
+    else if (shape === 'hockey') { s.add(cylX(15, 640, c, 500)); s.add(rbox(44, 150, 40, c, 815, -58, 0, 16)); }
+    else if (shape === 'umbrella') { s.add(cylX(8, 640, '#8d6e63', 480)); s.add(cylX(30, 430, c, 540)); s.add(rbox(26, 70, 26, '#8d6e63', 170, -30, 0, 10)); }
+    else if (shape === 'cane') { s.add(cylX(11, 540, c, 450)); s.add(sph('#d4af37', 50, 50, 50, 185, 0, 0)); }
+    else if (shape === 'cloth') { s.add(rbox(620, 14, 84, c, 520, 0, 0, 6)); s.add(rbox(40, 16, 88, '#f5f5f5', 800, 0, 0, 6)); }
+    else if (shape === 'shoe') { s.add(rbox(220, 64, 96, c, 320, 0, 0, 28)); s.add(sph(c, 70, 70, 60, 430, 26, 0)); }
+    else if (shape === 'bag') { s.add(cylX(6, 200, '#555555', 320)); s.add(rbox(250, 180, 74, c, 530, 0, 0, 18)); }
+    else if (shape === 'dandiya') for (const k of [-1, 1]) { const d = cylX(12, 360, c, 400, k * 26, 0); d.rotation.z += k * 0.07; s.add(d); s.add(cylX(13, 40, '#ffd21f', 330, k * 21, 0)); }
+    else if (shape === 'hand') s.add(sph('#8d5524', 76, 84, 40, 245, 0, 0));
+    else s.add(cylX(15, 640, c, 490));
+    return s;
+  }
+  // the pool of light a neon-lit auto throws on the road: a soft additive disc in the neon's colour
+  let neonTex = null;
+  function neonGlowMat(color) {
+    if (!neonTex) {
+      const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'), gr = x.createRadialGradient(64, 64, 0, 64, 64, 64);
+      gr.addColorStop(0, 'rgba(255,255,255,0.75)'); gr.addColorStop(0.5, 'rgba(255,255,255,0.28)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+      x.fillStyle = gr; x.fillRect(0, 0, 128, 128); neonTex = new T.CanvasTexture(c);
+    }
+    return new T.MeshBasicMaterial({ map: neonTex, color, transparent: true, blending: T.AdditiveBlending, depthWrite: false });
+  }
+  // driver (optional): one of the rival cast (web/drivers.js). Their shirt, headgear, weapon and neon go on the auto.
+  function autoModel(pal, rearCanvas, driver) {
     const g = new T.Group(), Wd = 560, L = 1060, R = L / 2;
+    const look = driver ? driver.look : null, shirt = (look && look.shirt) || '#3949ab';
     const body = pal.body, upper = pal.trim, hood = pal.canopy;
     g.add(shadow(Wd, L));
     // the shell (tub, footboard, nose cowl, mudguard, dashboard, windscreen, canvas hood) is the Blender model
@@ -367,8 +394,19 @@ vec3 nightLight(vec3 p) {
     }
     // driver and passengers
     const drvZ = M ? -R + 300 : -R + 400;
-    const drv = new T.Mesh(capsule(62, 60), lambert('#3949ab')); drv.position.set(0, 470 - lowY, drvZ); g.add(drv);
+    const drv = new T.Mesh(capsule(62, 60), lambert(shirt)); drv.position.set(0, 470 - lowY, drvZ); g.add(drv);
     const head = new T.Mesh(unitSphere, lambert('#8d5524')); head.scale.set(100, 115, 100); head.position.set(0, 620 - lowY, drvZ); g.add(head);
+    // what the driver wears on their head
+    const hg = look && look.headgear, hc = look && look.headgearColor, hy = 620 - lowY;
+    if (hg === 'turban' || hg === 'safa') {
+      g.add(sph(hc, 128, 86, 128, 0, hy + 44, drvZ + 4));                            // the wrap
+      g.add(sph(hc, 70, 50, 60, 0, hy + 78, drvZ - 22));                             // its peak at the front
+      if (hg === 'safa') g.add(rbox(34, 170, 16, hc, 30, hy - 40, drvZ + 62, 7));    // the tail down the back
+    } else if (hg === 'cap') g.add(rbox(96, 40, 122, hc, 0, hy + 56, drvZ, 14));
+    else if (hg === 'pallu') {
+      g.add(sph(hc, 124, 128, 124, 0, hy + 10, drvZ + 16));                          // over the head
+      g.add(rbox(150, 60, 70, hc, -40, hy - 110, drvZ + 20, 24));                    // and across the shoulder
+    }
     const bar = cyl(16, 220, '#222', 0, 560 - lowY * 1.6, drvZ - 110); bar.rotation.z = Math.PI / 2; g.add(bar);   // handlebar
     for (const px of [-120, 120]) { const h = new T.Mesh(unitSphere, lambert('#2b2b2b')); h.scale.set(90, 100, 90); h.position.set(px, 600 - lowY, R - 380); g.add(h); }
     // wheels: two at the back under the tub, one in front under the mudguard
@@ -379,13 +417,33 @@ vec3 nightLight(vec3 p) {
     // painted rear of the tub (plate, HORN OK PLEASE, tail lights) and the rear window in the hood
     if (rearCanvas) g.add(facePanel(crop(rearCanvas, 10, 108, 230, 206), Wd - 40, 250, 0, 265, R + 1));
     g.add(facePanel(rearWindowCanvas(), 330, 165, 0, M ? 590 : 700, R + (M ? 9 : 1)));
-    // lathi arm, shown while swinging
-    const arm = new T.Group(); arm.position.set(0, 560 - lowY, drvZ);
+    // the attack, shown while it happens: an arm swinging the driver's weapon (a lathi if nothing else), or, for
+    // a kicker, a leg out of the side of the auto
+    const weapon = driver ? driver.weapon : null, kick = !!weapon && weapon.kind === 'kick';
+    const arm = new T.Group(); arm.position.set(0, (kick ? 330 : 560) - lowY, drvZ);
     const armPivot = new T.Group(); armPivot.position.x = Wd * 0.3;
-    armPivot.add(rbox(220, 44, 44, '#3949ab', 110, 0, 0, 18));
-    const stick = cyl(15, 640, '#c8a165', 490, 0, 0); stick.rotation.z = Math.PI / 2; armPivot.add(stick);
+    if (kick) {
+      armPivot.add(rbox(470, 84, 84, weapon.color, 235, 0, 0, 34));
+      armPivot.add(rbox(84, 150, 96, '#1a1a1a', 488, 34, 0, 30));                    // the shoe, toes up
+    } else {
+      armPivot.add(rbox(220, 44, 44, shirt, 110, 0, 0, 18));
+      armPivot.add(weaponMesh(weapon));
+    }
     arm.add(armPivot); arm.visible = false;
-    g.userData.arm = arm; g.userData.armPivot = armPivot; g.add(arm);
+    g.userData.arm = arm; g.userData.armPivot = armPivot; g.userData.kick = kick; g.add(arm);
+    // neon strip lights (a decked-out auto, on a night track): along the foot of the tub, round the edge of the
+    // hood, and their glow on the road
+    if (look && look.neon && theme && theme.night) {
+      const nm = new T.MeshBasicMaterial({ color: look.neon }), hoodY = 808 - lowY;
+      for (const sx of [-1, 1]) {
+        g.add(box(14, 14, L * 0.5, nm, sx * (Wd / 2 + 4), 150, R - L * 0.27));
+        g.add(box(12, 12, L * 0.78, nm, sx * (Wd * 0.525 + 4), hoodY, R - L * 0.42));
+      }
+      g.add(box(Wd * 0.94, 14, 14, nm, 0, 150, R + 6));
+      g.add(box(Wd * 1.04, 12, 12, nm, 0, hoodY, R + 6));
+      const glow = new T.Mesh(unitPlane, neonGlowMat(look.neon)); glow.rotation.x = -Math.PI / 2;
+      glow.scale.set(Wd * 2.7, L * 1.9, 1); glow.position.y = 7; glow.renderOrder = 2; g.add(glow);
+    }
     g.userData.size = { w: Wd, h: 890, l: L };
     return g;
   }
@@ -1872,7 +1930,7 @@ vec3 nightLight(vec3 p) {
       vehicles.set(obj, m); return m;
     }
     lodSink.length = 0;
-    if (obj.isRival || obj.type === 'auto') m = autoModel(obj.palette || { body: obj.color || '#ffcc00', trim: '#111', canopy: '#151515' }, obj.img);
+    if (obj.isRival || obj.type === 'auto') m = autoModel(obj.palette || { body: obj.color || '#ffcc00', trim: '#111', canopy: '#151515' }, obj.img, obj.driver);
     else if (obj.isPlayer) m = autoModel({ body: '#1e9e4a', trim: '#ffd21f', canopy: '#151515' }, SP.player);
     else if (obj.type === 'bus') m = busModel(obj.look);
     else if (obj.type === 'truck') m = truckModel(SP.truck);
@@ -1884,6 +1942,13 @@ vec3 nightLight(vec3 p) {
     else return null;
     m.userData.lods = lodSink.splice(0); m.userData.look = look; castShadows(m);
     scene.add(m); vehicles.set(obj, m);
+    return m;
+  }
+  // the model viewer's 'rival:<driver id>' (their auto) and 'rival:<driver id>/hit' (with the attack held out)
+  function rivalPreview(arg) {
+    const [id, hit] = (arg || '').split('/'), d = (cfg.DRIVERS || []).find(o => o.id === id);
+    const m = d ? autoModel(d.look, SP.rivalOf[d.id], d) : autoModel({ body: '#1a1a1a', trim: '#f5c400', canopy: '#f5c400' }, SP.rivals[0]);
+    if (hit) { m.userData.arm.visible = true; m.userData.armPivot.rotation.z = m.userData.kick ? 0.05 : -0.2; }
     return m;
   }
   // heading relative to the road from how the object actually moved since the last frame: sideways
@@ -1923,8 +1988,10 @@ vec3 nightLight(vec3 p) {
     if (m.userData.frontWheel) m.userData.frontWheel.rotation.y = obj.isPlayer ? -(obj.steer || 0) * 0.7 : -yaw * 1.6;
     const arm = m.userData.arm;
     if (atk) {
-      const k = Math.min(1, atk.t / atk.dur), a = -1.9 + 2.25 * (1 - (1 - k) * (1 - k));
-      arm.visible = true; arm.rotation.y = atk.side < 0 ? Math.PI : 0; m.userData.armPivot.rotation.z = -a;
+      const k = Math.min(1, atk.t / atk.dur), e = 1 - (1 - k) * (1 - k);
+      arm.visible = true; arm.rotation.y = atk.side < 0 ? Math.PI : 0;
+      // a swing comes down from overhead to level; a kick comes up from the footboard to level
+      m.userData.armPivot.rotation.z = m.userData.kick ? -1.3 + 1.42 * e : 1.9 - 2.25 * e;
     } else arm.visible = false;
     spinWheels(m, obj.dist || 0);
     return p;
@@ -2225,7 +2292,7 @@ vec3 nightLight(vec3 p) {
     sc.add(new T.HemisphereLight(0xffffff, 0x666666, 1)); const d = new T.DirectionalLight(0xffffff, 0.6); d.position.set(1, 2, 1); sc.add(d);
     const [k0, arg] = kind.split(':');
     const m = k0 === 'player' ? autoModel({ body: '#1e9e4a', trim: '#ffd21f', canopy: '#151515' }, SP.player)
-      : k0 === 'rival' ? autoModel({ body: '#1a1a1a', trim: '#f5c400', canopy: '#f5c400' }, SP.rivals[0])
+      : k0 === 'rival' ? rivalPreview(arg)
       : k0 === 'bus' ? busModel({ ...((cfg.BUS_LOOKS || {})[(arg || '').split('/')[0] || theme.city] || [BUS_DEFAULT])[+(arg || '').split('/')[1] || 0], ...((arg || '').split('/')[2] ? { crowd: true } : {}) }) : k0 === 'truck' ? truckModel(SP.truck) : k0 === 'car' ? carModel(arg || '#c62828')
       : k0 === 'bike' ? bikeModel(cfg.BIKE_LOOKS[+arg || 0])
       : k0 === 'building' ? buildingModel({ img: TS.buildings[+arg || 0], offset: -1, len: 1400 })
