@@ -38,16 +38,6 @@ const TRACKS = [
   { name: 'MUMBAI · JUHU BEACH ROAD', theme: 'juhu', length: 3600, laps: 1, rivals: 7, skill: 0.97, traffic: 44, cows: 18, dogs: 18, seed: 91 },
 ];
 const PRIZES = [1500, 1000, 700, 400, 200, 100, 50, 0];
-const RIVAL_NAMES = ['RAJU', 'PAPPU', 'BABLU', 'CHINTU', 'MUNNA', 'GUDDU', 'TINKU', 'BUNTY', 'SONU', 'LALLU'];
-const RIVAL_COLORS = [
-  { body: '#1a1a1a', trim: '#f5c400', canopy: '#f5c400', plate: 'MH 02 AU' },
-  { body: '#1f64c8', trim: '#ffffff', canopy: '#141414', plate: 'KA 05 RR' },
-  { body: '#d7263d', trim: '#ffd166', canopy: '#141414', plate: 'UP 32 BT' },
-  { body: '#ff7b00', trim: '#111111', canopy: '#2b2b2b', plate: 'RJ 14 PK' },
-  { body: '#8e44ad', trim: '#f1c40f', canopy: '#141414', plate: 'TN 09 MA' },
-  { body: '#f06292', trim: '#ffffff', canopy: '#141414', plate: 'GA 07 SU' },
-  { body: '#00a896', trim: '#fff3b0', canopy: '#1a1a1a', plate: 'WB 04 KO' },
-];
 const HIT_WORDS = ['DHISHOOM!', 'DHISHKYAON!', 'THAPPAD!', 'DHAMAKA!', 'BAM!'];
 // Roadside hawkers call out to passing autos in the city's street lingo.
 const HAWKER_CALLS = {
@@ -56,7 +46,8 @@ const HAWKER_CALLS = {
   delhi: ['CHOLE BHATURE LELO!', 'GOLGAPPE, GOLGAPPE!', 'GARMA GARAM JALEBI!', 'MOMOS LELO, MOMOS!', 'CHAI BOLO, CHAAAI!'],
   chennai: ['KAAPI, KAAPIII!', 'SUNDAL, SUNDAAAL!', 'IDLI VADAI!', 'MURUKKU, MURUKKU!', 'ELANEER, ELANEEER!'],
 };
-// What a driver shouts after taking a lathi hit, in the local street slang of the race's city.
+// What your driver shouts after taking a hit, in the street slang of the race's city. (Rivals curse in their
+// own language: web/drivers.js.)
 const CURSES = {
   mumbai: ['ABE O HERO!', 'KYA RE, DIMAAG KHARAB?', 'AYE BHIDU, SAMBHAL KE!', 'APUN KO MAARA?!', 'CHAL NIKAL!', 'WAAT LAGA DUNGA!', 'GHANTA!'],
   hyderabad: ['KYA RE MIYAN!', 'NAKKO RE!', 'HAU, AB DEKH!', 'EK DENGA NA!', 'KAIKU MAARA?!', 'CHUP BAITH!', 'BAIGAN!'],
@@ -225,7 +216,7 @@ const COMPONENTS = [
   ['track', /^(buildTrack|loadTrack|addRoad|addSegment|lastY|findSegment|attractSetup)$/],
   ['sprites', /^(make[A-Z]\w*|buildSharedSprites|flipped|litWindows|fillerBlocks|trees|waterBand|gopuram|cutOut|archPath|onion)$/],
   ['ui', /^(draw(?:HUD|Title|Results|Paused|Mixer|Controls|Countdown|Champion|Bubbles|Popups|Messages|SoundHint)|text|panel|bar|keycap)$/],
-  ['renderer', /^(render|drawSegment|drawBackground|drawSprite|drawTuk|drawLathi|drawPlayer|project|poly)$/],
+  ['renderer', /^(render|drawSegment|drawBackground|drawSprite|drawTuk|drawAttack|drawNeon|drawNeonStrips|drawPlayer|project|poly)$/],
   ['input', /^(onPress|keyDown|keyUp|runCommand|toggleLayout|openPause|openMixer)$/],
   ['voices', /^(?:Object\.|Voice\.|VoiceClips\.)?(sayLine|stopVoices|loadClips|playClip|place|updateClips|stopClips)$/],
   ['analytics', /^(trackEvent|deviceSummary|envDetails)$/],
@@ -280,6 +271,45 @@ const store = {
   get(k, d) { try { const v = localStorage.getItem('rrr_' + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem('rrr_' + k, JSON.stringify(v)); } catch (e) { /* ignore */ } },
 };
+
+// ------------------------------------------------------------------ the rival cast
+// web/drivers.js (window.RRR_DRIVERS): one driver per city, each with a look, a voice and curses of their own,
+// a weapon and a driving style. A broken entry is reported and left out; PLAIN_DRIVER fills the grid if fewer
+// than seven are left (the biggest grid), so a race always starts.
+const PLAIN_DRIVER = { id: 'plain', name: 'RAJU', city: '', cityName: '', tag: '',
+  look: { body: '#d7263d', trim: '#ffd166', canopy: '#141414', plate: 'UP 32 BT', slogan: 'HORN OK PLEASE', shirt: '#3949ab', headgear: 'none', headgearColor: '#000000', neon: null },
+  voice: { lang: 'hi', speaker: '', describe: '', rate: 1 }, curses: [],
+  weapon: { kind: 'swing', shape: 'lathi', color: '#c8a165', power: 1, reach: 1, cooldown: 1, sound: 'wood', hitWords: HIT_WORDS },
+  style: { pace: -0.02, bends: 0.22, aggression: 0.9, chase: 900, weave: [3, 8], nerve: 0.5, launch: [0.05, 0.5], grudge: 1 } };
+const LATHI = PLAIN_DRIVER.weapon; // what you swing
+function driverProblem(d) {
+  const num = (v, lo, hi) => typeof v === 'number' && v >= lo && v <= hi, span = (v, lo, hi) => Array.isArray(v) && v.length === 2 && num(v[0], lo, hi) && num(v[1], v[0], hi);
+  const hex = v => /^#[0-9a-f]{6}$/i.test(v || '');
+  if (!d || typeof d.id !== 'string' || !d.name || !d.city) return 'no id, name or city';
+  const l = d.look, w = d.weapon, st = d.style;
+  if (!l || !['body', 'trim', 'canopy', 'shirt'].every(k => hex(l[k])) || typeof l.plate !== 'string' || (l.neon && !hex(l.neon))) return 'bad look';
+  if (!w || !['swing', 'kick'].includes(w.kind) || !hex(w.color) || !num(w.power, 0.5, 2) || !num(w.reach, 0.5, 1.5) || !num(w.cooldown, 0.5, 2) || !Array.isArray(w.hitWords) || !w.hitWords.length) return 'bad weapon';
+  if (!st || !num(st.pace, -0.1, 0.05) || !num(st.bends, 0, 0.5) || !num(st.aggression, 0, 2) || !num(st.chase, 100, 3000) || !span(st.weave, 0.5, 30) || !num(st.nerve, 0, 1) || !span(st.launch, 0, 2) || !num(st.grudge, 1, 5)) return 'bad style';
+  if (!Array.isArray(d.curses) || !d.curses.every(c => c && typeof c.text === 'string') || !d.voice || typeof d.voice.rate !== 'number') return 'bad curses or voice';
+  return null;
+}
+const DRIVERS = (() => {
+  const out = [];
+  for (const d of Array.isArray(window.RRR_DRIVERS) ? window.RRR_DRIVERS : []) {
+    const bad = driverProblem(d) || (out.some(o => o.id === d.id) && 'duplicate id');
+    if (bad) reportError('drivers', `driver ${d && d.id}: ${bad}`); else out.push(d);
+  }
+  if (!out.length) reportError('drivers', 'drivers.js missing or empty: plain rivals');
+  for (let i = 0; out.length < 7; i++) out.push({ ...PLAIN_DRIVER, id: 'plain' + i, name: ['RAJU', 'PAPPU', 'CHINTU', 'MUNNA', 'GUDDU', 'TINKU', 'SONU'][i] });
+  return out;
+})();
+// Who's on the grid: the track city's own driver always races; the rest are drawn from the others.
+function pickGrid(city, n, r = Math.random) {
+  const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  const home = DRIVERS.filter(d => d.city === city).slice(0, 1), rest = shuffle(DRIVERS.filter(d => !home.includes(d)));
+  return shuffle([...home, ...rest].slice(0, n));
+}
+const rivalLabel = r => r.driver && r.driver.cityName ? `${r.name} · ${r.driver.cityName}` : r.name;
 
 // ------------------------------------------------------------------ audio
 // iOS: play as media so the silent switch doesn't mute the game (Safari 17+)
@@ -467,7 +497,11 @@ const Sfx = {
     s.connect(fl); fl.connect(g); g.connect(this.raceBus); s.start(t); s.stop(t + dur + 0.05);
   },
   horn() { this.tone(380, 0.13, 'square', 0.16, 360, 0, 1800); this.tone(300, 0.22, 'square', 0.16, 280, 0.15, 1600); },
-  hit() { this.noise(0.12, 0.5, 1400); this.tone(120, 0.2, 'sine', 0.55, 50); },
+  hit(kind = 'wood') { // wood: a stick's thwack; slap: a hand, a shoe, a wet cloth; thud: a kick or something heavy
+    if (kind === 'slap') { this.noise(0.07, 0.6, 3200); this.tone(420, 0.06, 'triangle', 0.25, 180); }
+    else if (kind === 'thud') { this.noise(0.16, 0.4, 600); this.tone(80, 0.26, 'sine', 0.7, 38); }
+    else { this.noise(0.12, 0.5, 1400); this.tone(120, 0.2, 'sine', 0.55, 50); }
+  },
   whoosh() { this.noise(0.14, 0.12, 3500); },
   crash() { this.noise(0.8, 0.6, 700); this.tone(90, 0.6, 'sine', 0.5, 30); this.noise(0.3, 0.3, 4000, 0.1); },
   bump() { this.tone(90, 0.12, 'sine', 0.4, 60); this.noise(0.08, 0.2, 900); },
@@ -967,7 +1001,7 @@ function shade(hex, amt) {
 function flipped(src) { const c = mk(src.width, src.height), g = c.getContext('2d'); g.translate(src.width, 0); g.scale(-1, 1); g.drawImage(src, 0, 0); return c; }
 
 // Auto-rickshaw seen from behind.
-function makeTuk(body, trim, canopy, plate) {
+function makeTuk(body, trim, canopy, plate, slogan = 'HORN OK PLEASE') {
   const c = mk(240, 232), g = c.getContext('2d');
   g.fillStyle = 'rgba(0,0,0,.35)'; ell(g, 120, 218, 114, 11); g.fill();
   for (const wx of [30, 210]) {
@@ -1000,7 +1034,7 @@ function makeTuk(body, trim, canopy, plate) {
   lower(); g.fillStyle = sh; g.fill();
   g.fillStyle = trim; g.fillRect(15, 121, 210, 16);
   g.fillStyle = isLight(trim) ? '#111' : '#fff'; g.font = 'bold 11px Arial, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.fillText('HORN OK PLEASE', 120, 129.5);
+  g.fillText(slogan, 120, 129.5, 200);
   for (const tx of [22, 196]) {
     g.fillStyle = '#7a0000'; rr(g, tx, 142, 22, 26, 5); g.fill();
     g.fillStyle = '#ff2b2b'; rr(g, tx + 3, 145, 16, 20, 4); g.fill();
@@ -1751,7 +1785,9 @@ const BIKE_CALM = BIKE_LOOKS.map((l, i) => i).filter(i => !BIKE_LOOKS[i].rash), 
 const SP = {};
 function buildSharedSprites() {
   SP.player = makeTuk('#1e9e4a', '#ffd21f', '#151515', 'DL 1R 4207');
-  SP.rivals = RIVAL_COLORS.map(c => makeTuk(c.body, c.trim, c.canopy, c.plate));
+  SP.rivalOf = {};
+  for (const d of DRIVERS) SP.rivalOf[d.id] = makeTuk(d.look.body, d.look.trim, d.look.canopy, d.look.plate, d.look.slogan);
+  SP.rivals = DRIVERS.map(d => SP.rivalOf[d.id]);
   SP.cowR = makeCow(); SP.cowL = flipped(SP.cowR);
   SP.dogs = DOG_COATS.map(coat => {
     const side = [makeDogSide(coat, 0), makeDogSide(coat, 1)];
@@ -1956,7 +1992,7 @@ function loadTrack(idx) {
   const sky = SKYLINES[theme.city];
   bgLayers = { far: sky.far(theme, track.seed), near: sky.near(theme, track.seed + 5) };
   buildTrack(track);
-  if (use3D) World3D.setTrack({ segments, trackLength, theme, SP, themeSprites, CAR_COLORS, CAR_LOOKS, TRACTOR_LOOKS, BUS_LOOKS, BIKE_LOOKS, DOG_COATS, MAX_SPEED, LANE_W });
+  if (use3D) World3D.setTrack({ segments, trackLength, theme, SP, themeSprites, CAR_COLORS, CAR_LOOKS, TRACTOR_LOOKS, BUS_LOOKS, BIKE_LOOKS, DOG_COATS, DRIVERS, MAX_SPEED, LANE_W });
 }
 
 function findSegment(z) { return segments[Math.floor(((z % trackLength) + trackLength) % trackLength / SEG_LEN) % segments.length]; }
@@ -1979,16 +2015,16 @@ function setupRace() {
   const rowZ = row => PLAYER_Z + (rows - 1 - row) * (use3D ? TUK_LEN + 350 : 520); // 3D autos need a real gap between rows
   const shiftZ = PLAYER_Z - rowZ(slots[playerSlot].row);
   player.x = slots[playerSlot].x;
-  const names = [...RIVAL_NAMES].sort(() => Math.random() - 0.5);
+  const grid = pickGrid(theme.city, nR);
   let ri = 0;
   for (let i = 0; i < slots.length; i++) {
     if (i === playerSlot) continue;
-    const c = RIVAL_COLORS[ri % RIVAL_COLORS.length];
-    rivals.push({ name: names[ri], color: c.body, palette: c, img: SP.rivals[ri % SP.rivals.length], nw: TUK_NW, voicePitch: rand(0.7, 1.35),
+    const d = grid[ri], st = d.style; // the driver: their auto, their weapon and the way they drive
+    rivals.push({ name: d.name, driver: d, style: st, weapon: d.weapon, color: d.look.body, palette: d.look, img: SP.rivalOf[d.id], nw: TUK_NW,
       x: slots[i].x, dist: rowZ(slots[i].row) + shiftZ, speed: 0,
-      top: MAX_SPEED * clamp(track.skill * diff - 0.06 + Math.random() * 0.08, 0.7, 1.02),
-      health: 100, ko: 0, koBy: null, rot: 0, atk: null, cd: rand(1, 3), aggr: rand(0.6, 1.2), laneX: laneX(1, Math.floor(Math.random() * 2)),
-      laneT: rand(3, 8), delay: rand(0.05, 0.5), finished: false, time: 0, hurt: 0, scr: null, isRival: true });
+      top: MAX_SPEED * clamp(track.skill * diff + st.pace + rand(-0.01, 0.01), 0.7, 1.02),
+      health: 100, ko: 0, koBy: null, rot: 0, atk: null, cd: rand(1, 3), grudgeT: 0, laneX: laneX(1, Math.floor(Math.random() * 2)),
+      laneT: rand(st.weave[0], st.weave[1]), delay: rand(st.launch[0], st.launch[1]), finished: false, time: 0, hurt: 0, scr: null, isRival: true });
     ri++;
   }
   // traffic
@@ -2182,15 +2218,17 @@ function updateHawkers(dt) {
 }
 function curse(who) {
   bubbles = bubbles.filter(b => b.who !== who);
-  const line = pick(CURSES[theme.city] || CURSES.mumbai);
+  // a rival curses in their own language and their own voice (clip "<id>|<line>"), wherever the race is;
+  // you curse in the slang of the city you're racing in
+  const own = who.driver && who.driver.curses.length ? pick(who.driver.curses).text : null;
+  const line = own || pick(CURSES[theme.city] || CURSES.mumbai);
   bubbles.push({ who, text: line, t: 1.7 });
   setTimeout(() => Sfx.grunt(), 120);
-  // every rival has their own voice; your driver sounds the same all race
-  Voice.sayLine(line, { kind: 'curse',
-    owner: who, clipRate: who.isPlayer ? 1 : 0.85 + ((who.voicePitch || 1) - 0.7) * 0.55,
+  Voice.sayLine(own ? `${who.driver.id}|${line}` : line, { kind: 'curse',
+    owner: who, clipRate: own ? who.driver.voice.rate : who.isPlayer ? 1 : rand(0.85, 1.2),
     where: who.isPlayer ? null : () => ({ dz: who.dist - player.dist, x: who.x, vz: who.speed }) });
 }
-function startAttack(who, side) { who.atk = { t: 0, side, dur: 0.34, done: false }; }
+function startAttack(who, side) { who.atk = { t: 0, side, dur: 0.34, done: false, sleeve: who.driver ? who.driver.look.shirt : null }; }
 
 function honk() {
   if (player.hornCd > 0) return;
@@ -2206,20 +2244,21 @@ function honk() {
 }
 
 function resolveAttack(att, side) {
-  const attIsPlayer = !!att.isPlayer;
+  const attIsPlayer = !!att.isPlayer, w = att.weapon || LATHI;
   const targets = attIsPlayer ? rivals.filter(r => !r.ko) : [player];
   let best = null, bestDz = 1e9;
   for (const t of targets) {
     if (t === att) continue;
     if (t.isPlayer && (t.crash > 0 || t.inv > 0)) continue;
     const dz = t.dist - att.dist, dx = t.x - att.x;
-    if (Math.abs(dz) < 440 && dx * side > 0.02 && Math.abs(dx) < 0.8 && Math.abs(dz) < bestDz) { best = t; bestDz = Math.abs(dz); }
+    if (Math.abs(dz) < 440 && dx * side > 0.02 && Math.abs(dx) < 0.8 * w.reach && Math.abs(dz) < bestDz) { best = t; bestDz = Math.abs(dz); }
   }
   if (!best) { if (attIsPlayer) Sfx.whoosh(); return; }
-  Sfx.hit();
-  const dmg = attIsPlayer ? rand(14, 22) : rand(7, 12) * (1 + round * 0.1) * (0.8 + track.skill * 0.3);
+  Sfx.hit(w.sound);
+  const dmg = attIsPlayer ? rand(14, 22) : rand(7, 12) * w.power * (1 + round * 0.1) * (0.8 + track.skill * 0.3);
   best.health -= dmg; best.hurt = 0.3; best.x += side * 0.12; best.speed *= 0.86;
-  const word = pick(HIT_WORDS);
+  if (attIsPlayer) best.grudgeT = 10; // some of them don't forget it
+  const word = pick(w.hitWords);
   if (best.health <= 0 || Math.random() < 0.75) curse(best);
   if (best.isPlayer) { popup(word, W / 2 + side * 80, H - 300, '#ff5252', 38); shake = Math.max(shake, 0.25);
     if (best.health <= 0) crashPlayer('KNOCKED OUT!', 0, side); }
@@ -2374,7 +2413,8 @@ function updatePlayer(dt, controlled) {
 function updateRivals(dt) {
   for (const r of rivals) {
     const seg = findSegment(r.dist);
-    r.hurt -= dt;
+    const st = r.style, wp = r.weapon;
+    r.hurt -= dt; r.grudgeT -= dt;
     if (state === 'race' || state === 'finished' || state === 'results') { if (r.delay > 0) { r.delay -= dt; continue; } }
     if (r.atk) { r.atk.t += dt; if (!r.atk.done && r.atk.t > 0.17) { r.atk.done = true; resolveAttack(r, r.atk.side); } if (r.atk.t > r.atk.dur) r.atk = null; }
     if (r.ko > 0) {
@@ -2385,16 +2425,16 @@ function updateRivals(dt) {
     }
     r.rot = lerp(r.rot, 0, Math.min(1, dt * 8));
     const dz = r.dist - player.dist;
-    let target = r.top * (1 - 0.22 * Math.abs(seg.curve) / 6);
+    let target = r.top * (1 - st.bends * Math.abs(seg.curve) / 6);
     if (dz < -2500) target *= 1.1; else if (dz > 6000) target *= 0.92;
-    const engaged = !r.finished && !player.finished && player.crash <= 0 && Math.abs(dz) < 900;
+    const engaged = !r.finished && !player.finished && player.crash <= 0 && Math.abs(dz) < st.chase;
     if (engaged) target = clamp(player.speed + (dz < 0 ? 700 : -250), MAX_SPEED * 0.3, r.top * 1.03);
     if (r.finished) target = MAX_SPEED * 0.35;
     r.speed += clamp(target - r.speed, -MAX_SPEED * 0.6 * dt, MAX_SPEED / 5 * dt);
 
     // steering: avoid traffic, otherwise chase player or keep lane
     let tx = r.laneX;
-    r.laneT -= dt; if (r.laneT <= 0) { r.laneT = rand(3, 8); r.laneX = laneX(1, Math.floor(Math.random() * seg.lanes)); }
+    r.laneT -= dt; if (r.laneT <= 0) { r.laneT = rand(st.weave[0], st.weave[1]); r.laneX = laneX(1, Math.floor(Math.random() * seg.lanes)); }
     const rMin = -seg.half + 0.2, rMax = -0.15; // rivals stay on our side of the centre line
     if (engaged) tx = player.x + (r.x >= player.x ? 1 : -1) * 0.4;
     let nearest = null, nd = 1800;
@@ -2404,11 +2444,11 @@ function updateRivals(dt) {
       if (gapZ > -2 * reach && gapZ < nd && Math.abs(c.x - r.x) < (r.nw + c.nw) / 2 + 0.1) { nearest = c; nd = gapZ; }
     }
     if (nearest) {
-      const gap = (r.nw + nearest.nw) / 2 + 0.16;
+      const gap = (r.nw + nearest.nw) / 2 + lerp(0.22, 0.1, st.nerve); // the nervier, the closer they shave it
       let side = r.x >= nearest.x ? 1 : -1;
       const nx = nearest.x + side * gap; if (nx < rMin || nx > rMax) side = -side;
       tx = nearest.x + side * gap;
-      if (nd < 300 && nd > -150) r.speed = Math.min(r.speed, nearest.speed + 400);
+      if (nd < lerp(450, 200, st.nerve) && nd > -150) r.speed = Math.min(r.speed, nearest.speed + 400);
     }
     tx = clamp(tx, rMin, rMax);
     r.x += clamp(tx - r.x, -1.3 * dt, 1.3 * dt);
@@ -2417,8 +2457,10 @@ function updateRivals(dt) {
     if (engaged && !r.atk) {
       r.cd -= dt;
       const dx = player.x - r.x;
-      if (r.cd <= 0 && Math.abs(dz) < 380 && Math.abs(dx) < 0.72 && Math.abs(dx) > 0.05) {
-        startAttack(r, Math.sign(dx)); r.cd = rand(0.9, 2.0) / r.aggr / (1 + round * 0.1);
+      // how keen they are to hit you: their nature, or (for 10 s after you hit them) their grudge
+      const aggr = r.grudgeT > 0 ? Math.max(st.aggression, 0.8) * st.grudge : st.aggression;
+      if (aggr > 0 && r.cd <= 0 && Math.abs(dz) < 380 && Math.abs(dx) < 0.72 * wp.reach && Math.abs(dx) > 0.05) {
+        startAttack(r, Math.sign(dx)); r.cd = rand(0.9, 2.0) * wp.cooldown / aggr / (1 + round * 0.1);
       }
     }
   }
@@ -2622,7 +2664,16 @@ function spawnCross(j, dirX, queued) {
   const x = queued ? back * dirX : -dirX * (j.half + 13);
   if (!queued && x * dirX > back) return;
   crossTraffic.push({ j, dirX, x, z: j.zc + dirX * 600, type: d.type, nw: d.nw, len: d.len, lenX, label: d.label, cruise: rand(1.9, 2.4), speed: queued ? 0 : 2.1,
-    img: d.img || (d.type === 'bus' ? SP.bus : d.type === 'auto' ? pick(SP.rivals) : pick(SP.bikes)), look: d.look, palette: d.type === 'auto' ? pick(RIVAL_COLORS) : null });
+    img: d.img || (d.type === 'bus' ? SP.bus : d.type === 'auto' ? cityAuto().img : pick(SP.bikes)), look: d.look, palette: d.type === 'auto' ? cityAuto().palette : null });
+}
+// autos in traffic wear the livery of the city you're racing in (no slogan, driver or weapon of their own)
+const cityAutos = {};
+function cityAuto() {
+  if (!cityAutos[theme.city]) {
+    const l = (DRIVERS.find(d => d.city === theme.city) || DRIVERS[0]).look, palette = { body: l.body, trim: l.trim, canopy: l.canopy };
+    cityAutos[theme.city] = { palette, img: makeTuk(l.body, l.trim, l.canopy, l.plate.slice(0, 5) + ' AU') };
+  }
+  return cityAutos[theme.city];
 }
 function dropCross(gone) {
   const out = crossTraffic.filter(gone); if (!out.length) return;
@@ -2935,38 +2986,106 @@ function drawSprite(img, destX, destY, destW, destH, clipY) {
   ctx.drawImage(img, 0, 0, img.width, img.height - (img.height * clipH / destH), destX, destY, destW, destH - clipH);
 }
 
-// lathi (bamboo stick) swing, drawn on top of a tuk-tuk sprite rect
-function drawLathi(x, y, w, h, atk) {
-  const side = atk.side, p = clamp(atk.t / atk.dur, 0, 1);
-  const sx = x + w * (0.5 + side * 0.34), sy = y + h * 0.3;
-  const a = lerp(-1.9, 0.35, 1 - (1 - p) * (1 - p));
-  const dx = Math.cos(a) * side, dy = Math.sin(a);
-  const hx = sx + dx * w * 0.28, hy = sy + dy * w * 0.28;
-  ctx.lineCap = 'round';
-  ctx.strokeStyle = '#3949ab'; ctx.lineWidth = w * 0.07; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx + dx * w * 0.12, sy + dy * w * 0.12); ctx.stroke();
-  ctx.strokeStyle = '#8d5524'; ctx.lineWidth = w * 0.05; ctx.beginPath(); ctx.moveTo(sx + dx * w * 0.1, sy + dy * w * 0.1); ctx.lineTo(hx, hy); ctx.stroke();
-  const ex = hx + dx * w * 0.5, ey = hy + dy * w * 0.5;
-  ctx.strokeStyle = '#c8a165'; ctx.lineWidth = w * 0.035; ctx.beginPath(); ctx.moveTo(hx - dx * w * 0.06, hy - dy * w * 0.06); ctx.lineTo(ex, ey); ctx.stroke();
-  ctx.strokeStyle = '#6d4c41'; ctx.lineWidth = w * 0.037;
-  for (const t of [0.3, 0.6, 0.9]) { const bx = lerp(hx, ex, t), by = lerp(hy, ey, t); ctx.beginPath(); ctx.moveTo(bx - dx * 2, by - dy * 2); ctx.lineTo(bx + dx * 2, by + dy * 2); ctx.stroke(); }
-  ctx.fillStyle = '#8d5524'; ctx.beginPath(); ctx.arc(hx, hy, w * 0.035, 0, Math.PI * 2); ctx.fill();
-  if (p > 0.25 && p < 0.75) {
+// An attack drawn on top of a tuk-tuk sprite rect: the arm swings whatever the driver fights with (weapon.shape),
+// or a leg shoots out of the side of the auto (weapon.kind 'kick').
+function drawAttack(x, y, w, h, atk, weapon) {
+  const side = atk.side, p = clamp(atk.t / atk.dur, 0, 1), ease = 1 - (1 - p) * (1 - p);
+  const line = (x0, y0, x1, y1, color, width) => { ctx.strokeStyle = color; ctx.lineWidth = width; ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke(); };
+  const swoosh = (cx, cy, R, a0, a1) => {
+    if (p <= 0.25 || p >= 0.75) return;
     ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = w * 0.02; ctx.beginPath();
-    const R = w * 0.75; const a0 = -1.6, a1 = a;
-    if (side > 0) ctx.arc(sx, sy, R, a0, a1); else ctx.arc(sx, sy, R, Math.PI - a1, Math.PI - a0);
+    if (side > 0) ctx.arc(cx, cy, R, a0, a1); else ctx.arc(cx, cy, R, Math.PI - a1, Math.PI - a0);
     ctx.stroke();
+  };
+  ctx.lineCap = 'round';
+  if (weapon.kind === 'kick') { // from hanging down by the footboard to straight out sideways
+    const hx = x + w * (0.5 + side * 0.36), hy = y + h * 0.6, a = lerp(1.25, -0.12, ease);
+    const dx = Math.cos(a) * side, dy = Math.sin(a), fx = hx + dx * w * 0.42, fy = hy + dy * w * 0.42;
+    line(hx, hy, fx, fy, weapon.color, w * 0.09);
+    line(fx, fy, fx - dy * side * w * 0.07, fy - Math.abs(dx) * w * 0.07, '#1a1a1a', w * 0.075); // the shoe, toes up
+    swoosh(hx, hy, w * 0.46, a, 1.2);
+    return;
   }
+  const sx = x + w * (0.5 + side * 0.34), sy = y + h * 0.3;
+  const a = lerp(-1.9, 0.35, ease);
+  const dx = Math.cos(a) * side, dy = Math.sin(a), nx = -dy, ny = dx; // along the arm, and across it
+  const hx = sx + dx * w * 0.28, hy = sy + dy * w * 0.28;
+  const at = t => [hx + dx * w * t, hy + dy * w * t];
+  line(sx, sy, sx + dx * w * 0.12, sy + dy * w * 0.12, atk.sleeve || '#3949ab', w * 0.07);
+  line(sx + dx * w * 0.1, sy + dy * w * 0.1, hx, hy, '#8d5524', w * 0.05);
+  const c = weapon.color, shape = weapon.shape;
+  let len = 0.5; // how far the weapon reaches past the hand, in sprite widths (for the swoosh)
+  if (shape === 'bat') {
+    line(...at(-0.04), ...at(0.14), '#6d4c41', w * 0.028);
+    ctx.lineCap = 'butt'; line(...at(0.13), ...at(0.46), c, w * 0.085); ctx.lineCap = 'round'; len = 0.46;
+  } else if (shape === 'hockey') {
+    line(...at(-0.06), ...at(0.52), c, w * 0.035);
+    const [ex, ey] = at(0.52); line(ex, ey, ex + nx * side * w * 0.1 + dx * w * 0.03, ey + ny * side * w * 0.1 + dy * w * 0.03, c, w * 0.045); len = 0.54;
+  } else if (shape === 'umbrella') {
+    line(...at(-0.05), ...at(0.5), '#8d6e63', w * 0.018);
+    line(...at(0.07), ...at(0.44), c, w * 0.06);
+    const [kx, ky] = at(-0.05); ctx.strokeStyle = '#8d6e63'; ctx.lineWidth = w * 0.02; ctx.beginPath(); ctx.arc(kx + nx * w * 0.025, ky + ny * w * 0.025, w * 0.025, 0, Math.PI * 2); ctx.stroke();
+  } else if (shape === 'cane') {
+    line(...at(-0.04), ...at(0.42), c, w * 0.024); len = 0.42;
+    ctx.fillStyle = '#d4af37'; ctx.beginPath(); ctx.arc(...at(-0.04), w * 0.022, 0, Math.PI * 2); ctx.fill();
+  } else if (shape === 'cloth') { // a wet gamchha: it trails behind the hand, then cracks out straight
+    const wob = (1 - ease) * w * 0.16 * side, [mx, my] = at(0.28), [ex, ey] = at(0.56);
+    ctx.strokeStyle = c; ctx.lineWidth = w * 0.045; ctx.beginPath(); ctx.moveTo(hx, hy); ctx.quadraticCurveTo(mx - nx * wob, my - ny * wob, ex, ey); ctx.stroke();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = w * 0.012; ctx.setLineDash([w * 0.03, w * 0.05]); ctx.beginPath(); ctx.moveTo(hx, hy); ctx.quadraticCurveTo(mx - nx * wob, my - ny * wob, ex, ey); ctx.stroke(); ctx.setLineDash([]);
+    len = 0.56;
+  } else if (shape === 'shoe') {
+    line(...at(0.0), ...at(0.15), c, w * 0.07);
+    const [tx, ty] = at(0.17); line(tx, ty, tx + nx * side * w * 0.035, ty + ny * side * w * 0.035, c, w * 0.03); len = 0.18; // the curled toe
+  } else if (shape === 'bag') {
+    line(...at(0.0), ...at(0.18), '#555', w * 0.014);
+    ctx.lineCap = 'butt'; line(...at(0.17), ...at(0.36), c, w * 0.15); ctx.lineCap = 'round';
+    line(...at(0.2), ...at(0.33), '#9e9e9e', w * 0.012); len = 0.36;
+  } else if (shape === 'dandiya') {
+    for (const k of [-1, 1]) {
+      const ox = nx * k * w * 0.03, oy = ny * k * w * 0.03, [ex, ey] = at(0.32);
+      line(hx, hy, ex + ox, ey + oy, c, w * 0.026);
+      for (const t of [0.1, 0.2]) { const [bx, by] = at(t); line(bx + ox * t * 3 - dx, by + oy * t * 3 - dy, bx + ox * t * 3 + dx, by + oy * t * 3 + dy, '#ffd21f', w * 0.028); }
+    }
+    len = 0.32;
+  } else if (shape === 'hand') {
+    ctx.fillStyle = c; ctx.beginPath(); ctx.arc(...at(0.03), w * 0.05, 0, Math.PI * 2); ctx.fill(); len = 0.06;
+  } else { // lathi
+    const [ex, ey] = at(0.5);
+    line(hx - dx * w * 0.06, hy - dy * w * 0.06, ex, ey, c, w * 0.035);
+    for (const t of [0.3, 0.6, 0.9]) { const bx = lerp(hx, ex, t), by = lerp(hy, ey, t); line(bx - dx * 2, by - dy * 2, bx + dx * 2, by + dy * 2, '#6d4c41', w * 0.037); }
+  }
+  if (shape !== 'hand') { ctx.fillStyle = '#8d5524'; ctx.beginPath(); ctx.arc(hx, hy, w * 0.035, 0, Math.PI * 2); ctx.fill(); }
+  swoosh(sx, sy, w * (0.28 + len * 0.94), -1.6, a);
+}
+// Neon strip lights on a decked-out auto, at night: a glow on the road under it and bright lines along the foot
+// of the tub and the edge of the hood.
+function drawNeon(x, y, w, h, color) {
+  const cx = x + w / 2, gy = y + h * 0.93, g = ctx.createRadialGradient(cx, gy, 0, cx, gy, w * 0.75);
+  g.addColorStop(0, hexA(color, 0.55)); g.addColorStop(1, hexA(color, 0));
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  ctx.translate(cx, gy); ctx.scale(1, 0.22); ctx.translate(-cx, -gy);
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, gy, w * 0.75, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+function drawNeonStrips(x, y, w, h, color) {
+  ctx.save(); ctx.lineCap = 'round'; ctx.shadowColor = color; ctx.shadowBlur = Math.max(4, w * 0.12);
+  ctx.strokeStyle = color; ctx.lineWidth = Math.max(1.5, w * 0.018);
+  for (const [fy, x0, x1] of [[0.815, 0.1, 0.9], [0.487, 0.1, 0.9]]) { ctx.beginPath(); ctx.moveTo(x + w * x0, y + h * fy); ctx.lineTo(x + w * x1, y + h * fy); ctx.stroke(); }
+  ctx.restore();
 }
 
-function drawTuk(img, x, y, w, h, rot, atk, hurt) {
+function drawTuk(img, x, y, w, h, rot, atk, hurt, who) {
+  const neon = theme.night && who && who.driver && who.driver.look.neon;
   ctx.save();
   if (hurt > 0) x += Math.sin(hurt * 90) * w * 0.04; // shudder when hit
   if (rot) {
     const px = x + w * (rot > 0 ? 0.9 : 0.1), py = y + h * 0.93;
     ctx.translate(px, py); ctx.rotate(rot); ctx.translate(-px, -py);
   }
+  if (neon) drawNeon(x, y, w, h, neon);
   ctx.drawImage(img, x, y, w, h);
-  if (atk) drawLathi(x, y, w, h, atk);
+  if (neon) drawNeonStrips(x, y, w, h, neon);
+  if (atk) drawAttack(x, y, w, h, atk, (who && who.weapon) || LATHI);
   ctx.restore();
 }
 
@@ -3068,7 +3187,7 @@ function renderWorld2D() {
       if (car.isRival) {
         const bounce = car.speed > 0 ? Math.sin(performance.now() / 45 + car.dist) * destH * 0.006 : 0;
         const y = cy - destH + bounce;
-        if (y + destH <= seg.clip + destH * 0.5) drawTuk(car.img, cx - destW / 2, y, destW, destH, car.rot, car.atk, car.hurt);
+        if (y + destH <= seg.clip + destH * 0.5) drawTuk(car.img, cx - destW / 2, y, destW, destH, car.rot, car.atk, car.hurt, car);
         car.scr = { x: cx, y: cy - destH * 1.1, w: destW, frame: frameNo };
       } else { drawSprite(car.img, cx - destW / 2, cy - destH, destW, destH, seg.clip); car.scr = { x: cx, y: cy - destH * 1.2, w: destW, frame: frameNo }; }
     }
@@ -3142,7 +3261,7 @@ function drawHUD() {
   // nearest rival
   let near = null, nd = 1600;
   for (const r of rivals) { const d = Math.abs(r.dist - player.dist); if (d < nd) { nd = d; near = r; } }
-  if (near) bar(touch ? W - 206 : W - 250, touch ? 116 : H - 110, touch ? 180 : 200, 12, near.ko > 0 ? 0 : near.health / 100, near.ko > 0 ? '#9e9e9e' : '#ffa726', near.ko > 0 ? `${near.name} (KO)` : near.name);
+  if (near) bar(touch ? W - 206 : W - 250, touch ? 116 : H - 110, touch ? 180 : 200, 12, near.ko > 0 ? 0 : near.health / 100, near.ko > 0 ? '#9e9e9e' : '#ffa726', near.ko > 0 ? `${near.name} (KO)` : rivalLabel(near));
 
   // speedometer (touch devices show km/h in the top-left panel instead)
   if (touch) return;
@@ -3195,6 +3314,8 @@ function drawCountdown() {
   text(track.name, W / 2, H / 2 + 20, 24, '#ffcc80');
   text(`Finish top 3 to qualify  ·  ${rivals.length} rival autos`, W / 2, H / 2 + 52, 14, '#fff', 'center', 'system-ui, sans-serif');
   text(LAYOUTS[layoutIdx].label, W / 2, H / 2 + 80, 14, '#ffd21f');
+  const local = rivals.find(r => r.driver.city === theme.city); // the home favourite
+  if (local && local.driver.tag) text(`LOCAL HERO  ${local.name}: ${local.driver.tag}`, W / 2, H / 2 + 106, 13, '#ffcc80', 'center', 'system-ui, sans-serif');
 }
 function keycap(x, y, label, w = 40, hot = false) {
   ctx.fillStyle = 'rgba(0,0,0,.45)'; rr(ctx, x - w / 2, y - 16, w, 36, 7); ctx.fill();
@@ -3261,7 +3382,7 @@ function drawResults() {
     if (me) { ctx.fillStyle = 'rgba(255,210,31,.2)'; ctx.fillRect(W / 2 - 244, y - 13, 488, 26); }
     text(ordinal(i + 1), W / 2 - 220, y, 16, i < 3 ? '#ffd21f' : '#fff', 'left');
     ctx.fillStyle = me ? '#1e9e4a' : a.color; ctx.beginPath(); ctx.arc(W / 2 - 150, y, 7, 0, Math.PI * 2); ctx.fill();
-    text(me ? 'YOU' : a.name, W / 2 - 132, y, 16, me ? '#ffd21f' : '#fff', 'left');
+    text(me ? 'YOU' : rivalLabel(a), W / 2 - 132, y, 16, me ? '#ffd21f' : '#fff', 'left');
     text(a.finished ? fmtTime(a.time) : '—', W / 2 + 220, y, 16, '#ddd', 'right');
   });
   const by = 140 + r.order.length * 28;
@@ -3368,6 +3489,6 @@ function step(now) {
 }
 requestAnimationFrame(frame);
 // expose for debugging
-window.__rrr = { get state() { return state; }, player, get rivals() { return rivals; }, get results() { return results; }, setupRace,
+window.__rrr = { get state() { return state; }, player, drivers: DRIVERS, pickGrid, get rivals() { return rivals; }, get results() { return results; }, setupRace,
   step(n) { for (let i = 0; i < n; i++) update(STEP); render(); }, keys, Sfx, Music, Ambience, VehicleAudio, VoiceClips, Animals, SKYLINES, THEMES, SP, get traffic() { return traffic; }, get segments() { return segments; }, get bubbles() { return bubbles; }, get junctions() { return junctions; }, get cross() { return crossTraffic; }, get marks() { return skidMarks; }, DriftMusic, lightOf, setLevel(l) { level = l; attractSetup(); } };
 })();
