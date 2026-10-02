@@ -1554,6 +1554,7 @@ function openMixer() { mixer = { sel: 0 }; }
 function openPause() { paused = true; pauseSel = 0; Voice.stopVoices(); Sfx.squeal(0); DriftMusic.silence(); }
 // Commands shared by the pause menu, mouse clicks and the macOS app menu (window.rrrCommand).
 function runCommand(cmd) {
+  if (state === 'config-error') return; // no track is loaded: the app menu would throw in loadTrack
   if (cmd === 'mixer') { openMixer(); return; }
   if (cmd === 'pause') { if (RACING_STATES.includes(state) && !paused) openPause(); else if (paused) paused = false; return; }
   paused = false;
@@ -1563,6 +1564,7 @@ function runCommand(cmd) {
 }
 window.rrrCommand = runCommand;
 function onPress(code) {
+  if (state === 'config-error') return; // nothing behind the error screen to control (V would open an invisible mixer)
   if (code === 'KeyM') { Sfx.toggleMute(); return; }
   if (code === 'KeyC' && use3D) { const m = World3D.setCamera(World3D.camera === 'heli' ? 'chase' : 'heli'); store.set('camera', m); msg(m === 'heli' ? 'HELI CAM' : 'CHASE CAM', '#fff', 1); return; }
   if (code === 'KeyN') { Music.toggle(); msg(Music.on ? 'MUSIC ON' : 'MUSIC OFF', '#fff', 1); return; }
@@ -2738,6 +2740,8 @@ function drawConfigError() {
   text('TRACK CONFIG ERROR', W / 2, 120, 36, '#ef5350');
   CONFIG_PROBLEMS.slice(0, 10).forEach((p, i) => text(p, W / 2, 190 + i * 26, 14, '#fff', 'center', 'system-ui, sans-serif'));
   if (CONFIG_PROBLEMS.length > 10) text(`and ${CONFIG_PROBLEMS.length - 10} more`, W / 2, 190 + 10 * 26, 14, '#ffcc80', 'center', 'system-ui, sans-serif');
+  if (CONFIG_PROBLEMS.some(p => p.includes('failed to load'))) // a download failed, not a typo: it is the player's problem to retry
+    text('Check your connection and reload the page.', W / 2, 190 + (Math.min(CONFIG_PROBLEMS.length, 10) + (CONFIG_PROBLEMS.length > 10 ? 1 : 0)) * 26, 14, '#ffcc80', 'center', 'system-ui, sans-serif');
 }
 const pauseItemRect = i => ({ x: W / 2 - 170, y: 100 + i * 44, w: 340, h: 36 });
 // tell players why they might hear nothing
@@ -2825,7 +2829,12 @@ if (CONFIG_PROBLEMS.length) { // no track can be loaded: say what is wrong and s
   return;
 }
 store.set('track', ORDER[level]);
-attractSetup();
+try { attractSetup(); } catch (err) { // a pack the checks let through still broke the build: say so instead of a black canvas
+  CONFIG_PROBLEMS.push(`could not build the first track: ${err && err.message}`);
+  state = 'config-error'; disable3D(); drawConfigError();
+  reportError('config', CONFIG_PROBLEMS[0], err, 'boot');
+  return;
+}
 let last = performance.now(), acc = 0;
 const STEP = 1 / 60;
 function frame(now) {

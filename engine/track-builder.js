@@ -23,6 +23,11 @@ const PIECES = {
   bumps: b => { for (let i = 0; i < 8; i++) b.addRoad(10, 10, 10, 0, (i % 2 ? -1 : 1) * 3); },
   curveHill: (b, p, L) => b.addRoad(L, L, L, b.sgn() * p.curve, b.sgn() * p.hill),
 };
+// What each piece's recipe entry must carry besides kind and weight ('number', or 'numbers' for a non-empty list),
+// and the roadside kinds placeScenery() knows; RRR.validate() checks packs against these.
+const PIECE_PARAMS = { straight: {}, curve: { curves: 'numbers', hills: 'numbers' }, sCurve: { curve: 'number', hills: 'numbers' },
+  hill: { hills: 'numbers' }, rollers: {}, bumps: {}, curveHill: { curve: 'number', hill: 'number' } };
+const SCENERY_KINDS = ['palm', 'tree', 'building', 'billboard', 'temple', 'chai'];
 
 class TrackBuilder {
   // def: resolved track definition · round: tour number (later tours reshuffle the road)
@@ -186,6 +191,6 @@ class TrackBuilder {
 }
 
 RRR.road = { LANE_W, TAPER, JUNCTION_LEN, laneX };
-RRR.PIECES = PIECES;
+RRR.PIECES = PIECES; RRR.PIECE_PARAMS = PIECE_PARAMS; RRR.SCENERY_KINDS = SCENERY_KINDS;
 RRR.buildTrack = opts => new TrackBuilder(opts).build();
 })();
