@@ -173,7 +173,7 @@ In `tests/load-game.js`, change `'engine/records.js', 'packs.js'` to `'engine/re
 - [ ] **Step 5: Run the tests**
 
 Run: `node --test tests/*.test.js`
-Expected: `pass 88`, `fail 0` (79 from step 1 plus 9).
+Expected: `pass 111`, `fail 0` (102 from step 1 plus 9).
 
 - [ ] **Step 6: Commit**
 
@@ -248,7 +248,7 @@ with
 - [ ] **Step 5: Run the tests and commit**
 
 Run: `node --test tests/*.test.js`
-Expected: `pass 88`, `fail 0`.
+Expected: `pass 111`, `fail 0`.
 
 ```bash
 git add web/engine/registry.js web/styles/classic.js tests/registry.test.js
@@ -447,7 +447,7 @@ In each track file change the line `  style: 'classic',`:
 - [ ] **Step 7: Run the tests**
 
 Run: `node --test tests/*.test.js`
-Expected: `pass 103`, `fail 0`. The golden tests still pass because they force every track to the classic style.
+Expected: `pass 126`, `fail 0`. The golden tests still pass because they force every track to the classic style.
 
 - [ ] **Step 8: Commit**
 
@@ -618,7 +618,7 @@ print('step 2 edits applied')
 - [ ] **Step 2: Apply it and remove it**
 
 Run: `python3 step2-edits.py && rm step2-edits.py && node --check web/game.js && node --test tests/*.test.js`
-Expected: `step 2 edits applied`, no syntax error, `pass 103`. If an assertion fails, read that part of `web/game.js` and report; do not force it.
+Expected: `step 2 edits applied`, no syntax error, `pass 126`. If an assertion fails, read that part of `web/game.js` and report; do not force it.
 
 - [ ] **Step 3: Every track loads with its style**
 
