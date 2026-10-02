@@ -1,5 +1,12 @@
 # Changelog
 
+## v3.3.3: A drift anthem
+
+- **Drift music:**
+  - Start a drift and an original drift track slams in with a gong hit. It's a 132 BPM trap beat with a booming 808 and hi-hat rolls, under a koto-style plucked riff in a Japanese scale.
+  - It keeps going while you chain drifts, then fades out about 2 seconds after the last one.
+  - The city music ducks under it. It follows the Music slider and the N key, and goes quiet when you pause.
+
 ## v3.3.2: Drifts with tyre marks
 
 - **Drift your auto:**
