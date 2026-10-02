@@ -28,15 +28,11 @@ const TUK_NW = 0.27; // auto-rickshaw width, normalised to half road width
 const TUK_LEN = 1060; // auto-rickshaw length in track units (the 3D model; vehicles are centred on their position)
 const FONT = '"Bungee", Impact, "Arial Black", sans-serif';
 
-const TRACKS = [
-  { name: 'MUMBAI · MARINE DRIVE', theme: 'marine', length: 2600, laps: 1, rivals: 5, skill: 0.86, traffic: 34, cows: 8, dogs: 14, seed: 11 },
-  { name: 'HYDERABAD · CHARMINAR ROAD', theme: 'hyderabad', length: 2800, laps: 1, rivals: 6, skill: 0.88, traffic: 40, cows: 12, dogs: 18, seed: 37 },
-  { name: 'MUMBAI · BANDRA-WORLI SEA LINK', theme: 'sealink', length: 3000, laps: 1, rivals: 6, skill: 0.9, traffic: 46, cows: 0, dogs: 0, seed: 27 },
-  { name: 'DELHI · RING ROAD', theme: 'delhi', length: 3100, laps: 1, rivals: 7, skill: 0.92, traffic: 50, cows: 16, dogs: 18, seed: 61 },
-  { name: 'MUMBAI · WESTERN EXPRESS HIGHWAY', theme: 'express', length: 3200, laps: 1, rivals: 7, skill: 0.94, traffic: 52, cows: 14, dogs: 12, seed: 53 },
-  { name: 'CHENNAI · MARINA BEACH ROAD', theme: 'chennai', length: 3400, laps: 1, rivals: 7, skill: 0.96, traffic: 44, cows: 16, dogs: 20, seed: 73 },
-  { name: 'MUMBAI · JUHU BEACH ROAD', theme: 'juhu', length: 3600, laps: 1, rivals: 7, skill: 0.97, traffic: 44, cows: 18, dogs: 18, seed: 91 },
-];
+// Tracks, cities and styles are packs under web/tracks, web/cities and web/styles, listed in web/packs.js.
+// engine/registry.js checks them (a list of problems, empty when all is well) and merges each track with
+// its city and style into the definition the game reads.
+const CONFIG_PROBLEMS = RRR.validate();
+const ORDER = CONFIG_PROBLEMS.length ? [] : RRR.order(); // track ids in race order
 const PRIZES = [1500, 1000, 700, 400, 200, 100, 50, 0];
 const RIVAL_NAMES = ['RAJU', 'PAPPU', 'BABLU', 'CHINTU', 'MUNNA', 'GUDDU', 'TINKU', 'BUNTY', 'SONU', 'LALLU'];
 const RIVAL_COLORS = [
@@ -49,85 +45,6 @@ const RIVAL_COLORS = [
   { body: '#00a896', trim: '#fff3b0', canopy: '#1a1a1a', plate: 'WB 04 KO' },
 ];
 const HIT_WORDS = ['DHISHOOM!', 'DHISHKYAON!', 'THAPPAD!', 'DHAMAKA!', 'BAM!'];
-// Roadside hawkers call out to passing autos in the city's street lingo.
-const HAWKER_CALLS = {
-  mumbai: ['VADA PAAAV!', 'BHEL PURI LELO!', 'CHAI BOLE, CHAAAI!', 'PAV BHAJI GARAM!', 'NIMBU PAANI THANDA!'],
-  hyderabad: ['IRANI CHAAAI!', 'HALEEM GARAM HAI!', 'BIRYANI LELO!', 'OSMANIA BISCUIT LELO!', 'MIRCHI BAJJI, GARAM!'],
-  delhi: ['CHOLE BHATURE LELO!', 'GOLGAPPE, GOLGAPPE!', 'GARMA GARAM JALEBI!', 'MOMOS LELO, MOMOS!', 'CHAI BOLO, CHAAAI!'],
-  chennai: ['KAAPI, KAAPIII!', 'SUNDAL, SUNDAAAL!', 'IDLI VADAI!', 'MURUKKU, MURUKKU!', 'ELANEER, ELANEEER!'],
-};
-// What a driver shouts after taking a lathi hit, in the local street slang of the race's city.
-const CURSES = {
-  mumbai: ['ABE O HERO!', 'KYA RE, DIMAAG KHARAB?', 'AYE BHIDU, SAMBHAL KE!', 'APUN KO MAARA?!', 'CHAL NIKAL!', 'WAAT LAGA DUNGA!', 'GHANTA!'],
-  hyderabad: ['KYA RE MIYAN!', 'NAKKO RE!', 'HAU, AB DEKH!', 'EK DENGA NA!', 'KAIKU MAARA?!', 'CHUP BAITH!', 'BAIGAN!'],
-  delhi: ['OYE! JAANTA HAI MERA BAAP KAUN HAI?', 'ABEY OYE!', 'KYA KAR RAHA HAI YAAR!', 'TERI TOH...!', 'BADTAMEEZ!', 'OYE HOYE!', 'BHAI SAHAB, DHANG SE!'],
-  chennai: ['DEI!', 'ENNA DA?!', 'PODA!', 'AIYYO!', 'ENNA MACHAAN?!', 'SUMMA IRU DA!', 'ITHU TOO MUCH DA!'],
-};
-
-// Each theme picks a city skyline (SKYLINES) plus sky, road colours and city-specific billboards.
-// `sea` is the band at the foot of the skyline: sea, lake or lawns depending on the city.
-const MUMBAI_ADS = [['CUTTING CHAI', '₹10 ONLY'], ['VADA PAV', 'KING']];
-const THEMES = {
-  marine: { city: 'mumbai', ads: MUMBAI_ADS, // sunset over the Queen's Necklace
-    sky: ['#2b1e5a', '#c2477a', '#ffae5a'], sun: '#ffe2a0', fog: '#c96a7a', sea: '#5a4f8a',
-    far: '#7a4a7e', near: '#3b2350', lights: 0.35, density: 0.4,
-    light: { road: '#5b5860', grass: '#6b6158', rumble: '#f2f2f2', lane: '#eeeeee', shoulder: '#8a8078' },
-    dark: { road: '#56535b', grass: '#655b52', rumble: '#c62828', shoulder: '#837a72' },
-    buildings: ['#f4d35e', '#ee964b', '#8ecae6', '#f28482', '#cdb4db', '#e9edc9'],
-    scenery: { palm: 4, building: 5, billboard: 2, tree: 1, chai: 1 },
-  },
-  sealink: { city: 'mumbai', ads: MUMBAI_ADS, ambience: false, // night on the bridge, the sea either side
-    sky: ['#050816', '#141c3d', '#2c3a6b'], sun: '#f4f1de', night: true, fog: '#1d2748', sea: '#0e1a33',
-    far: '#26325a', near: '#141b36', lights: 0.6, density: 0.06,
-    light: { road: '#3c3d44', grass: '#10223f', rumble: '#e0e0e0', lane: '#d8d8d8', shoulder: '#6b6f78' },
-    dark: { road: '#393a41', grass: '#0e1f3a', rumble: '#c62828', shoulder: '#666a73' },
-    buildings: ['#455a64'],
-    scenery: { billboard: 1 },
-  },
-  express: { city: 'mumbai', ads: MUMBAI_ADS, // hazy afternoon traffic
-    sky: ['#8e9aa3', '#d9c9a3', '#f3e0b0'], sun: '#fff6d0', fog: '#cfc3a3', sea: '#9aa7a8',
-    far: '#b3ab96', near: '#8a8070', lights: 0, density: 0.45,
-    light: { road: '#5e5e5e', grass: '#7d7a45', rumble: '#f5c400', lane: '#f2f2f2', shoulder: '#a39a7c' },
-    dark: { road: '#595959', grass: '#76733f', rumble: '#141414', shoulder: '#9c9376' },
-    buildings: ['#e9c46a', '#f4a261', '#e76f51', '#dcd3c0', '#a8dadc', '#f1faee'],
-    scenery: { tree: 3, building: 6, billboard: 3, temple: 1, chai: 1 },
-  },
-  juhu: { city: 'mumbai', ads: MUMBAI_ADS, // bright morning by the beach
-    sky: ['#1e78e0', '#87cefa', '#e0f7ff'], sun: '#ffffff', fog: '#bfe3f0', sea: '#3f8fc4',
-    far: '#8fb0c8', near: '#5d7d96', lights: 0, density: 0.4,
-    light: { road: '#5a5a5e', grass: '#e2cf9e', rumble: '#ffffff', lane: '#f5f5f5', shoulder: '#cdb98c' },
-    dark: { road: '#555559', grass: '#dcc896', rumble: '#e53935', shoulder: '#c6b284' },
-    buildings: ['#ffe066', '#70c1b3', '#f25f5c', '#ffffff', '#b8f2e6', '#ffa69e'],
-    scenery: { palm: 6, tree: 1, chai: 2, billboard: 1, building: 1 },
-  },
-  hyderabad: { city: 'hyderabad', // golden hour over the old city and Hussain Sagar
-    sky: ['#3d2a5c', '#e0785a', '#ffc46b'], sun: '#fff0c0', fog: '#d98a6a', sea: '#5a6f96',
-    far: '#9a6474', near: '#4a2f45', lights: 0.25, density: 0.42,
-    light: { road: '#5c5a5e', grass: '#8b7355', rumble: '#f5c400', lane: '#eeeeee', shoulder: '#a08a70' },
-    dark: { road: '#57555a', grass: '#846c50', rumble: '#1a1a1a', shoulder: '#99836a' },
-    buildings: ['#f2d7a7', '#e8b27a', '#d4a5a5', '#a3c4bc', '#f4e1c1', '#c9a0dc'],
-    scenery: { building: 5, tree: 2, billboard: 2, chai: 2 },
-    ads: [['HYDERABADI', 'BIRYANI'], ['IRANI CHAI', '& OSMANIA'], ['PEARL CITY', 'JEWELLERS']],
-  },
-  delhi: { city: 'delhi', // hazy winter morning
-    sky: ['#6f8fb0', '#c9d6e0', '#f0ede4'], sun: '#fffdf2', fog: '#d8dcdc', sea: '#6f8a4a',
-    far: '#a3acb4', near: '#6a6f78', lights: 0, density: 0.45,
-    light: { road: '#5e5e62', grass: '#6f8a4a', rumble: '#ffffff', lane: '#f2f2f2', shoulder: '#b0a890' },
-    dark: { road: '#59595d', grass: '#688345', rumble: '#c62828', shoulder: '#a8a088' },
-    buildings: ['#e9c46a', '#f4a261', '#dcd3c0', '#c97b63', '#a8dadc', '#f1faee'],
-    scenery: { tree: 4, building: 4, billboard: 2, temple: 1, chai: 1 },
-    ads: [['CHOLE', 'BHATURE'], ['DILLI', 'DARSHAN'], ['PARANTHE', 'WALI GALI']],
-  },
-  chennai: { city: 'chennai', // blazing midday on the Marina
-    sky: ['#0f6fd6', '#5fb8f5', '#fff4d6'], sun: '#fffbe6', fog: '#cfe8f0', sea: '#1f7fb0',
-    far: '#86a9bf', near: '#4f6f86', lights: 0, density: 0.42,
-    light: { road: '#5a5a5e', grass: '#e6d3a3', rumble: '#ffffff', lane: '#f5f5f5', shoulder: '#d6c291' },
-    dark: { road: '#555559', grass: '#dfcb99', rumble: '#1a1a1a', shoulder: '#cfba88' },
-    buildings: ['#ffe066', '#f28482', '#84dcc6', '#ffffff', '#ffb4a2', '#cdb4db'],
-    scenery: { palm: 5, building: 2, chai: 2, billboard: 1, temple: 1 },
-    ads: [['FILTER', 'KAAPI'], ['IDLI · DOSA', 'VADA'], ['SUPERSTAR', 'FILM TODAY!']],
-  },
-};
 
 // ------------------------------------------------------------------ utils
 const { clamp, lerp, easeIn, easeInOut, rand, pick, mulberry32, weightedPick } = RRR.util; // engine/util.js
@@ -192,7 +109,7 @@ function envDetails() {
   const a = safe(() => Sfx.ctx, null);
   return [
     `v${GAME_VERSION}`,
-    safe(() => `${state}${paused ? '(paused)' : ''} on ${THEMES[track.theme].city}/${track.theme}`),
+    safe(() => `${state}${paused ? '(paused)' : ''} on ${def.city.id}/${def.id}`),
     `${deviceSummary().replace('device/', '').replace(/\//g, ' ')} · os ${(osVer || '?').replace('_', '.')} · browser ${brVer || '?'}`,
     `screen ${screen.width}x${screen.height}@${Math.round(devicePixelRatio * 10) / 10}x quality=${QUALITY}`,
     a ? `audio=${a.state} ${a.sampleRate}Hz` : 'audio=none',
@@ -210,8 +127,10 @@ const COMPONENTS = [
   ['player-physics', /^(updatePlayer|crashPlayer|checkCollisions)$/],
   ['hawkers', /^(updateHawkers)$/],
   ['race-rules', /^(checkFinish|buildResults|advanceAfterResults|setupRace|currentRank|resetPlayer|updateAttract)$/],
-  ['track', /^(buildTrack|loadTrack|addRoad|addSegment|lastY|findSegment|attractSetup)$/],
-  ['sprites', /^(make[A-Z]\w*|buildSharedSprites|flipped|litWindows|fillerBlocks|trees|waterBand|gopuram|cutOut|archPath|onion)$/],
+  ['config', /^(?:Registry\.|RRR\.)?(register|check|checkMerged|deepFreeze|validate|resolve|resolveDef)$/],
+  ['traffic', /^(?:TrafficSpawner\.)?(spawn|deck|busLook|roadSpot|addVehicle|addCow|addDog|spawnTraffic)$/],
+  ['track', /^(?:TrackBuilder\.)?(build|loadTrack|addRoad|addSegment|lastY|layPieces|layoutLanes|layoutJunctions|placeScenery|placeSigns|settleRoadside|findSegment|attractSetup)$/],
+  ['sprites', /^(?:Object\.)?(make[A-Z]\w*|buildSharedSprites|flipped|litWindows|fillerBlocks|trees|waterBand|cutOut|archPath|onion|far|near)$/],
   ['ui', /^(draw(?:HUD|Title|Results|Paused|Mixer|Controls|Countdown|Champion|Bubbles|Popups|Messages|SoundHint)|text|panel|bar|keycap)$/],
   ['renderer', /^(render|drawSegment|drawBackground|drawSprite|drawTuk|drawLathi|drawPlayer|project|poly)$/],
   ['input', /^(onPress|keyDown|keyUp|runCommand|toggleLayout|openPause|openMixer)$/],
@@ -471,23 +390,8 @@ const Sfx = {
 
 // ------------------------------------------------------------------ music
 // Light background music, one original groove per city, synthesised live (16th-note sequencer).
-// Pitches are semitones above Sa (D3). Melodies loop every 32 steps, drum patterns every 16.
+// Each city pack carries its song (web/cities/<id>/city.js); pitches are semitones above Sa (D3).
 const SA_HZ = 146.83;
-const SONGS = {
-  mumbai: { bpm: 104, swing: 0, lead: 'harmonium', // filmi dholak groove
-    drums: { dha: 'x.....x...x.....', na: '..x.x..x..x.x.x.', shaker: 'x.x.x.x.x.x.x.x.' },
-    melody: [[0, 0, 2], [2, 2, 2], [4, 4, 2], [6, 7, 4], [10, 4, 2], [12, 2, 2], [14, 0, 2], [16, 4, 2], [18, 7, 2], [20, 9, 2], [22, 7, 4], [26, 4, 2], [28, 2, 2], [30, 0, 2]] },
-  hyderabad: { bpm: 92, swing: 0.08, lead: 'harmonium', // qawwali: tabla, claps, harmonium in Kafi
-    drums: { ghe: 'x.....x.x.......', na: '..x.x..x..x.x..x', clap: '....x.......x.x.' },
-    melody: [[0, 7, 2], [2, 9, 2], [4, 10, 2], [6, 12, 6], [12, 10, 2], [14, 9, 2], [16, 7, 4], [20, 5, 2], [22, 7, 2], [24, 3, 2], [26, 2, 2], [28, 0, 4]] },
-  delhi: { bpm: 100, swing: 0.14, lead: 'tumbi', // bhangra: dhol chaal and a tumbi riff
-    drums: { dha: 'x.....x...x.....', na: '..x.x..xx.x.x.xx', clap: '....x.......x...' },
-    melody: [[0, 12, 1], [2, 12, 1], [3, 14, 1], [4, 12, 1], [6, 10, 1], [8, 12, 1], [10, 7, 1], [11, 9, 1], [12, 10, 1], [14, 12, 1],
-      [16, 12, 1], [18, 12, 1], [19, 14, 1], [20, 16, 1], [22, 14, 1], [24, 12, 1], [26, 10, 1], [28, 9, 1], [30, 7, 1], [31, 9, 1]] },
-  chennai: { bpm: 124, swing: 0, lead: 'nadaswaram', // kuthu beat and a reed tune in Mohanam
-    drums: { dha: 'x..x..x.x..x..x.', na: '.x.x.xx..x.x.xx.', shaker: 'xxxxxxxxxxxxxxxx' },
-    melody: [[0, 7, 2], [2, 9, 2], [4, 12, 4], [8, 9, 2], [10, 7, 2], [12, 4, 4], [16, 2, 2], [18, 4, 2], [20, 7, 2], [22, 4, 2], [24, 2, 2], [26, 0, 6]] },
-};
 const Music = {
   on: store.get('music', true), city: null, bus: null, step: 0, next: 0, timer: null,
   hz(semi) { return SA_HZ * Math.pow(2, semi / 12); },
@@ -507,7 +411,7 @@ const Music = {
   setCity(city) { if (city !== this.city) { this.city = city; this.step = 0; if (Sfx.ctx) this.next = Sfx.ctx.currentTime + 0.1; } },
   toggle() { this.on = !this.on; store.set('music', this.on); },
   tick() {
-    const a = Sfx.ctx, song = SONGS[this.city]; if (!a || !song) return;
+    const a = Sfx.ctx, song = this.city && this.city.song; if (!a || !song) return;
     const vol = (!this.on ? 0 : paused ? 0.1 : state === 'title' || state === 'champion' || state === 'results' ? 0.3 : 0.2) * DriftMusic.duck;
     this.bus.gain.setTargetAtTime(vol, a.currentTime, 0.3);
     if (a.state !== 'running' || !this.on) { this.next = a.currentTime + 0.1; return; }
@@ -675,7 +579,7 @@ const Ambience = {
     const a = Sfx.ctx; if (!a || a.state !== 'running') return;
     this.decode(this.city);
     const buf = this.bufs[this.city];
-    const quiet = theme.ambience === false; // e.g. out on the Sea Link
+    const quiet = !def || !def.ambience; // e.g. out on the Sea Link
     const base = paused ? 0.2 : state === 'title' || state === 'champion' ? 0.5 : 0.8;
     this.bus.gain.setTargetAtTime(quiet ? 0 : base * (0.7 + 0.3 * this.shopsNearby()), a.currentTime, 0.8);
     if (!buf) return;
@@ -1342,101 +1246,13 @@ function makeArch() {
   return c;
 }
 
-// ---- Mumbai skyline backdrop (two parallax layers, each tiles horizontally at 1920 px)
-const LAYER_W = 1920;
+// ---- skyline painting kit: each city's painters (web/cities/<id>/skyline.js) draw two parallax layers with it
+const LAYER_W = 1920; // a layer tiles horizontally at this width
 function litWindows(g, r, x, y, w, h, amount, color = '255,214,130') {
   if (amount <= 0) return;
   for (let wy = y + 6; wy < y + h - 6; wy += 9) for (let wx = x + 4; wx < x + w - 5; wx += 7)
     if (r() < amount) { g.fillStyle = `rgba(${color},${0.45 + r() * 0.5})`; g.fillRect(wx, wy, 3, 4); }
 }
-// Distant high-rises: Imperial twin towers, World One, Antilia, the Sea Link pylon
-function makeMumbaiFar(t, seed) {
-  const h = 230, c = mk(LAYER_W, h), g = c.getContext('2d'), r = mulberry32(seed);
-  const base = h - 30, col = t.far;
-  const tower = (x, w, th) => { g.fillStyle = col; g.fillRect(x, base - th, w, th + 30); litWindows(g, r, x, base - th, w, th, t.lights * 0.5); };
-  // generic high-rise filler
-  for (let x = 0; x < LAYER_W; x += 26 + r() * 40) {
-    if ((x > 250 && x < 420) || (x > 860 && x < 960) || (x > 1500 && x < 1860)) continue;
-    const w = 22 + r() * 34, th = 40 + r() * 110; tower(x, w, th);
-    if (r() < 0.25) { g.fillStyle = col; g.fillRect(x + w / 2 - 1, base - th - 14, 2, 14); }
-  }
-  // Imperial twin towers (rounded tops)
-  for (const x of [290, 350]) {
-    g.fillStyle = col; rr(g, x, base - 190, 44, 220, 20); g.fill();
-    g.fillRect(x + 20, base - 206, 4, 18); litWindows(g, r, x, base - 180, 44, 180, t.lights * 0.6);
-  }
-  // World One: tall tower with a crown
-  g.fillStyle = col; g.beginPath(); g.moveTo(880, base + 30); g.lineTo(884, base - 180); g.lineTo(900, base - 205); g.lineTo(916, base - 180); g.lineTo(920, base + 30); g.fill();
-  litWindows(g, r, 884, base - 175, 32, 175, t.lights * 0.6);
-  // Antilia: stacked offset slabs
-  for (let i = 0; i < 7; i++) { g.fillStyle = col; g.fillRect(1180 + (i % 2) * 10, base - 20 - i * 20, 50, 20); }
-  litWindows(g, r, 1180, base - 160, 60, 160, t.lights * 0.4);
-  // Bandra-Worli Sea Link: cable-stayed pylons over the water
-  g.strokeStyle = col; g.fillStyle = col;
-  g.fillRect(1500, base + 4, 360, 7); // deck
-  for (const px of [1600, 1760]) {
-    g.lineWidth = 6; g.beginPath(); g.moveTo(px - 14, base + 10); g.lineTo(px, base - 110); g.lineTo(px + 14, base + 10); g.stroke();
-    g.fillRect(px - 3, base - 150, 6, 42);
-    g.lineWidth = 1.2; g.globalAlpha = 0.8;
-    for (let k = 1; k <= 9; k++) {
-      const topY = base - 150 + k * 4;
-      g.beginPath(); g.moveTo(px, topY); g.lineTo(px - k * 9, base + 4); g.moveTo(px, topY); g.lineTo(px + k * 9, base + 4); g.stroke();
-    }
-    g.globalAlpha = 1;
-  }
-  // sea
-  g.fillStyle = t.sea; g.fillRect(0, base + 10, LAYER_W, h - base - 10);
-  if (t.lights) { g.fillStyle = 'rgba(255,220,140,.5)'; for (let x = 1500; x < 1860; x += 8) g.fillRect(x, base + 2, 2, 2); }
-  return c;
-}
-// Nearer landmarks: Gateway of India, Taj Palace, Rajabai tower, CST, the Queen's Necklace
-function makeMumbaiNear(t, seed) {
-  const h = 200, c = mk(LAYER_W, h), g = c.getContext('2d'), r = mulberry32(seed);
-  const base = h - 34, col = t.near;
-  const block = (x, w, bh) => { g.fillStyle = col; g.fillRect(x, base - bh, w, bh + 34); litWindows(g, r, x, base - bh, w, bh, t.lights); };
-  const dome = (cx, y, rad) => { g.beginPath(); g.arc(cx, y, rad, Math.PI, 0); g.fill(); g.fillRect(cx - 1, y - rad - 8, 2, 8); };
-  // mid-rise filler (skipping landmark spots)
-  const skip = [[180, 600], [880, 960], [1220, 1440]];
-  for (let x = 0; x < LAYER_W;) {
-    const w = 30 + r() * 50;
-    if (!skip.some(([a, b]) => x + w > a && x < b)) block(x, w, 24 + r() * 60);
-    x += w + 2 + r() * 8;
-  }
-  g.fillStyle = col;
-  // Gateway of India
-  const gx = 200, gw = 120;
-  g.fillRect(gx, base - 70, gw, 104);
-  for (const tx of [gx - 6, gx + 26, gx + gw - 38, gx + gw - 6]) { g.fillRect(tx, base - 92, 12, 30); dome(tx + 6, base - 92, 6); }
-  g.fillRect(gx - 4, base - 76, gw + 8, 8);
-  g.fillStyle = t.sea; g.beginPath(); g.moveTo(gx + 40, base + 34); g.lineTo(gx + 40, base - 30); g.quadraticCurveTo(gx + 60, base - 58, gx + 80, base - 30); g.lineTo(gx + 80, base + 34); g.fill();
-  // Taj Mahal Palace: long facade, big central dome, corner domes
-  g.fillStyle = col; const tj = 360;
-  g.fillRect(tj, base - 80, 220, 114);
-  dome(tj + 110, base - 80, 34); g.fillRect(tj + 106, base - 124, 8, 12);
-  for (const dx of [14, 206]) { g.fillRect(tj + dx - 12, base - 104, 24, 30); dome(tj + dx, base - 104, 12); }
-  for (const dx of [60, 160]) dome(tj + dx, base - 80, 10);
-  litWindows(g, r, tj, base - 76, 220, 74, t.lights * 1.1);
-  // Rajabai clock tower
-  const rx = 910; g.fillStyle = col;
-  g.fillRect(rx - 11, base - 130, 22, 164); g.fillRect(rx - 15, base - 90, 30, 6);
-  g.beginPath(); g.moveTo(rx - 11, base - 130); g.lineTo(rx, base - 172); g.lineTo(rx + 11, base - 130); g.fill();
-  g.fillStyle = t.lights ? 'rgba(255,230,160,.9)' : 'rgba(255,255,255,.25)'; g.beginPath(); g.arc(rx, base - 112, 5, 0, Math.PI * 2); g.fill();
-  // Chhatrapati Shivaji Terminus: gothic block, central dome, spires
-  g.fillStyle = col; const cs = 1240;
-  g.fillRect(cs, base - 64, 190, 98); g.fillRect(cs + 70, base - 96, 50, 34);
-  dome(cs + 95, base - 96, 26); g.fillRect(cs + 93, base - 136, 4, 16);
-  for (const dx of [0, 36, 150, 184]) { g.beginPath(); g.moveTo(cs + dx, base - 64); g.lineTo(cs + dx + 3, base - 88); g.lineTo(cs + dx + 6, base - 64); g.fill(); }
-  litWindows(g, r, cs, base - 60, 190, 58, t.lights * 0.9);
-  // promenade + sea with the Queen's Necklace street-light arc
-  g.fillStyle = shade(t.sea, 0.06); g.fillRect(0, base + 2, LAYER_W, 32);
-  g.fillStyle = t.sea; g.fillRect(0, base + 8, LAYER_W, 26);
-  g.fillStyle = t.lights ? 'rgba(255,214,120,.95)' : 'rgba(255,255,255,.55)';
-  for (let x = 4; x < LAYER_W; x += 12) g.fillRect(x, base + 3 + Math.sin(x / LAYER_W * Math.PI * 4) * 1.5, 3, 3);
-  g.fillStyle = 'rgba(255,255,255,.18)'; for (let i = 0; i < 90; i++) g.fillRect(r() * LAYER_W, base + 12 + r() * 20, 6 + r() * 16, 1);
-  return c;
-}
-
-// ---- shared skyline helpers
 const cutOut = (g, fn) => { g.save(); g.globalCompositeOperation = 'destination-out'; g.fillStyle = '#000'; fn(); g.fill(); g.restore(); };
 const archPath = (g, x, y, w, h) => { g.beginPath(); g.moveTo(x, y + h); g.lineTo(x, y + w / 2); g.arc(x + w / 2, y + w / 2, w / 2, Math.PI, 0); g.lineTo(x + w, y + h); g.closePath(); };
 const onion = (g, cx, y, rad) => { g.beginPath(); g.moveTo(cx - rad, y); g.bezierCurveTo(cx - rad * 1.3, y - rad * 1.1, cx - rad * 0.2, y - rad * 1.4, cx, y - rad * 2); g.bezierCurveTo(cx + rad * 0.2, y - rad * 1.4, cx + rad * 1.3, y - rad * 1.1, cx + rad, y); g.fill(); };
@@ -1457,163 +1273,7 @@ function waterBand(g, r, t, base, h, lights) {
   if (lights) { g.fillStyle = 'rgba(255,214,120,.9)'; for (let x = 4; x < LAYER_W; x += 14) g.fillRect(x, base + 3, 3, 3); }
 }
 
-// ---- Hyderabad: Golconda Fort + HITEC City far; Charminar, Birla Mandir, Buddha in Hussain Sagar near
-function makeHyderabadFar(t, seed) {
-  const h = 230, c = mk(LAYER_W, h), g = c.getContext('2d'), r = mulberry32(seed), base = h - 30, col = t.far;
-  // Golconda: rocky hill crowned with walls, bastions and the Bala Hissar pavilion
-  const hillY = x => base - 20 - Math.max(0, Math.sin((x - 60) / 640 * Math.PI)) * 110;
-  g.fillStyle = col; g.beginPath(); g.moveTo(0, h); for (let x = 0; x <= 760; x += 8) g.lineTo(x, hillY(x)); g.lineTo(760, h); g.fill();
-  for (let x = 120; x < 700; x += 70) { const y = hillY(x); g.fillRect(x - 12, y - 22, 24, 26); for (let k = -10; k < 12; k += 7) g.fillRect(x + k, y - 28, 4, 6); g.fillRect(x + 12, y - 12, 58, 10); }
-  const py = hillY(380); g.fillRect(352, py - 60, 56, 40); for (let k = 0; k < 3; k++) cutOut(g, () => archPath(g, 358 + k * 17, py - 52, 10, 26));
-  g.fillStyle = col; g.fillRect(348, py - 64, 64, 6);
-  // HITEC City: Cyber Towers (rounded glass block) and glass towers
-  fillerBlocks(g, r, t, col, base, 800, LAYER_W, 40, 130, [[1060, 1180]], 0.6);
-  g.fillStyle = col; rr(g, 1060, base - 150, 120, 190, 50); g.fill();
-  g.fillStyle = 'rgba(255,255,255,.12)'; for (let y = base - 130; y < base; y += 12) g.fillRect(1064, y, 112, 3);
-  litWindows(g, r, 1066, base - 130, 108, 128, t.lights * 0.8);
-  g.fillStyle = col; g.fillRect(0, base, LAYER_W, h - base);
-  return c;
-}
-function makeHyderabadNear(t, seed) {
-  const h = 200, c = mk(LAYER_W, h), g = c.getContext('2d'), r = mulberry32(seed), base = h - 34, col = t.near;
-  fillerBlocks(g, r, t, col, base, 0, LAYER_W, 20, 55, [[500, 760], [1180, 1420], [1560, 1760]]);
-  // Charminar
-  const cx = 630, bw = 130;
-  g.fillStyle = col; g.fillRect(cx - bw / 2, base - 80, bw, 120); g.fillRect(cx - bw / 2 - 4, base - 84, bw + 8, 8);
-  g.fillRect(cx - bw / 2 + 8, base - 104, bw - 16, 22);
-  cutOut(g, () => archPath(g, cx - 26, base - 66, 52, 100));
-  for (let k = 0; k < 6; k++) cutOut(g, () => archPath(g, cx - bw / 2 + 14 + k * 18, base - 100, 9, 14));
-  g.fillStyle = col;
-  for (const mx of [cx - bw / 2 - 2, cx + bw / 2 + 2]) {
-    g.fillRect(mx - 8, base - 176, 16, 216);
-    for (const by of [base - 84, base - 118, base - 150]) g.fillRect(mx - 12, by, 24, 6);
-    onion(g, mx, base - 176, 10); g.fillRect(mx - 1, base - 206, 2, 12);
-  }
-  onion(g, cx, base - 104, 12);
-  // Birla Mandir on its hillock
-  g.beginPath(); g.moveTo(1560, base + 10); g.quadraticCurveTo(1660, base - 60, 1760, base + 10); g.fill();
-  for (const [dx, th] of [[-30, 36], [0, 62], [30, 36]]) { g.beginPath(); g.moveTo(1660 + dx - 12, base - 40); g.lineTo(1660 + dx, base - 40 - th); g.lineTo(1660 + dx + 12, base - 40); g.fill(); }
-  waterBand(g, r, t, base, h, t.lights > 0);
-  // Buddha statue on the Hussain Sagar islet
-  g.fillStyle = col; ell(g, 1300, base + 16, 50, 7); g.fill();
-  g.fillRect(1284, base - 8, 32, 22); g.fillRect(1290, base - 58, 20, 52); ell(g, 1300, base - 64, 8, 9); g.fill();
-  return c;
-}
-
-// ---- Delhi: Qutub Minar, Lotus Temple far; Rashtrapati Bhavan, India Gate, Red Fort, Jama Masjid near
-function makeDelhiFar(t, seed) {
-  const h = 230, c = mk(LAYER_W, h), g = c.getContext('2d'), r = mulberry32(seed), base = h - 30, col = t.far;
-  fillerBlocks(g, r, t, col, base, 0, LAYER_W, 18, 60, [[260, 360], [1020, 1200]]);
-  trees(g, r, shade(col, -0.05), base, 0, LAYER_W, 60);
-  // Qutub Minar: tapered, banded, with balconies
-  g.fillStyle = col; g.beginPath(); g.moveTo(290, base + 30); g.lineTo(300, base - 190); g.lineTo(318, base - 190); g.lineTo(328, base + 30); g.fill();
-  for (const k of [0.25, 0.48, 0.68, 0.84]) { const y = base - 190 * k, half = lerp(19, 9, k) + 4; g.fillRect(309 - half, y - 3, half * 2, 5); }
-  g.fillRect(304, base - 202, 10, 12); ell(g, 309, base - 203, 6, 4); g.fill();
-  // Lotus Temple: overlapping pointed petals
-  const lx = 1110;
-  for (const [layer, spread, hgt] of [[0, 22, 70], [1, 16, 56], [2, 10, 40]]) {
-    g.fillStyle = shade(col, 0.06 - layer * 0.04);
-    for (let i = -3; i <= 3; i++) {
-      const px = lx + i * spread, tip = base - hgt + Math.abs(i) * 6;
-      g.beginPath(); g.moveTo(px - spread * 0.8, base); g.quadraticCurveTo(px - spread * 0.6, tip + 18, px, tip); g.quadraticCurveTo(px + spread * 0.6, tip + 18, px + spread * 0.8, base); g.fill();
-    }
-  }
-  g.fillStyle = col; g.fillRect(0, base, LAYER_W, h - base);
-  return c;
-}
-function makeDelhiNear(t, seed) {
-  const h = 200, c = mk(LAYER_W, h), g = c.getContext('2d'), r = mulberry32(seed), base = h - 34, col = t.near;
-  fillerBlocks(g, r, t, col, base, 0, LAYER_W, 16, 44, [[80, 330], [480, 640], [930, 1380], [1540, 1760]]);
-  trees(g, r, shade(col, 0.04), base, 0, LAYER_W, 40);
-  g.fillStyle = col;
-  // Rashtrapati Bhavan: long colonnade, dome on a drum
-  g.fillRect(90, base - 40, 230, 80); g.fillRect(170, base - 60, 70, 22); g.beginPath(); g.arc(205, base - 60, 28, Math.PI, 0); g.fill(); g.fillRect(203, base - 98, 4, 12);
-  g.fillStyle = 'rgba(255,255,255,.12)'; for (let x = 100; x < 316; x += 9) g.fillRect(x, base - 34, 3, 30);
-  // India Gate
-  g.fillStyle = col; const ix = 560;
-  g.fillRect(ix - 58, base - 112, 116, 152); g.fillRect(ix - 64, base - 118, 128, 8); g.fillRect(ix - 40, base - 132, 80, 16); g.fillRect(ix - 26, base - 142, 52, 10);
-  g.beginPath(); g.arc(ix, base - 142, 18, Math.PI, 0); g.fill();
-  cutOut(g, () => archPath(g, ix - 26, base - 88, 52, 130));
-  // Red Fort: crenellated wall, Lahori Gate with chhatris
-  g.fillStyle = col; g.fillRect(940, base - 52, 440, 92);
-  for (let x = 942; x < 1378; x += 12) g.fillRect(x, base - 60, 7, 8);
-  g.fillRect(1120, base - 86, 80, 40);
-  cutOut(g, () => archPath(g, 1144, base - 62, 32, 100));
-  g.fillStyle = col;
-  for (const x of [1128, 1160, 1192]) { g.fillRect(x - 7, base - 102, 14, 16); g.beginPath(); g.arc(x, base - 102, 8, Math.PI, 0); g.fill(); }
-  for (const x of [950, 1370]) { g.fillRect(x - 10, base - 82, 20, 32); g.beginPath(); g.arc(x, base - 82, 11, Math.PI, 0); g.fill(); }
-  // Jama Masjid: three onion domes between two minarets
-  const jx = 1650;
-  g.fillRect(jx - 90, base - 44, 180, 84);
-  onion(g, jx, base - 44, 26); onion(g, jx - 52, base - 44, 18); onion(g, jx + 52, base - 44, 18);
-  for (const mx of [jx - 96, jx + 96]) { g.fillRect(mx - 6, base - 130, 12, 170); onion(g, mx, base - 130, 8); g.fillRect(mx - 9, base - 96, 18, 4); }
-  g.fillStyle = t.sea; g.fillRect(0, base + 4, LAYER_W, h - base);
-  g.fillStyle = shade(t.sea, 0.06); for (let x = 0; x < LAYER_W; x += 60) g.fillRect(x, base + 4, 30, h - base);
-  return c;
-}
-
-// ---- Chennai: LIC building, Chennai Central far; Kapaleeshwarar gopuram, Marina lighthouse, beach near
-function makeChennaiFar(t, seed) {
-  const h = 230, c = mk(LAYER_W, h), g = c.getContext('2d'), r = mulberry32(seed), base = h - 30, col = t.far;
-  fillerBlocks(g, r, t, col, base, 0, LAYER_W, 24, 90, [[470, 560], [1100, 1330]]);
-  g.fillStyle = col;
-  // LIC building with its antenna mast
-  g.fillRect(480, base - 150, 64, 190); g.strokeStyle = col; g.lineWidth = 3;
-  g.beginPath(); g.moveTo(512, base - 150); g.lineTo(512, base - 200); g.moveTo(502, base - 150); g.lineTo(512, base - 190); g.lineTo(522, base - 150); g.stroke();
-  g.fillStyle = 'rgba(255,255,255,.12)'; for (let y = base - 140; y < base; y += 10) g.fillRect(484, y, 56, 2);
-  // Chennai Central: long gothic front, clock tower, corner spires
-  g.fillStyle = col; const cc = 1110;
-  g.fillRect(cc, base - 60, 220, 100); g.fillRect(cc + 95, base - 130, 30, 72);
-  g.beginPath(); g.moveTo(cc + 92, base - 130); g.lineTo(cc + 110, base - 168); g.lineTo(cc + 128, base - 130); g.fill();
-  for (const dx of [0, 60, 160, 212]) { g.fillRect(cc + dx, base - 82, 8, 24); g.beginPath(); g.moveTo(cc + dx - 2, base - 82); g.lineTo(cc + dx + 4, base - 100); g.lineTo(cc + dx + 10, base - 82); g.fill(); }
-  g.fillStyle = 'rgba(255,255,255,.5)'; g.beginPath(); g.arc(cc + 110, base - 108, 6, 0, Math.PI * 2); g.fill();
-  g.fillStyle = col; g.fillRect(0, base, LAYER_W, h - base);
-  return c;
-}
-function makeChennaiNear(t, seed) {
-  const h = 200, c = mk(LAYER_W, h), g = c.getContext('2d'), r = mulberry32(seed), base = h - 34, col = t.near;
-  fillerBlocks(g, r, t, col, base, 0, LAYER_W, 16, 46, [[260, 460], [850, 950], [1440, 1580]]);
-  // Kapaleeshwarar gopuram: stepped tiers, barrel-vault crown with kalasams
-  const gopuram = (cx, bw, tw, gh) => {
-    const tiers = 9;
-    for (let i = 0; i < tiers; i++) {
-      const k = i / tiers, w = lerp(bw, tw, k), y = base - gh * (i + 1) / tiers;
-      g.fillStyle = i % 2 ? col : shade(col, 0.07); g.fillRect(cx - w / 2, y, w, gh / tiers + 1);
-      g.fillStyle = shade(col, 0.14); for (let x = cx - w / 2 + 4; x < cx + w / 2 - 4; x += 9) g.fillRect(x, y + 3, 4, gh / tiers - 6);
-    }
-    g.fillStyle = col; rr(g, cx - tw / 2 - 4, base - gh - 14, tw + 8, 16, 7); g.fill();
-    for (let k = 0; k < 5; k++) { const kx = cx - tw / 2 + 4 + k * (tw - 8) / 4; g.fillRect(kx - 2, base - gh - 22, 4, 9); ell(g, kx, base - gh - 23, 3, 3); g.fill(); }
-    g.fillRect(cx - bw / 2 - 6, base - 6, bw + 12, 46);
-    cutOut(g, () => { g.beginPath(); g.rect(cx - 12, base - 32, 24, 40); });
-  };
-  gopuram(360, 130, 56, 160); gopuram(1510, 90, 40, 104);
-  // Marina lighthouse
-  g.fillStyle = col; g.beginPath(); g.moveTo(884, base + 20); g.lineTo(892, base - 140); g.lineTo(908, base - 140); g.lineTo(916, base + 20); g.fill();
-  g.fillStyle = shade(col, 0.12); for (const k of [0.2, 0.45, 0.7]) g.fillRect(886 + k * 6, base - 160 * k, 28 - k * 12, 10);
-  g.fillStyle = col; g.fillRect(888, base - 158, 24, 18); g.beginPath(); g.arc(900, base - 158, 12, Math.PI, 0); g.fill();
-  g.fillStyle = 'rgba(255,240,180,.8)'; g.fillRect(892, base - 154, 16, 8);
-  // palms along the beach
-  g.strokeStyle = col; g.fillStyle = col;
-  for (let x = 30; x < LAYER_W; x += 90 + r() * 120) {
-    if ((x > 250 && x < 470) || (x > 840 && x < 960) || (x > 1430 && x < 1590)) continue;
-    const th = 40 + r() * 40, lean = (r() - 0.5) * 20; g.lineWidth = 4;
-    g.beginPath(); g.moveTo(x, base + 4); g.quadraticCurveTo(x + lean, base - th / 2, x + lean, base - th); g.stroke();
-    g.lineWidth = 3; for (let k = 0; k < 6; k++) { const a = -Math.PI + k * Math.PI / 5; g.beginPath(); g.moveTo(x + lean, base - th); g.quadraticCurveTo(x + lean + Math.cos(a) * 16, base - th + Math.sin(a) * 16 - 4, x + lean + Math.cos(a) * 26, base - th + Math.sin(a) * 12 + 10); g.stroke(); }
-  }
-  // sand, surf, catamarans
-  g.fillStyle = '#e8d6a8'; g.fillRect(0, base + 2, LAYER_W, 10);
-  waterBand(g, r, t, base + 6, h, false);
-  g.fillStyle = '#fff'; for (let x = 0; x < LAYER_W; x += 24) g.fillRect(x + r() * 8, base + 12, 12, 2);
-  g.fillStyle = shade(col, -0.1); for (let i = 0; i < 8; i++) { const bx = r() * LAYER_W, by = base + 20 + r() * 8; g.fillRect(bx, by, 22, 3); g.beginPath(); g.moveTo(bx + 10, by); g.lineTo(bx + 10, by - 12); g.lineTo(bx + 18, by); g.fill(); }
-  return c;
-}
-
-const SKYLINES = {
-  mumbai: { far: makeMumbaiFar, near: makeMumbaiNear },
-  hyderabad: { far: makeHyderabadFar, near: makeHyderabadNear },
-  delhi: { far: makeDelhiFar, near: makeDelhiNear },
-  chennai: { far: makeChennaiFar, near: makeChennaiNear },
-};
+const PAINT = { mk, ell, rr, shade, lerp, mulberry32, LAYER_W, litWindows, fillerBlocks, trees, waterBand, cutOut, archPath, onion };
 
 // Indian street dogs: side view (trotting, 2 frames), rear view (chasing, 2 frames), curled up asleep.
 const DOG_COATS = [
@@ -1689,34 +1349,8 @@ const CAR_LOOKS = [
   ...['#f2f2f2', '#7b1e2b', '#b0b4b8'].map(color => ({ model: 'omni', color, nw: 0.31, len: 1330, s: [0.3, 0.42], label: 'VAN' })),
   ...['#1565c0', '#2e7d32', '#d32f2f'].map(bed => ({ model: 'ace', color: '#f2f2f2', bed, nw: 0.33, len: 1670, s: [0.28, 0.4], label: 'MINI TRUCK' })),
 ];
-// 1990s city buses: each city's transport undertaking, its livery and well-known routes of the time
-// (destination boards read "route  destination"; Bombay's CST was still V.T.)
-const BEST = { op: 'B.E.S.T.', body: '#c62828', band: '#f3e2b3', stripe: '#f3e2b3', roof: '#c62828', plate: 'MH 01 J 4517' };
-const BUS_LOOKS = {
-  mumbai: [
-    { ...BEST, deck: 2, route: '123', dest: 'TARDEO - COLABA' }, { ...BEST, deck: 2, route: '1', dest: 'COLABA - MAHIM' },
-    { ...BEST, deck: 1, roof: '#f3e2b3', route: '83', dest: 'COLABA - KURLA' }, { ...BEST, deck: 1, roof: '#f3e2b3', route: '138', dest: 'V.T. - BACKBAY' },
-  ],
-  delhi: [
-    { op: 'D.T.C.', body: '#2e7d32', band: '#f3e2b3', stripe: '#f9a825', roof: '#f3e2b3', deck: 1, route: 'MUDRIKA', dest: 'RING ROAD', plate: 'DL 1P 2231' },
-    { op: 'D.T.C.', body: '#2e7d32', band: '#f3e2b3', stripe: '#f9a825', roof: '#f3e2b3', deck: 1, route: 'BAHRI', dest: 'MUDRIKA', plate: 'DL 1P 4120' },
-    { op: 'BLUELINE', body: '#1565c0', band: '#f5f5f5', stripe: '#f5f5f5', roof: '#f5f5f5', deck: 1, route: '429', dest: 'ISBT - NEHRU PLACE', plate: 'DL 1P 7788' },
-    { op: 'D.T.C.', body: '#2e7d32', band: '#f3e2b3', stripe: '#f9a825', roof: '#f3e2b3', deck: 1, route: '620', dest: 'SHIVAJI STADIUM', plate: 'DL 1P 3065' },
-  ],
-  hyderabad: [
-    { op: 'A.P.S.R.T.C.', body: '#b71c1c', band: '#f3e2b3', stripe: '#f9a825', roof: '#f3e2b3', deck: 1, route: '8A', dest: 'SECUNDERABAD - CHARMINAR', plate: 'AP 09 Z 1182' },
-    { op: 'A.P.S.R.T.C.', body: '#b71c1c', band: '#f3e2b3', stripe: '#f9a825', roof: '#f3e2b3', deck: 1, route: '5K', dest: 'SECUNDERABAD - MEHDIPATNAM', plate: 'AP 09 Z 2045' },
-    { op: 'A.P.S.R.T.C.', body: '#b71c1c', band: '#f3e2b3', stripe: '#f9a825', roof: '#f3e2b3', deck: 1, route: '49M', dest: 'KOTI', plate: 'AP 09 Z 3310' },
-  ],
-  chennai: [
-    { op: 'PALLAVAN', body: '#e8b923', band: '#7b1e2b', stripe: '#7b1e2b', roof: '#f3e2b3', deck: 1, route: '21G', dest: 'BROADWAY - TAMBARAM', plate: 'TN 01 N 0921' },
-    { op: 'PALLAVAN', body: '#e8b923', band: '#7b1e2b', stripe: '#7b1e2b', roof: '#f3e2b3', deck: 1, route: '29C', dest: 'PERAMBUR - BESANT NAGAR', plate: 'TN 01 N 2290' },
-    { op: 'PALLAVAN', body: '#e8b923', band: '#7b1e2b', stripe: '#7b1e2b', roof: '#f3e2b3', deck: 1, route: '23C', dest: 'BESANT NAGAR', plate: 'TN 01 N 1723' },
-    { op: 'PALLAVAN', body: '#e8b923', band: '#7b1e2b', stripe: '#7b1e2b', roof: '#f3e2b3', deck: 1, route: '12B', dest: 'MYLAPORE', plate: 'TN 01 N 1202' },
-  ],
-};
-// most buses are packed (people at every window, hanging off the footboard)
-const busLookFor = r => { const list = BUS_LOOKS[THEMES[track.theme].city] || BUS_LOOKS.mumbai, l = list[Math.floor(r() * list.length)]; return r() < 0.7 ? { ...l, crowd: true } : l; };
+// each city's bus liveries come from its pack (web/cities/<id>/city.js); the 3D turntable looks them up by city
+const BUS_LOOKS = Object.fromEntries(RRR.cities.ids().map(id => [id, RRR.cities.get(id).busLooks]));
 // tractors towing a trolley overloaded with sugarcane or a netted bale of straw (wider than the trolley)
 const TRACTOR_LOOKS = [
   { color: '#c62828', crop: 'cane', pagri: '#ff8f00', rim: '#f0b400' }, { color: '#1565c0', crop: 'hay', pagri: '#fdd835', rim: '#e0e0e0' },
@@ -1759,9 +1393,12 @@ function buildSharedSprites() {
 }
 
 // ------------------------------------------------------------------ world state
-let segments = [], trackLength = 0, theme = THEMES.marine, themeSprites = {}, bgLayers = {};
-let track = TRACKS[0], level = clamp(store.get('level', 0), 0, TRACKS.length - 1), cash = store.get('cash', 0), round = store.get('round', 0);
-const unlocked = TRACKS.length - 1; // every race is open from the start
+let segments = [], trackLength = 0, themeSprites = {}, bgLayers = {};
+// def: the loaded track's resolved definition (engine/registry.js) · theme: its look (sky, fog, road colours, scenery)
+let def = null, theme = null;
+// level: the selected race's place in ORDER (saved as a track id)
+let level = RRR.selectedTrackIndex(store, ORDER), cash = store.get('cash', 0), round = store.get('round', 0);
+const unlocked = ORDER.length - 1; // every race is open from the start
 let state = 'title', paused = false, pauseSel = 0, countdown = 0, raceTime = 0, finishTimer = 0, finishDist = 0, startZ = 0;
 let position = 0, skyOffset = 0, farOffset = 0, nearOffset = 0, shake = 0;
 let rivals = [], traffic = [], finishOrder = [], results = null;
@@ -1778,154 +1415,13 @@ function resetPlayer() {
     atk: null, hurt: 0, inv: 0, kos: 0, finished: false, time: 0, name: 'YOU', steer: 0, puff: 0, hornCd: 0, isPlayer: true, heading: 0, slip: 0, drift: 0, brkWas: false });
 }
 
-// ------------------------------------------------------------------ track building
-function lastY() { return segments.length ? segments[segments.length - 1].p2.world.y : 0; }
-function addSegment(curve, y) {
-  const n = segments.length;
-  segments.push({ index: n, curve, sprites: [], solids: [], cars: [], dark: Math.floor(n / RUMBLE_LEN) % 2 === 1,
-    p1: { world: { x: 0, y: lastY(), z: n * SEG_LEN }, camera: {}, screen: {} },
-    p2: { world: { x: 0, y, z: (n + 1) * SEG_LEN }, camera: {}, screen: {} } });
-}
-function addRoad(enter, hold, leave, curve, y = 0) {
-  const startY = lastY(), endY = startY + Math.round(y) * SEG_LEN, total = enter + hold + leave;
-  for (let n = 0; n < enter; n++) addSegment(easeIn(0, curve, n / enter), easeInOut(startY, endY, n / total));
-  for (let n = 0; n < hold; n++) addSegment(curve, easeInOut(startY, endY, (enter + n) / total));
-  for (let n = 0; n < leave; n++) addSegment(easeInOut(curve, 0, n / leave), easeInOut(startY, endY, (enter + hold + n) / total));
-}
-
-function buildTrack(tr) {
-  segments = [];
-  const R = mulberry32(tr.seed + round * 1000);
-  const sgn = () => (R() < 0.5 ? -1 : 1);
-  addRoad(20, 40, 20, 0, 0);
-  while (segments.length < tr.length) {
-    const t = R(), L = pick([25, 50, 75], R);
-    if (t < 0.16) addRoad(L, L, L, 0, 0);
-    else if (t < 0.42) addRoad(L, L, L, sgn() * pick([2, 4, 6], R), pick([0, 0, 20, -20, 40], R));
-    else if (t < 0.56) { const s = sgn(); addRoad(50, 50, 50, s * 2, 0); addRoad(50, 50, 50, -s * 4, pick([0, 20, -20], R)); addRoad(50, 50, 50, s * 2, 0); }
-    else if (t < 0.68) addRoad(L, L, L, 0, sgn() * pick([20, 40, 60], R));
-    else if (t < 0.8) { for (let i = 0; i < 4; i++) addRoad(25, 25, 25, 0, (i % 2 ? -1 : 1) * 10); }
-    else if (t < 0.9) { for (let i = 0; i < 8; i++) addRoad(10, 10, 10, 0, (i % 2 ? -1 : 1) * 3); }
-    else addRoad(L, L, L, sgn() * 6, sgn() * 30);
-  }
-  addRoad(150, 150, 150, sgn() * 2, -lastY() / SEG_LEN);
-  addRoad(30, 30, 30, 0, 0);
-  trackLength = segments.length * SEG_LEN;
-
-  layoutLanes(R);
-  // start / finish
-  startZ = PLAYER_Z + 3 * (use3D ? TUK_LEN + 350 : 520) + 400;
-  const fs = Math.floor(startZ / SEG_LEN);
-  segments[fs].finish = true; segments[fs + 1].finish = 2;
-  segments[fs].sprites.push({ img: SP.arch, offset: 0, nw: segments[fs].half * 2 + 0.6, center: true, kind: 'arch' });
-  layoutJunctions(R, fs);
-
-  // scenery
-  // buildings and temples stand in a row along each side and never overlap (they're solid 3D boxes);
-  // trees, palms, hoardings and chai stalls go in front of them, nearer the road
-  const busyUntil = { '-1': 0, '1': 0 };
-  for (let n = 30; n < segments.length; n++) {
-    const seg = segments[n];
-    if (seg.clear) continue; // junction: the cross road runs through here
-    if (n % 18 === 0) { const side = (n / 18) % 2 ? 1 : -1; seg.sprites.push({ img: side < 0 ? SP.lampL : SP.lampR, offset: side * 1.12, nw: 0.13, solid: true, kind: 'lamp' }); }
-    if (n % 150 === 0) seg.sprites.push({ img: SP.milestone, offset: pick([-1, 1], R) * 1.1, nw: 0.08, solid: true, kind: 'milestone' });
-    if (R() < (tr.themeDef.density ?? 0.4)) {
-      const side = R() < 0.5 ? -1 : 1;
-      let kind = weightedPick(tr.themeDef.scenery, R);
-      if ((kind === 'building' || kind === 'temple') && (n < busyUntil[side] || segments.slice(n, n + 9).some(q => q.clear))) kind = tr.themeDef.scenery.palm ? 'palm' : 'tree';
-      let s;
-      if (kind === 'palm') s = { img: side < 0 ? SP.palm : SP.palmF, offset: side * rand(1.25, 1.5), nw: 0.45, solid: true };
-      else if (kind === 'tree') s = { img: pick(SP.trees, R), offset: side * rand(1.25, 1.4), nw: 0.8, solid: true };
-      else if (kind === 'building') { s = { img: pick(themeSprites.buildings, R), offset: side * rand(2.05, 2.35), nw: 1.1, solid: true, len: 1200 + Math.floor(R() * 400) }; busyUntil[side] = n + Math.ceil(s.len / SEG_LEN) + 1; }
-      else if (kind === 'billboard') s = { img: pick(themeSprites.billboards, R), offset: side * rand(1.2, 1.4), nw: 0.95, solid: true };
-      else if (kind === 'temple') { s = { img: SP.temple, offset: side * rand(2.1, 2.4), nw: 1.1, solid: true }; busyUntil[side] = n + 12; }
-      else s = { img: SP.chai, offset: side * rand(1.2, 1.35), nw: 0.6, solid: true };
-      s.kind = kind;
-      seg.sprites.push(s);
-    }
-  }
-  placeSigns(R, fs);
-  // everything by the roadside was placed for a road edge at 1: move it out to this stretch's edge
-  segments.forEach((seg, n) => {
-    for (const s of seg.sprites) {
-      if (s.center || s.edgeDone) continue;
-      const span = s.kind === 'building' ? Math.ceil((s.len || 1400) / SEG_LEN) : 1;
-      let h = 0; for (let k = 0; k <= span; k++) h = Math.max(h, segments[(n + k) % segments.length].half);
-      s.offset += Math.sign(s.offset) * (h - 1); s.edgeDone = true;
-    }
-  });
-  // solid things block every segment they span (a building is several segments long)
-  segments.forEach((seg, n) => {
-    for (const s of seg.sprites) if (s.solid) {
-      const span = s.kind === 'building' ? Math.ceil(s.len / SEG_LEN) : 1;
-      for (let k = 0; k < span; k++) segments[(n + k) % segments.length].solids.push(s);
-    }
-  });
-}
-
-// ------------------------------------------------------------------ two-way roads
-// The road is two-way and we keep left: our carriageway is x < 0, oncoming traffic uses x > 0. x is in fixed
-// units (1 = 2000 world units, one lane is LANE_W); stretches alternate between 4 lanes (2 each way) and
-// 6 lanes (3 each way), with a tapered transition. Every segment carries its half-width at both ends
-// (hw1, hw2), the wider of the two (half) and the lanes each way that are usable along all of it (lanes).
-const LANE_W = 0.6, TAPER = 30, JUNCTION_LEN = 12;
-const laneX = (dir, i) => -dir * (i + 0.5) * LANE_W;  // lane i counted from the centre line; dir +1 = our way
+// ------------------------------------------------------------------ track loading
+// The road is built by engine/track-builder.js and its traffic by engine/traffic-spawner.js, both from the
+// track's definition. x is in fixed units (1 = 2000 world units, one lane is LANE_W); we keep left, so our
+// carriageway is x < 0 and oncoming traffic uses x > 0.
+const { LANE_W, laneX } = RRR.road;
 const halfAt = z => findSegment(z).half;
-function layoutLanes(R) {
-  const N = segments.length, blocks = [];
-  let at = 0, per = 3;
-  while (at < N - 120) { blocks.push({ s: at, per }); at += at === 0 ? 300 : 160 + Math.floor(R() * 220); per = per === 3 ? 2 : 3; }
-  if (blocks[blocks.length - 1].per !== 3) blocks.pop(); // wrap back into the start stretch without a jump
-  const blockAt = k => { let b = 0; while (b + 1 < blocks.length && blocks[b + 1].s <= k) b++; return b; };
-  const halfAtK = k => {
-    const b = blockAt(k), cur = blocks[b], prev = blocks[b - 1];
-    if (!prev || k - cur.s >= TAPER) return cur.per * LANE_W;
-    return easeInOut(prev.per, cur.per, (k - cur.s) / TAPER) * LANE_W;
-  };
-  segments.forEach((seg, k) => {
-    seg.hw1 = halfAtK(k); seg.hw2 = halfAtK(k + 1); seg.half = Math.max(seg.hw1, seg.hw2);
-    const b = blockAt(k), cur = blocks[b], prev = blocks[b - 1];
-    seg.lanes = prev && k - cur.s < TAPER ? Math.min(prev.per, cur.per) : cur.per;
-  });
-  segments.blocks = blocks;
-}
-function layoutJunctions(R, fs) {
-  junctions = [];
-  const N = segments.length, flat = (a, b) => Math.abs(segments[b].p1.world.y - segments[a].p1.world.y) < 300;
-  let n = fs + 200;
-  while (n < N - 200) {
-    let found = -1;
-    for (let k = n; k < Math.min(N - 200, n + 260) && found < 0; k++) {
-      let ok = flat(k, k + JUNCTION_LEN);
-      for (let i = k - 25; ok && i < k + JUNCTION_LEN + 25; i++) { const q = segments[i]; if (Math.abs(q.curve) > 0.5 || q.hw1 !== q.hw2 || q.finish) ok = false; }
-      if (ok) found = k;
-    }
-    if (found < 0) { n += 260; continue; }
-    const j = { i: junctions.length, s0: found, s1: found + JUNCTION_LEN - 1, z0: found * SEG_LEN, z1: (found + JUNCTION_LEN) * SEG_LEN,
-      phase: R() * 22, cop: junctions.length % 2 === 0, busy: false, spawn: [0, 0], fined: false };
-    j.zc = (j.z0 + j.z1) / 2; j.half = segments[found].half;
-    for (let i = found; i <= j.s1; i++) segments[i].junction = j;
-    for (let i = found - 5; i <= j.s1 + 5; i++) segments[i].clear = true;
-    junctions.push(j);
-    n = found + JUNCTION_LEN + 260 + Math.floor(R() * 200);
-  }
-}
-// signals, the cop's post and the roadside signs (offsets are for a road edge at 1; moved out later)
-function placeSigns(R, fs) {
-  const N = segments.length, put = (n, s) => { n = ((n % N) + N) % N; if (!segments[n].clear || s.kind !== 'sign') segments[n].sprites.push(s); };
-  const sign = (n, name, side = -1) => put(n, { img: SP.signs[name], offset: side * 1.3, nw: 0.3, solid: true, kind: 'sign', facing: side < 0 ? 1 : -1 });
-  for (const j of junctions) {
-    put(j.s0 - 1, { img: SP.signal, offset: -1.22, nw: 0.2, solid: true, kind: 'signal', junction: j, facing: 1 });
-    put(j.s1 + 1, { img: SP.signal, offset: 1.22, nw: 0.2, solid: true, kind: 'signal', junction: j, facing: -1 });
-    if (j.cop) put(j.s0 - 2, { img: SP.cop, offset: -1.55, nw: 0.22, solid: false, kind: 'cop', junction: j });
-    sign(j.s0 - 70, 'signal'); sign(j.s1 + 70, 'signal', 1);
-  }
-  for (const b of segments.blocks) if (b.s > 0 && b.per === 2) { sign(b.s - 60, 'narrow'); sign(b.s + TAPER + 60, 'narrow', 1); }
-  for (let n = fs + 60; n < N - 60; n += 90 + Math.floor(R() * 160)) {
-    if (segments[n].clear) continue;
-    sign(n, pick(['limit40', 'limit50', 'limit60', 'limit50', 'keepleft', 'nohorn'], R), R() < 0.75 ? -1 : 1);
-  }
-}
+const gridGap = () => (use3D ? TUK_LEN + 350 : 520); // between rows of the starting grid: 3D autos need a real gap
 // traffic lights: a 22 s cycle per junction; main road green, amber, then red while the cross road goes
 const LIGHT_CYCLE = 22;
 const lightPhase = j => (((worldT + j.phase) % LIGHT_CYCLE) + LIGHT_CYCLE) % LIGHT_CYCLE;
@@ -1933,18 +1429,17 @@ function lightOf(j) { const t = lightPhase(j); return t < 11 ? 'G' : t < 13.5 ? 
 const crossGo = j => { const t = lightPhase(j); return t >= 14.5 && t < 21; };
 
 function loadTrack(idx) {
-  track = TRACKS[idx % TRACKS.length];
-  track.themeDef = THEMES[track.theme];
-  theme = track.themeDef;
-  Music.setCity(theme.city);
-  Ambience.setCity(theme.city);
-  const r = mulberry32(track.seed * 3);
+  def = RRR.resolve(ORDER[idx % ORDER.length]);
+  theme = def.look;
+  Music.setCity(def.city);
+  Ambience.setCity(def.city.id);
+  const r = mulberry32(def.seed * 3);
   themeSprites = { buildings: theme.buildings.map(col => makeBuilding(r, col)),
-    billboards: [...BILLBOARDS, ...theme.ads.map((lines, i) => ({ ...AD_COLORS[i % AD_COLORS.length], lines }))].map(makeBillboard) };
-  const sky = SKYLINES[theme.city];
-  bgLayers = { far: sky.far(theme, track.seed), near: sky.near(theme, track.seed + 5) };
-  buildTrack(track);
-  if (use3D) World3D.setTrack({ segments, trackLength, theme, SP, themeSprites, CAR_COLORS, CAR_LOOKS, TRACTOR_LOOKS, BUS_LOOKS, BIKE_LOOKS, DOG_COATS, MAX_SPEED, LANE_W });
+    billboards: [...BILLBOARDS, ...def.city.ads.map((lines, i) => ({ ...AD_COLORS[i % AD_COLORS.length], lines }))].map(makeBillboard) };
+  bgLayers = { far: def.skyline.far(PAINT, theme, def.seed), near: def.skyline.near(PAINT, theme, def.seed + 5) };
+  ({ segments, trackLength, startZ, junctions } = RRR.buildTrack({ def, round, sprites: SP, themeSprites,
+    constants: { SEG_LEN, RUMBLE_LEN, PLAYER_Z, GRID_GAP: gridGap() } }));
+  if (use3D) World3D.setTrack({ segments, trackLength, theme, city: def.city.id, SP, themeSprites, CAR_COLORS, CAR_LOOKS, TRACTOR_LOOKS, BUS_LOOKS, BIKE_LOOKS, DOG_COATS, MAX_SPEED, LANE_W });
 }
 
 function findSegment(z) { return segments[Math.floor(((z % trackLength) + trackLength) % trackLength / SEG_LEN) % segments.length]; }
@@ -1952,19 +1447,18 @@ function wrapDelta(d) { d = ((d % trackLength) + trackLength) % trackLength; ret
 
 // ------------------------------------------------------------------ race setup
 function setupRace() {
-  const next = TRACKS[level % TRACKS.length];
-  trackEvent(`race-start/${THEMES[next.theme].city}/${next.theme}`, `Race started: ${next.name}`);
   loadTrack(level);
+  trackEvent(`race-start/${def.city.id}/${def.id}`, `Race started: ${def.name}`);
   resetPlayer();
   const diff = 1 + round * 0.04;
-  const nR = track.rivals;
+  const nR = def.rivals.count;
   rivals = [];
   // grid: two per row, player in the middle of the pack
   const slots = [];
   for (let i = 0; i < nR + 1; i++) slots.push({ row: Math.floor(i / 2), x: laneX(1, i % 2) }); // our side of the road, two lanes
   const rows = Math.ceil((nR + 1) / 2);
   const playerSlot = Math.min(nR, Math.floor((nR + 1) / 2) + ((nR + 1) % 2 ? 0 : 1));
-  const rowZ = row => PLAYER_Z + (rows - 1 - row) * (use3D ? TUK_LEN + 350 : 520); // 3D autos need a real gap between rows
+  const rowZ = row => PLAYER_Z + (rows - 1 - row) * gridGap();
   const shiftZ = PLAYER_Z - rowZ(slots[playerSlot].row);
   player.x = slots[playerSlot].x;
   const names = [...RIVAL_NAMES].sort(() => Math.random() - 0.5);
@@ -1974,44 +1468,16 @@ function setupRace() {
     const c = RIVAL_COLORS[ri % RIVAL_COLORS.length];
     rivals.push({ name: names[ri], color: c.body, palette: c, img: SP.rivals[ri % SP.rivals.length], nw: TUK_NW, voicePitch: rand(0.7, 1.35),
       x: slots[i].x, dist: rowZ(slots[i].row) + shiftZ, speed: 0,
-      top: MAX_SPEED * clamp(track.skill * diff - 0.06 + Math.random() * 0.08, 0.7, 1.02),
+      top: MAX_SPEED * clamp(def.rivals.skill * diff - 0.06 + Math.random() * 0.08, 0.7, 1.02),
       health: 100, ko: 0, koBy: null, rot: 0, atk: null, cd: rand(1, 3), aggr: rand(0.6, 1.2), laneX: laneX(1, Math.floor(Math.random() * 2)),
       laneT: rand(3, 8), delay: rand(0.05, 0.5), finished: false, time: 0, hurt: 0, scr: null, isRival: true });
     ri++;
   }
-  // traffic
-  traffic = [];
-  const tr = mulberry32(track.seed + 99 + round);
-  const addTraffic = (type, dir = 1) => {
-    const z = startZ + 7000 + tr() * (trackLength - 13000); // clear of the starting grid (front and back)
-    const h = halfAt(z);
-    if (type === 'cow') traffic.push({ type, z, x: rand(-h - 0.2, h + 0.2), speed: 0, vx: pick([-1, 1], tr) * rand(0.05, 0.12), nw: 0.42, len: 380, pause: 0, scared: 0, label: 'HOLY COW' });
-    else {
-      const def = type === 'bus' ? { img: SP.bus, look: busLookFor(tr), nw: 0.56, len: 3200, s: [0.28, 0.38], label: 'BUS' } : type === 'truck' ? { img: SP.truck, nw: 0.56, len: 2800, s: [0.25, 0.35], label: 'TRUCK' }
-        : type === 'bike' ? (rash => ({ img: SP.bikes[pick(rash ? BIKE_RASH : BIKE_CALM, tr)], rash, nw: 0.17, len: 860, s: rash ? [0.6, 0.78] : [0.38, 0.55], label: 'BIKE' }))(tr() < 0.3)
-        : type === 'tractor' ? (i => ({ look: TRACTOR_LOOKS[i], img: SP.tractors[i], nw: TRACTOR_LOOKS[i].crop === 'hay' ? 0.65 : 0.56, len: 3800, s: [0.14, 0.2], label: 'TRACTOR' }))(Math.floor(tr() * TRACTOR_LOOKS.length))
-        : (i => ({ ...CAR_LOOKS[i], look: CAR_LOOKS[i], img: SP.carLooks[i] }))(Math.floor(tr() * CAR_LOOKS.length));
-      const lanes = findSegment(z).lanes, lane = type === 'car' || type === 'bike' ? Math.floor(tr() * lanes) : lanes - 1;
-      traffic.push({ type, dir, z, lane, x: laneX(dir, lane), img: def.img, look: def.look, rash: def.rash, nw: def.nw, len: def.len, speed: MAX_SPEED * rand(def.s[0], def.s[1]), label: def.label });
-    }
-  };
-  // the mix on the road: cars and bikes most, then buses, then trucks
-  const MIX = ['car', 'car', 'car', 'car', 'bike', 'bike', 'bike', 'bike', 'bus', 'bus', 'truck', 'tractor']; // ~33% / 33% / 17% / 8% / 8%
-  // dealt from a shuffled deck in exactly those proportions (random picks can come out lopsided on a track)
-  const deck = n => { const d = Array.from({ length: n }, (_, i) => MIX[i % MIX.length]); for (let i = n - 1; i > 0; i--) { const j = Math.floor(tr() * (i + 1)); [d[i], d[j]] = [d[j], d[i]]; } return d; };
-  for (const type of deck(track.traffic)) addTraffic(type);
-  for (const type of deck(Math.round(track.traffic * 0.8))) addTraffic(type, -1); // oncoming
-  for (let i = 0; i < track.cows; i++) addTraffic('cow');
+  traffic = RRR.spawnTraffic({ def, round, sprites: SP, maxSpeed: MAX_SPEED, looks: { CAR_LOOKS, TRACTOR_LOOKS, BIKE_CALM, BIKE_RASH },
+    world: { startZ, trackLength, halfAt, findSegment } });
   skidMarks = []; crossTraffic = []; for (const j of junctions) { j.busy = false; j.spawn = [0, 0]; j.fined = false; }
-  for (let i = 0; i < (track.dogs || 0); i++) {
-    const z = startZ + 3000 + tr() * (trackLength - 8000), r = tr();
-    const mode = r < 0.28 ? 'sleep' : r < 0.8 ? 'sit' : 'cross';
-    const h = halfAt(z), x = mode === 'sleep' ? rand(-h + 0.1, h - 0.1) : mode === 'sit' ? pick([-1, 1], tr) * (h + rand(0.15, 0.5)) : rand(-h - 0.2, h + 0.2);
-    traffic.push({ type: 'dog', label: 'DOG', z, x, speed: 0, vx: mode === 'cross' ? pick([-1, 1], tr) * rand(0.25, 0.4) : 0,
-      mode, t: tr() * 3, look: SP.dogs[Math.floor(tr() * SP.dogs.length)], tried: false, barkT: 0, img: null, nw: 0.2, len: 170 });
-  }
 
-  finishDist = startZ + track.laps * trackLength;
+  finishDist = startZ + def.laps * trackLength;
   finishOrder = []; results = null; particles = []; popups = []; messages = []; bubbles = [];
   raceTime = 0; position = 0; countdown = 3.99;
   state = 'countdown'; lastBeep = 4;
@@ -2122,7 +1588,7 @@ function onPress(code) {
   if (state === 'title' && code === 'Enter') { setupRace(); return; }
   if (state === 'title' && ['ArrowLeft', 'ArrowRight', 'KeyA', 'KeyD', 'T_left', 'T_right'].includes(code)) {
     const next = clamp(level + (['ArrowRight', 'KeyD', 'T_right'].includes(code) ? 1 : -1), 0, unlocked);
-    if (next !== level) { level = next; store.set('level', level); attractSetup(); Sfx.beep(false); }
+    if (next !== level) { level = next; store.set('track', ORDER[level]); attractSetup(); Sfx.beep(false); }
     return;
   }
   if (state === 'results' && code === 'Enter') { advanceAfterResults(); return; }
@@ -2161,7 +1627,7 @@ function updateHawkers(dt) {
       if (sp.scr && sp.scr.frame === frameNo && sp.scr.w > 60 && sp.scr.x > 40 && sp.scr.x < W - 40 && !bubbles.some(b => b.who === sp)) seen.push({ sp, z: seg.index * SEG_LEN });
   }
   if (!seen.length) return;
-  const line = pick(HAWKER_CALLS[theme.city] || HAWKER_CALLS.mumbai), { sp, z } = pick(seen);
+  const line = pick(def.city.hawkerCalls), { sp, z } = pick(seen);
   const sx = sp.offset + Math.sign(sp.offset) * sp.nw / 2; // centre of the stall
   bubbles.push({ who: sp, text: line, t: 2.2, hawker: true });
   // sing-song street call from the stall itself (it stands still, so you hear Doppler as you drive past)
@@ -2170,7 +1636,7 @@ function updateHawkers(dt) {
 }
 function curse(who) {
   bubbles = bubbles.filter(b => b.who !== who);
-  const line = pick(CURSES[theme.city] || CURSES.mumbai);
+  const line = pick(def.city.curses);
   bubbles.push({ who, text: line, t: 1.7 });
   setTimeout(() => Sfx.grunt(), 120);
   // every rival has their own voice; your driver sounds the same all race
@@ -2205,7 +1671,7 @@ function resolveAttack(att, side) {
   }
   if (!best) { if (attIsPlayer) Sfx.whoosh(); return; }
   Sfx.hit();
-  const dmg = attIsPlayer ? rand(14, 22) : rand(7, 12) * (1 + round * 0.1) * (0.8 + track.skill * 0.3);
+  const dmg = attIsPlayer ? rand(14, 22) : rand(7, 12) * (1 + round * 0.1) * (0.8 + def.rivals.skill * 0.3);
   best.health -= dmg; best.hurt = 0.3; best.x += side * 0.12; best.speed *= 0.86;
   const word = pick(HIT_WORDS);
   if (best.health <= 0 || Math.random() < 0.75) curse(best);
@@ -2606,7 +2072,7 @@ const CROSS_TYPES = [
 function spawnCross(j, dirX, queued) {
   let d = pick(CROSS_TYPES);
   if (d.type === 'car') { const i = Math.floor(Math.random() * CAR_LOOKS.length); d = { ...d, ...CAR_LOOKS[i], look: CAR_LOOKS[i], img: SP.carLooks[i] }; }
-  if (d.type === 'bus') d = { ...d, look: busLookFor(Math.random) };
+  if (d.type === 'bus') d = { ...d, look: RRR.busLook(def.city.busLooks, Math.random) };
   const lenX = d.len / ROAD_W;
   const stopX = -dirX * (j.half + 0.35);
   const lineUp = crossTraffic.filter(c => c.j === j && c.dirX === dirX && c.x * dirX < stopX * dirX + 0.1);
@@ -2801,7 +2267,7 @@ function buildResults() {
   const prize = PRIZES[rank - 1] || 0, bonus = player.kos * 100;
   cash += prize + bonus;
   results = { order, rank, prize, bonus, qualified: rank <= 3 };
-  trackEvent(`race-finish/${ordinal(rank)}`, `Finished ${ordinal(rank)}: ${track.name}`);
+  trackEvent(`race-finish/${ordinal(rank)}`, `Finished ${ordinal(rank)}: ${def.name}`);
   store.set('cash', cash);
   state = 'results';
 }
@@ -2809,8 +2275,8 @@ function buildResults() {
 function advanceAfterResults() {
   if (results.qualified) {
     level++;
-    if (level >= TRACKS.length) { level = 0; round++; store.set('round', round); store.set('level', level); state = 'champion'; attractSetup(); return; }
-    store.set('level', level);
+    if (level >= ORDER.length) { level = 0; round++; store.set('round', round); store.set('track', ORDER[level]); state = 'champion'; attractSetup(); return; }
+    store.set('track', ORDER[level]);
   }
   setupRace();
 }
@@ -3111,7 +2577,7 @@ function drawHUD() {
     text('ESC MENU', 24, 84, 9, 'rgba(255,255,255,.55)', 'left');
     panel(W - 212, 12, 200, 60);
     text(fmtCash(cash), W - 24, 34, 20, '#a5d6a7', 'right');
-    text(track.name, W - 24, 58, 10, '#ffcc80', 'right');
+    text(def.name, W - 24, 58, 10, '#ffcc80', 'right');
   }
 
   // progress strip
@@ -3185,7 +2651,7 @@ function drawCountdown() {
   const c = Math.ceil(countdown), k = countdown - Math.floor(countdown);
   ctx.save(); ctx.translate(W / 2, H / 2 - 60); ctx.scale(1 + k * 0.6, 1 + k * 0.6); ctx.globalAlpha = clamp(k * 2, 0, 1);
   text(String(c), 0, 0, 90, c === 1 ? '#66bb6a' : c === 2 ? '#ffca28' : '#ef5350'); ctx.restore();
-  text(track.name, W / 2, H / 2 + 20, 24, '#ffcc80');
+  text(def.name, W / 2, H / 2 + 20, 24, '#ffcc80');
   text(`Finish top 3 to qualify  ·  ${rivals.length} rival autos`, W / 2, H / 2 + 52, 14, '#fff', 'center', 'system-ui, sans-serif');
   text(LAYOUTS[layoutIdx].label, W / 2, H / 2 + 80, 14, '#ffd21f');
 }
@@ -3231,8 +2697,8 @@ function drawTitle() {
   panel(W / 2 - 250, 408, 500, 34, 0.55);
   text('\u25c0', W / 2 - 232, 425, 16, canL ? '#ffd21f' : 'rgba(255,255,255,.2)');
   text('\u25b6', W / 2 + 232, 425, 16, canR ? '#ffd21f' : 'rgba(255,255,255,.2)');
-  text(TRACKS[level].name, W / 2, 425, 16, '#fff');
-  text(`Race ${level + 1} of ${TRACKS.length}  \u00b7  \u2190 \u2192 choose  \u00b7  Wallet ${fmtCash(cash)}${round ? `  \u00b7  Tour ${round + 1}` : ''}`, W / 2, 500, 12, '#ffcc80', 'center', 'system-ui, sans-serif');
+  text(def.name, W / 2, 425, 16, '#fff');
+  text(`Race ${level + 1} of ${ORDER.length}  \u00b7  \u2190 \u2192 choose  \u00b7  Wallet ${fmtCash(cash)}${round ? `  \u00b7  Tour ${round + 1}` : ''}`, W / 2, 500, 12, '#ffcc80', 'center', 'system-ui, sans-serif');
   text('Mind the tip-over: three wheels don\'t like sharp turns at full speed!', W / 2, 522, 12, '#ddd', 'center', 'system-ui, sans-serif');
   text('Engine: kalhan \u00b7 Chennai street: Nielsvdb \u00b7 Dog bark: AleXZavesa \u00b7 Horns: Anton (CC BY 4.0, freesound.org) \u00b7 Voices: Meta MMS-TTS (CC BY-NC 4.0)', W - 8, 534, 8, 'rgba(255,255,255,.45)', 'right', 'system-ui, sans-serif', false);
 }
@@ -3240,7 +2706,7 @@ function drawChampion() {
   ctx.fillStyle = 'rgba(10,5,20,.55)'; ctx.fillRect(0, 0, W, H);
   text('🏆', W / 2, 140, 80, '#fff', 'center', 'sans-serif', false);
   text('AUTO KING OF INDIA!', W / 2, 240, 48, '#ffd21f');
-  text(`You won all ${TRACKS.length} races across India. Wallet: ${fmtCash(cash)}`, W / 2, 300, 18, '#fff', 'center', 'system-ui, sans-serif');
+  text(`You won all ${ORDER.length} races across India. Wallet: ${fmtCash(cash)}`, W / 2, 300, 18, '#fff', 'center', 'system-ui, sans-serif');
   text('The next tour is tougher. Press ENTER', W / 2, 360, 20, '#ffcc80');
   text('ESC — MAIN MENU', W / 2, 392, 13, '#ddd');
 }
@@ -3262,9 +2728,16 @@ function drawResults() {
   text(`Wallet: ${fmtCash(cash)}`, W / 2, by + 36, 18, '#fff');
   const a = 0.5 + Math.sin(performance.now() / 250) * 0.5;
   ctx.globalAlpha = 0.4 + a * 0.6;
-  text(r.qualified ? (level + 1 >= TRACKS.length ? 'ENTER — CLAIM YOUR CROWN' : `ENTER — NEXT: ${TRACKS[level + 1].name}`) : 'ENTER — TRY AGAIN (TOP 3 NEEDED)', W / 2, by + 76, 20, '#ffd21f');
+  text(r.qualified ? (level + 1 >= ORDER.length ? 'ENTER — CLAIM YOUR CROWN' : `ENTER — NEXT: ${RRR.tracks.get(ORDER[level + 1]).name}`) : 'ENTER — TRY AGAIN (TOP 3 NEEDED)', W / 2, by + 76, 20, '#ffd21f');
   ctx.globalAlpha = 1;
   text('ESC — MAIN MENU', W / 2, by + 104, 13, '#ddd');
+}
+// a pack is broken: engine/registry.js names the track and field, shown in place of the title screen
+function drawConfigError() {
+  ctx.fillStyle = '#1a0f1f'; ctx.fillRect(0, 0, W, H);
+  text('TRACK CONFIG ERROR', W / 2, 120, 36, '#ef5350');
+  CONFIG_PROBLEMS.slice(0, 10).forEach((p, i) => text(p, W / 2, 190 + i * 26, 14, '#fff', 'center', 'system-ui, sans-serif'));
+  if (CONFIG_PROBLEMS.length > 10) text(`and ${CONFIG_PROBLEMS.length - 10} more`, W / 2, 190 + 10 * 26, 14, '#ffcc80', 'center', 'system-ui, sans-serif');
 }
 const pauseItemRect = i => ({ x: W / 2 - 170, y: 100 + i * 44, w: 340, h: 36 });
 // tell players why they might hear nothing
@@ -3345,8 +2818,14 @@ buildSharedSprites();
 use3D = !/[?&]2d\b/.test(location.search) && (!IS_MOBILE || /[?&]3d\b/.test(location.search)) && !!(window.World3D && glCanvas && bgCtx &&
   guard('renderer', () => World3D.init(glCanvas, { W, H, ROAD_W, SEG_LEN, quality: QUALITY, maxPixelRatio: { smooth: 1.25, high: 1.75, ultra: 2 }[QUALITY] })));
 if (!use3D) disable3D(); else World3D.setCamera(store.get('camera', 'heli'));
-attractSetup();
 fit();
+if (CONFIG_PROBLEMS.length) { // no track can be loaded: say what is wrong and stop here
+  state = 'config-error'; disable3D(); drawConfigError();
+  reportError('config', CONFIG_PROBLEMS[0]);
+  return;
+}
+store.set('track', ORDER[level]);
+attractSetup();
 let last = performance.now(), acc = 0;
 const STEP = 1 / 60;
 function frame(now) {
@@ -3362,5 +2841,5 @@ function step(now) {
 requestAnimationFrame(frame);
 // expose for debugging
 window.__rrr = { get state() { return state; }, player, get rivals() { return rivals; }, get results() { return results; }, setupRace,
-  step(n) { for (let i = 0; i < n; i++) update(STEP); render(); }, keys, Sfx, Music, Ambience, VehicleAudio, VoiceClips, Animals, SKYLINES, THEMES, SP, get traffic() { return traffic; }, get segments() { return segments; }, get bubbles() { return bubbles; }, get junctions() { return junctions; }, get cross() { return crossTraffic; }, get marks() { return skidMarks; }, DriftMusic, lightOf, setLevel(l) { level = l; attractSetup(); } };
+  step(n) { for (let i = 0; i < n; i++) update(STEP); render(); }, keys, Sfx, Music, Ambience, VehicleAudio, VoiceClips, Animals, RRR, get def() { return def; }, SP, get traffic() { return traffic; }, get segments() { return segments; }, get bubbles() { return bubbles; }, get junctions() { return junctions; }, get cross() { return crossTraffic; }, get marks() { return skidMarks; }, DriftMusic, lightOf, setLevel(l) { level = l; attractSetup(); } };
 })();
