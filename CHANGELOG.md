@@ -1,5 +1,17 @@
 # Changelog
 
+## v3.5.0: Race styles
+
+- **Every race now has a style,** shown under its name on the title screen:
+  - **Speed** (Sea Link, Marina Beach Road): long straights and gentle bends with no junctions and light traffic, and the autos run to 100 km/h.
+  - **Drift** (Marine Drive, Juhu Beach Road): tight bends one after another. A held drift keeps your speed, carries you round the bend and kicks you forward on the way out.
+  - **Traffic** (Western Express Highway, Ring Road): a wide road packed with traffic. Pass a moving vehicle with little room to spare and you get a slipstream, and quick passes stack it up to 5 times.
+  - **Classic** (Charminar Road): the original mix.
+- **How to drift:** above about 25 km/h, hold a steer and pull the handbrake (Space) or tap the brake. On a phone, hold a steer button and tap the brake button. Only a slide into a bend scores and earns the boost.
+- **Records per track:** your best time, best drift score, most close passes and wins are saved. The results screen marks a new best with a star.
+- **Drift and lane-surf bonuses:** drifting and close passes pay cash on the results screen.
+- **The first across the line still wins** on every style, and the top 3 qualify.
+
 ## v3.4.0: Thirteen drivers, thirteen cities
 
 - **A cast of 13 drivers, one per city:** Ganpat (Mumbai), Bunty (Delhi), Saleem (Hyderabad), Murugan (Chennai), Bablu-da (Kolkata), Jassi (Chandigarh), Jintu (Guwahati), Banwari (Jaipur), Manju (Bengaluru), Nawab (Lucknow), Bhola (Varanasi), Lallan (Patna) and Kokila-ben (Ahmedabad).
