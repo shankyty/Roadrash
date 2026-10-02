@@ -6,11 +6,11 @@ window.RRR_DRIVERS = [
               "shirt": "#f5f5f5", "headgear": "cap", "headgearColor": "#f5f5f5", "neon": "#ff2bd6" },
     "voice": {"lang": "hi", "describe": "Sanjay speaks in a very loud, angry tone with a high pitch and a fast pace, shouting with great emotional depth. The speech is very expressive and animated.", "rate": 1.0},
     "curses": [
-      { "text": "ABE O HERO!", "say": "अबे ओ हीरो!" },
+      { "text": "ABE O HERO!", "say": "अबे ओ हीरो!", "seed": 11 },
       { "text": "DIMAAG KHARAB HAI KYA?!", "say": "दिमाग खराब है क्या?!", "seed": 11 },
-      { "text": "AYE BHIDU, SAMBHAL KE!", "say": "ए भिड़ू, संभल के!" },
-      { "text": "APUN KO MAARA?!", "say": "अपुन को मारा?!" },
-      { "text": "WAAT LAGA DUNGA!", "say": "वाट लगा दूंगा!" }
+      { "text": "AYE BHIDU, SAMBHAL KE!", "say": "ए भिड़ू, संभल के!", "seed": 11 },
+      { "text": "APUN KO MAARA?!", "say": "अपुन को मारा?!", "seed": 77 },
+      { "text": "WAAT LAGA DUNGA!", "say": "वाट लगा दूंगा!", "seed": 77 }
     ],
     "weapon": { "kind": "swing", "shape": "bat", "color": "#d7b98a", "power": 1.3, "reach": 1.05, "cooldown": 1.3, "sound": "wood",
                 "hitWords": ["SIXER!", "DHISHOOM!"] },
@@ -21,13 +21,13 @@ window.RRR_DRIVERS = [
     "tag": "Thinks he owns the road, and comes looking for you to prove it",
     "look": { "body": "#1e8e3e", "trim": "#f5c400", "canopy": "#f5c400", "plate": "DL 1R BT", "slogan": "DILLI KA BOSS",
               "shirt": "#e53935", "headgear": "none", "headgearColor": "#000000", "neon": "#2b6bff" },
-    "voice": {"lang": "hi", "describe": "Rohit speaks in a very loud, angry tone with a high pitch and a fast pace, shouting with great emotional depth. The speech is very expressive and animated.", "rate": 1.0},
+    "voice": {"lang": "hi", "describe": "A male speaker with a deep voice speaks in a very loud, angry tone with a high pitch and a fast pace, shouting with great emotional depth. The speech is very expressive and animated.", "rate": 1.0},
     "curses": [
-      { "text": "OYE! JAANTA HAI MERA BAAP KAUN HAI?", "say": "ओए! जानता है मेरा बाप कौन है?" },
-      { "text": "ABEY OYE!", "say": "अबे ओए!" },
-      { "text": "TERI TOH...!", "say": "तेरी तो!" },
-      { "text": "BADTAMEEZ!", "say": "बदतमीज़!" },
-      { "text": "BHAI SAHAB, DHANG SE!", "say": "भाई साहब, ढंग से!" }
+      { "text": "OYE! JAANTA HAI MERA BAAP KAUN HAI?", "say": "ओए! जानता है मेरा बाप कौन है?", "seed": 77 },
+      { "text": "ABEY OYE!", "say": "अबे ओए!", "seed": 23 },
+      { "text": "TERI TOH...!", "say": "तेरी तो!", "seed": 77 },
+      { "text": "BADTAMEEZ!", "say": "बदतमीज़!", "seed": 23 },
+      { "text": "BHAI SAHAB, DHANG SE!", "say": "भाई साहब, ढंग से!", "seed": 11 }
     ],
     "weapon": { "kind": "kick", "color": "#2f3542", "power": 1.1, "reach": 0.8, "cooldown": 1.0, "sound": "thud",
                 "hitWords": ["LAAT!", "DHAM!"] },
@@ -55,7 +55,7 @@ window.RRR_DRIVERS = [
     "tag": "Brakes are for other people; drives like the hero of his own film",
     "look": { "body": "#f5c400", "trim": "#1a1a1a", "canopy": "#f5c400", "plate": "TN 09 MU", "slogan": "THALAIVA",
               "shirt": "#8d7b4a", "headgear": "none", "headgearColor": "#000000", "neon": "#39ff14" },
-    "voice": {"lang": "ta", "describe": "A male speaker with a deep voice speaks in a very loud, angry tone with a high pitch and a fast pace, shouting with great emotional depth. The speech is very expressive and animated.", "seed": 23, "rate": 1.0},
+    "voice": {"lang": "ta", "describe": "A male speaker with a deep voice speaks in a very loud, angry tone with a high pitch and a fast pace, shouting with great emotional depth. The speech is very expressive and animated.", "seed": 77, "rate": 1.0},
     "curses": [
       { "text": "DEI!", "say": "டேய்!" },
       { "text": "ENNA DA?!", "say": "என்ன டா?!" },
@@ -106,13 +106,13 @@ window.RRR_DRIVERS = [
     "tag": "Learned to drive on hill roads: nobody is quicker through a bend",
     "look": { "body": "#1e8e3e", "trim": "#d32f2f", "canopy": "#f5c400", "plate": "AS 01 JN", "slogan": "JOI AAI AXOM",
               "shirt": "#f5f5f5", "headgear": "none", "headgearColor": "#000000", "neon": null },
-    "voice": {"lang": "as", "describe": "Amit speaks in a very loud, angry tone with a high pitch and a fast pace, shouting with great emotional depth. The speech is very expressive and animated.", "rate": 1.0},
+    "voice": {"lang": "as", "describe": "A male speaker with a deep voice speaks in a very loud, angry tone with a high pitch and a fast pace, shouting with great emotional depth. The speech is very expressive and animated.", "rate": 1.0},
     "curses": [
-      { "text": "OI! KI KORA?!", "say": "ঐ! কি কৰা?!" },
-      { "text": "DHET TERI!", "say": "ধেৎ তেৰি!" },
-      { "text": "PAGOL NEKI?!", "say": "পাগল নেকি?!" },
-      { "text": "AATORI JA!", "say": "আঁতৰি যা!" },
-      { "text": "BAAP RE!", "say": "বাপ ৰে!" }
+      { "text": "OI! KI KORA?!", "say": "ঐ! কি কৰা?!", "seed": 11 },
+      { "text": "DHET TERI!", "say": "ধেৎ তেৰি!", "seed": 23 },
+      { "text": "PAGOL NEKI?!", "say": "পাগল নেকি?!", "seed": 23 },
+      { "text": "AATORI JA!", "say": "আঁতৰি যা!", "seed": 11 },
+      { "text": "BAAP RE!", "say": "বাপ ৰে!", "seed": 23 }
     ],
     "weapon": { "kind": "kick", "color": "#263238", "power": 1.2, "reach": 0.85, "cooldown": 1.1, "sound": "thud",
                 "hitWords": ["GOAL!", "DHAM!"] },
@@ -125,11 +125,11 @@ window.RRR_DRIVERS = [
               "shirt": "#f5f5f5", "headgear": "safa", "headgearColor": "#e53935", "neon": "#ff4fa3" },
     "voice": {"lang": "hi", "describe": "Karan speaks in a very loud, angry tone with a high pitch and a fast pace, shouting with great emotional depth. The speech is very expressive and animated.", "rate": 1.0},
     "curses": [
-      { "text": "ARE BAAVLA HAI KE?!", "say": "अरे बावळा है के?!" },
+      { "text": "ARE BAAVLA HAI KE?!", "say": "अरे बावळा है के?!", "describe": "A young male speaker with a sharp, nasal voice speaks in a very loud, angry tone with a high pitch and a fast pace, shouting with great emotional depth. The speech is very expressive and animated.", "seed": 77 },
       { "text": "KHAMMA GHANI, PAN AB DEKH!", "say": "खम्मा घणी, पण अब देख!" },
       { "text": "THAARI TOH...!", "say": "थारी तो!" },
       { "text": "KAAIN KARE HAI?!", "say": "कांई करे है?!" },
-      { "text": "AE CHHORE, SAMBHAL KE!", "say": "ऐ छोरे, संभल के!" }
+      { "text": "AE CHHORE, SAMBHAL KE!", "say": "ऐ छोरे, संभल के!", "describe": "A young male speaker with a sharp, nasal voice speaks in a very loud, angry tone with a high pitch and a fast pace, shouting with great emotional depth. The speech is very expressive and animated.", "seed": 11 }
     ],
     "weapon": { "kind": "swing", "shape": "shoe", "color": "#b5651d", "power": 0.8, "reach": 0.85, "cooldown": 0.8, "sound": "slap",
                 "hitWords": ["JOOTI!", "PATAAK!"] },
@@ -140,7 +140,7 @@ window.RRR_DRIVERS = [
     "tag": "Has sat in every jam in Bengaluru: patient, tidy and first off the line",
     "look": { "body": "#1e8e3e", "trim": "#e53935", "canopy": "#f5c400", "plate": "KA 05 MJ", "slogan": "SWALPA ADJUST MAADI",
               "shirt": "#8d7b4a", "headgear": "none", "headgearColor": "#000000", "neon": null },
-    "voice": {"lang": "kn", "describe": "Suresh speaks in a very loud, angry tone with a high pitch and a fast pace, shouting with great emotional depth. The speech is very expressive and animated.", "rate": 1.0},
+    "voice": {"lang": "kn", "describe": "A male speaker with a deep voice speaks in a very loud, angry tone with a high pitch and a fast pace, shouting with great emotional depth. The speech is very expressive and animated.", "seed": 77, "rate": 1.0},
     "curses": [
       { "text": "YENO GURU?!", "say": "ಏನೋ ಗುರು?!" },
       { "text": "LO MAGA!", "say": "ಲೋ ಮಗಾ!" },
@@ -157,13 +157,13 @@ window.RRR_DRIVERS = [
     "tag": "Pehle aap: never strikes first, but never forgets who did",
     "look": { "body": "#1e8e3e", "trim": "#f3e9d2", "canopy": "#f5c400", "plate": "UP 32 NW", "slogan": "PEHLE AAP",
               "shirt": "#f3e9d2", "headgear": "cap", "headgearColor": "#f3e9d2", "neon": null },
-    "voice": {"lang": "ur", "describe": "A male speaker with a deep, refined voice speaks in a loud, stern, scolding tone with a low pitch and a measured pace, with great emotional depth. The speech is very expressive.", "seed": 23, "rate": 1.0},
+    "voice": {"lang": "ur", "describe": "A male speaker with a deep voice speaks in a very loud, angry tone with a high pitch and a fast pace, shouting with great emotional depth. The speech is very expressive and animated.", "rate": 1.0},
     "curses": [
-      { "text": "AREY HUZOOR, TAMEEZ SE!", "say": "ارے حضور، تمیز سے!" },
-      { "text": "QIBLA, YEH KYA HARKAT HAI?", "say": "قبلہ، یہ کیا حرکت ہے؟" },
-      { "text": "GUSTAAKHI MAAF, AB DEKHIYE!", "say": "گستاخی معاف، اب دیکھیے!" },
-      { "text": "MIYAN, HOSH MEIN!", "say": "میاں، ہوش میں!" },
-      { "text": "NAMAAKOOL!", "say": "نامعقول!" }
+      { "text": "AREY HUZOOR, TAMEEZ SE!", "say": "ارے حضور، تمیز سے!", "describe": "An old male speaker with a rough, raspy voice speaks in a very loud, angry tone with a high pitch and a fast pace, shouting with great emotional depth. The speech is very expressive and animated.", "seed": 23 },
+      { "text": "QIBLA, YEH KYA HARKAT HAI?", "say": "قبلہ، یہ کیا حرکت ہے؟", "seed": 23 },
+      { "text": "GUSTAAKHI MAAF, AB DEKHIYE!", "say": "گستاخی معاف، اب دیکھیے!", "seed": 77 },
+      { "text": "MIYAN, HOSH MEIN!", "say": "میاں، ہوش میں!", "seed": 77 },
+      { "text": "NAMAAKOOL!", "say": "نامعقول!", "describe": "An old male speaker with a rough, raspy voice speaks in a very loud, angry tone with a high pitch and a fast pace, shouting with great emotional depth. The speech is very expressive and animated.", "seed": 11 }
     ],
     "weapon": { "kind": "swing", "shape": "cane", "color": "#5d4037", "power": 0.9, "reach": 1.1, "cooldown": 0.9, "sound": "wood",
                 "hitWords": ["CHHADI!", "SATAAK!"] },
@@ -179,7 +179,7 @@ window.RRR_DRIVERS = [
       { "text": "KA HO GURU?!", "say": "का हो गुरु?!" },
       { "text": "KA KARAT BAADA?!", "say": "का करत बाड़ा?!" },
       { "text": "BUJHAAT NAIKHE KA?!", "say": "बुझात नइखे का?!" },
-      { "text": "HAT JA, BHAKK!", "say": "हट जा, भक्क!" },
+      { "text": "HAT JA, BHAKK!", "say": "हट जा, भक्क!", "describe": "An old male speaker with a rough, raspy voice speaks in a very loud, angry tone with a high pitch and a fast pace, shouting with great emotional depth. The speech is very expressive and animated.", "seed": 77 },
       { "text": "AB DEKHA TAMASHA!", "say": "अब देखा तमाशा!" }
     ],
     "weapon": { "kind": "swing", "shape": "cloth", "color": "#c62828", "power": 0.7, "reach": 1.2, "cooldown": 0.7, "sound": "slap",
@@ -191,13 +191,13 @@ window.RRR_DRIVERS = [
     "tag": "Backs off for nobody: not for a bus, and certainly not for you",
     "look": { "body": "#1f64c8", "trim": "#f5c400", "canopy": "#f5c400", "plate": "BR 01 LL", "slogan": "JIYA HO BIHAR KE LALA",
               "shirt": "#7cb342", "headgear": "none", "headgearColor": "#000000", "neon": null },
-    "voice": {"lang": "mag", "describe": "Varun speaks in a very loud, angry tone with a high pitch and a fast pace, shouting with great emotional depth. The speech is very expressive and animated.", "rate": 1.0},
+    "voice": {"lang": "mag", "describe": "A male speaker with a deep voice speaks in a very loud, angry tone with a high pitch and a fast pace, shouting with great emotional depth. The speech is very expressive and animated.", "rate": 1.0},
     "curses": [
-      { "text": "KA RE BABUA?!", "say": "का रे बबुआ?!" },
-      { "text": "E KA KAR HAHI?!", "say": "ई का कर हहीं?!" },
-      { "text": "BUDBAK KAHIN KE!", "say": "बुड़बक कहीं के!" },
-      { "text": "DEKH LEBO TORA!", "say": "देख लेबो तोरा!" },
-      { "text": "GARDA UDA DEB!", "say": "गर्दा उड़ा देब!" }
+      { "text": "KA RE BABUA?!", "say": "का रे बबुआ?!", "seed": 77 },
+      { "text": "E KA KAR HAHI?!", "say": "ई का कर हहीं?!", "seed": 77 },
+      { "text": "BUDBAK KAHIN KE!", "say": "बुड़बक कहीं के!", "seed": 23 },
+      { "text": "DEKH LEBO TORA!", "say": "देख लेबो तोरा!", "seed": 77 },
+      { "text": "GARDA UDA DEB!", "say": "गर्दा उड़ा देब!", "seed": 77 }
     ],
     "weapon": { "kind": "swing", "shape": "lathi", "color": "#a87b3f", "power": 1.15, "reach": 1.2, "cooldown": 1.2, "sound": "wood",
                 "hitWords": ["LATTH!", "DHISHOOM!"] },
@@ -208,7 +208,7 @@ window.RRR_DRIVERS = [
     "tag": "No nonsense: scolds more than she swings, and never forgets a hit",
     "look": { "body": "#1e8e3e", "trim": "#b71c1c", "canopy": "#f5c400", "plate": "GJ 01 KB", "slogan": "AAVJO",
               "shirt": "#c2185b", "headgear": "pallu", "headgearColor": "#d81b60", "neon": null },
-    "voice": {"lang": "gu", "describe": "Neha speaks in a very loud, angry tone with a high pitch and a fast pace, shouting with great emotional depth. The speech is very expressive and animated.", "rate": 1.0},
+    "voice": {"lang": "gu", "describe": "Neha speaks in a very loud, angry tone with a high pitch and a fast pace, shouting with great emotional depth. The speech is very expressive and animated.", "seed": 77, "rate": 1.0},
     "curses": [
       { "text": "AY GANDA!", "say": "એય ગાંડા!" },
       { "text": "SHU KARE CHHE?!", "say": "શું કરે છે?!" },
