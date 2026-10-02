@@ -1891,7 +1891,7 @@ vec3 nightLight(vec3 p) {
   let warmQueue = [];
   function queueWarm() {
     warmQueue = [...(cfg.CAR_LOOKS || []).map(l => () => carModelFor(l)), ...(cfg.TRACTOR_LOOKS || []).map(l => () => tractorModel(l)), ...(cfg.BIKE_LOOKS || []).map(l => () => bikeModel(l)),
-      ...((cfg.BUS_LOOKS || {})[theme.city] || [BUS_DEFAULT]).flatMap(l => [() => busModel(l), () => busModel({ ...l, crowd: true })]), () => truckModel(SP.truck)];
+      ...((cfg.BUS_LOOKS || {})[cfg.city] || [BUS_DEFAULT]).flatMap(l => [() => busModel(l), () => busModel({ ...l, crowd: true })]), () => truckModel(SP.truck)];
   }
   function warmStep(budget) {
     const t0 = performance.now();
@@ -1931,7 +1931,7 @@ vec3 nightLight(vec3 p) {
     }
     lodSink.length = 0;
     if (obj.isRival || obj.type === 'auto') m = autoModel(obj.palette || { body: obj.color || '#ffcc00', trim: '#111', canopy: '#151515' }, obj.img, obj.driver);
-    else if (obj.isPlayer) m = autoModel({ body: '#1e9e4a', trim: '#ffd21f', canopy: '#151515' }, SP.player);
+    else if (obj.isPlayer) m = autoModel(obj.palette || { body: '#1e9e4a', trim: '#ffd21f', canopy: '#151515' }, obj.img || SP.player, obj.driver);
     else if (obj.type === 'bus') m = busModel(obj.look);
     else if (obj.type === 'truck') m = truckModel(SP.truck);
     else if (obj.type === 'car') m = obj.look ? carModelFor(obj.look) : carModel(obj.color || cfg.CAR_COLORS[Math.max(0, SP.cars.indexOf(obj.img))] || '#e9e9ea');
@@ -2293,7 +2293,7 @@ vec3 nightLight(vec3 p) {
     const [k0, arg] = kind.split(':');
     const m = k0 === 'player' ? autoModel({ body: '#1e9e4a', trim: '#ffd21f', canopy: '#151515' }, SP.player)
       : k0 === 'rival' ? rivalPreview(arg)
-      : k0 === 'bus' ? busModel({ ...((cfg.BUS_LOOKS || {})[(arg || '').split('/')[0] || theme.city] || [BUS_DEFAULT])[+(arg || '').split('/')[1] || 0], ...((arg || '').split('/')[2] ? { crowd: true } : {}) }) : k0 === 'truck' ? truckModel(SP.truck) : k0 === 'car' ? carModel(arg || '#c62828')
+      : k0 === 'bus' ? busModel({ ...((cfg.BUS_LOOKS || {})[(arg || '').split('/')[0] || cfg.city] || [BUS_DEFAULT])[+(arg || '').split('/')[1] || 0], ...((arg || '').split('/')[2] ? { crowd: true } : {}) }) : k0 === 'truck' ? truckModel(SP.truck) : k0 === 'car' ? carModel(arg || '#c62828')
       : k0 === 'bike' ? bikeModel(cfg.BIKE_LOOKS[+arg || 0])
       : k0 === 'building' ? buildingModel({ img: TS.buildings[+arg || 0], offset: -1, len: 1400 })
       : k0 === 'look' ? carModelFor(cfg.CAR_LOOKS[+arg || 0]) : k0 === 'tractor' ? tractorModel(cfg.TRACTOR_LOOKS[+arg || 0])

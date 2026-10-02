@@ -165,6 +165,12 @@ Weapon fields:
 How hard a hit lands is a property of the weapon alone; the style numbers no longer carry it. You keep
 the lathi (1.0 across the board).
 
+### Who you are (added 2026-10-02, after the first build)
+
+You race as the driver of the track's city: their auto, voice, curses and weapon (its power and reach, and
+its cooldown as the length of your swing). Your rivals are a random draw from the other drivers, so the
+home driver is never a rival. The grid rule below ("always included") is superseded by this.
+
 ## Game changes (`web/game.js`, `web/world3d.js`, `web/index.html`)
 
 - **Loading.** `index.html` loads `drivers.js`. On start the game validates each entry (required fields,
