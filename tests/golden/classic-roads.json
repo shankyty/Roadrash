@@ -1,0 +1,100 @@
+{
+ "marine-drive/3d": {
+  "segments": 3515,
+  "junctions": 4,
+  "traffic": 83,
+  "road": "2d34d07cdedfd7ad68e1915543234da5672bdffc448aa8b8cd0a1edfe4c77578",
+  "trafficHash": "98adb07f45ed4282c14308cb85c36b0f3d29b998bb546fe225b6926f7d6397e8"
+ },
+ "marine-drive/2d": {
+  "segments": 3515,
+  "junctions": 4,
+  "traffic": 83,
+  "road": "79924410e20d3d7d0a8998df4d1261277b87ffd06453b62e2a717eb67acba408",
+  "trafficHash": "ec9afd75b50cf2731c8f8edd7dbfe0958ac7d7edd35e99d2ebff0987039317dc"
+ },
+ "charminar-road/3d": {
+  "segments": 3410,
+  "junctions": 4,
+  "traffic": 102,
+  "road": "d7dbb3a273357587205b0381bf210ab99d297f73592d6dc631d56216acdcd9c8",
+  "trafficHash": "1c48d9c1d9d2462038353ea00421c1595e8e41863cae858021ff2dbf6fdd1d7b"
+ },
+ "charminar-road/2d": {
+  "segments": 3410,
+  "junctions": 4,
+  "traffic": 102,
+  "road": "aeedcd3e31d8b427348054e7dee6939f799ab2bf4b8ea15bdd8048ad4069d49a",
+  "trafficHash": "d2439e5b7e6cfd813d272494858d9e5db85817a5fc9cc3e2ec8a6a0f54e7a286"
+ },
+ "sea-link/3d": {
+  "segments": 3665,
+  "junctions": 6,
+  "traffic": 83,
+  "road": "8044d6ee5316dfc8450e9b21279f2a864ac6123ad553b8b8e87acb9778f9f6b6",
+  "trafficHash": "de8799effbb6e7ef2863ecdd2771e0cef07e55da49b689f7556a6dde4a21bad1"
+ },
+ "sea-link/2d": {
+  "segments": 3665,
+  "junctions": 6,
+  "traffic": 83,
+  "road": "cf722dd3039a9d5f64b275b990c96ddcb001452bb931ee841159fc57bbb75136",
+  "trafficHash": "615588ccf7658cae1d372c35e6d0089a6af1c65b36ca5bc56a05823a4c8abaef"
+ },
+ "ring-road/3d": {
+  "segments": 4010,
+  "junctions": 6,
+  "traffic": 124,
+  "road": "53110cdc18142388b197cff49a702b8a65c4482f90c792928b796ba7c57677ea",
+  "trafficHash": "753e82875f028933dfcd09f6c02cbdd3a8bed7ec7a1d17ebdded62df1215bc0f"
+ },
+ "ring-road/2d": {
+  "segments": 4010,
+  "junctions": 6,
+  "traffic": 124,
+  "road": "53cfbccc293fd8ca002d5f82681ac4cf79e8a845b6006e19b88546a91e792279",
+  "trafficHash": "a2ca7027c1ecd6deaf48d23f5ca79a1c8a27900df1914e80afc9ec5016a070a2"
+ },
+ "western-express/3d": {
+  "segments": 3845,
+  "junctions": 7,
+  "traffic": 120,
+  "road": "85c657c1136fc469e9b908ddd475949c9acdfe4e3aa8dfb5a170870a9dbba097",
+  "trafficHash": "fe7460d398737309e8a852039e2b045290924a54d4b442e9608e68eb6fb7d8f5"
+ },
+ "western-express/2d": {
+  "segments": 3845,
+  "junctions": 7,
+  "traffic": 120,
+  "road": "ac72e9cdcdc8eaceed39ed1bbb5e55cc29e9ec00d4e464884b1c946f989b3fd3",
+  "trafficHash": "985d140f11f48743d51d93e336deef7ddf356c0483c3fd44c890e875ba543607"
+ },
+ "marina-beach/3d": {
+  "segments": 3995,
+  "junctions": 5,
+  "traffic": 115,
+  "road": "7c7eb49cdb390316437bc9c50cb4b21062a339de443bd6280511293a48000c29",
+  "trafficHash": "7e75e00141afe552abaca61db95921cb0e6ab33372c695da1008929491f1436e"
+ },
+ "marina-beach/2d": {
+  "segments": 3995,
+  "junctions": 5,
+  "traffic": 115,
+  "road": "72e86582470b25d8820188e97a1c4b612c5b206eecde581c370467fedc812abb",
+  "trafficHash": "1d1807f151c8420060089f2f2b0270fd01156350ac4e77c015daee78c6f3b3e4"
+ },
+ "juhu-beach/3d": {
+  "segments": 4190,
+  "junctions": 4,
+  "traffic": 115,
+  "road": "157927c14e0f198c38446e17eaf82cfbf9453bfa6a2e9fb7ed7bd954f3713f79",
+  "trafficHash": "d2ccf540f422931617ee5d8c7406d29913cb46f951754578fed53f2b1796c52c"
+ },
+ "juhu-beach/2d": {
+  "segments": 4190,
+  "junctions": 4,
+  "traffic": 115,
+  "road": "85185d8c096bec435d5b946bb32ce9ef9999a48ea334571d51288ac36ab46bbd",
+  "trafficHash": "8179734c4b9199ed23679f7672acc2c47780e3d3bb0a94447ec37b6dbdc43bad"
+ }
+}
