@@ -1,7 +1,7 @@
 # Track packs and race styles: design
 
 Date: 2026-10-02
-Status: awaiting review
+Status: approved; revised after prototyping (see "Changes from prototyping")
 
 ## Goal
 
@@ -49,6 +49,7 @@ web/
   styles/
     classic.js  speed.js  drift.js  traffic.js
   engine/
+    util.js
     registry.js
     track-builder.js
     traffic-spawner.js
@@ -56,9 +57,10 @@ web/
     race-stats.js             (step 2)
   game.js  world3d.js
 tests/
-  registry.test.js  records.test.js  golden-roads.test.js
+  registry.test.js  records.test.js  track-builder.test.js  traffic-spawner.test.js
+  packs.test.js  skylines.test.js  golden-roads.test.js
   styles.test.js  race-stats.test.js      (step 2)
-  golden/classic-roads.json
+  golden/capture.js  golden/classic-roads.json  golden/legacy-data.json
 ```
 
 `web/ambience-<city>.js` moves to `web/cities/<city>/ambience.js`. Race order is unchanged: Marine Drive, Charminar Road, Sea Link, Ring Road, Western Express, Marina Beach, Juhu Beach.
@@ -109,7 +111,7 @@ RRR.tracks.register({
 Owns what the Mumbai races share, and the equivalent for each other city.
 
 - `city.js`: `id`, `hawkerCalls`, `curses`, `song` (today's `SONGS` entry), `busLooks`, `ads`.
-- `skyline.js`: `RRR.cities.skyline(id, { far(paint, look, seed), near(paint, look, seed) })`. `paint` is a kit of the six helpers the painters use from `game.js` today: `mk`, `ell`, `rr`, `shade`, `lerp`, `mulberry32`. The shared skyline helpers (`litWindows`, `fillerBlocks`, `trees`, `waterBand`, `cutOut`, `archPath`, `onion`, `LAYER_W`) join the kit.
+- `skyline.js`: `RRR.skylines.register({ id, far(paint, look, seed), near(paint, look, seed) })`. `paint` is a kit of the six helpers the painters use from `game.js` today: `mk`, `ell`, `rr`, `shade`, `lerp`, `mulberry32`. The shared skyline helpers (`litWindows`, `fillerBlocks`, `trees`, `waterBand`, `cutOut`, `archPath`, `onion`, `LAYER_W`) join the kit.
 - `ambience.js`: the street recording, lazy-loaded when a race in that city starts, as today.
 
 ### Style pack
@@ -139,7 +141,7 @@ RRR.styles.register({
     oncoming: 0.8,                  // oncoming vehicles = same-way count × this
     mix: { car: 4, bike: 4, bus: 2, truck: 1, tractor: 1 },
   },
-  handling: { topSpeed: 1, driftScrub: 0.22, driftExitBoost: 0, slipstream: 0 },
+  handling: { topSpeed: 1, driftScrub: 0.22, driftExitBoost: 0, slipstream: 0 },   // step 2 adds driftGrip: 1
   scoring: { driftCashPer100: 0, passCash: 0 },   // step 2 sets these
 });
 ```
@@ -148,25 +150,25 @@ RRR.styles.register({
 
 ### `engine/registry.js`
 
-- `Registry`: `register(def)`, `get(id)`, `has(id)`, `ids()`. Registering a duplicate id throws. Used three times: `RRR.tracks`, `RRR.cities`, `RRR.styles`.
+- `Registry`: `register(def)`, `get(id)`, `has(id)`, `ids()`. Registering a duplicate id throws. Used four times: `RRR.tracks`, `RRR.cities`, `RRR.skylines`, `RRR.styles`.
 - `RRR.load(manifest)`: stores the manifest and, in a browser, writes one script tag per pack file in order: styles, cities (`city.js` then `skyline.js`), tracks.
-- `RRR.validate()`: checks every track in the manifest. Returns a list of problems, each naming the track and field.
+- `RRR.validate()`: checks every style, city, skyline and track in the manifest. Returns a list of problems, each naming the pack and field.
   - Track is registered and its `city` and `style` are registered.
   - Required fields are present with the right type.
   - No unknown keys at the top level or inside `rivals`, `traffic`, `look`, `road`, `handling`, `scoring`.
-  - Every `road.pieces[].kind` is one the builder knows.
+  - Every `road.pieces[].kind` is one the builder knows, `road.lanes` is `alternate` or `wide`, and every vehicle in `traffic.mix` is one the spawner knows.
 - `RRR.resolve(trackId)`: returns one deep-frozen `TrackDefinition`:
   - track fields;
-  - `city`: the city pack;
+  - `city`: the city pack; `skyline`: its painters;
   - `road`, `traffic`, `handling`, `scoring`: the style's values with the track's overrides applied per key;
-  - `styleId`, `styleLabel`.
+  - `style` (the id) and `styleLabel`; `ambience` as a boolean.
 - `RRR.order()`: track ids in race order.
 
 The file touches `document` only inside `RRR.load`, behind a check, so it runs under Node.
 
 ### `engine/track-builder.js`
 
-`RRR.buildTrack({ def, round, constants, sprites, themeSprites, random })` returns `{ segments, trackLength, startZ, junctions }`.
+`RRR.buildTrack({ def, round, constants, sprites, themeSprites, random })` returns `{ segments, trackLength, startZ, junctions }`. It also owns the lane geometry the game shares (`RRR.road`: `LANE_W`, `laneX`).
 
 - Replaces `buildTrack`, `layoutLanes`, `layoutJunctions`, `placeSigns` and the scenery loop in `game.js`.
 - Piece kinds are a table of `kind → function(ctx, piece, L)`. Adding a kind is one entry.
@@ -175,31 +177,32 @@ The file touches `document` only inside `RRR.load`, behind a check, so it runs u
 
 ### `engine/traffic-spawner.js`
 
-`RRR.spawnTraffic({ def, round, world, sprites, looks, random })` returns the traffic array.
+`RRR.spawnTraffic({ def, round, world, sprites, looks, maxSpeed, random })` returns the traffic array.
 
 - Replaces the traffic, cow and dog setup in `setupRace`.
 - The deck is built by expanding `mix` in key order, so `classic` reproduces today's deck before the seeded shuffle.
-- `world` supplies `startZ`, `trackLength`, `halfAt`, `findSegment`, `laneX`.
+- `world` supplies `startZ`, `trackLength`, `halfAt`, `findSegment`.
 
 ### `engine/records.js`
 
-- `RRR.records.get(trackId)` returns `{ bestTime, bestDrift, bestPasses, wins }` with nulls and zero as defaults.
-- `RRR.records.submit(trackId, raceStats)` updates bests and returns which ones were beaten.
+- `new RRR.Records(store)`: `get(trackId)` returns `{ bestTime, bestDrift, bestPasses, wins }` (`bestTime` is null until a finish; the rest start at 0).
+- `submit(trackId, summary)` updates bests and returns which ones were beaten.
+- `RRR.selectedTrackIndex(store, order)`: the selected race, from the saved track id or an old saved index.
 - Stored under `rrr_records`. Takes the storage object as a dependency. Unreadable stored data is treated as empty.
 
 ### `game.js` and `world3d.js`
 
 - Removed from `game.js`: `TRACKS`, `THEMES`, `MUMBAI_ADS`, `HAWKER_CALLS`, `CURSES`, `SONGS`, `SKYLINES` and the skyline painters, `BUS_LOOKS`, the track-building functions and the traffic setup.
 - `loadTrack` calls `RRR.resolve` and keeps one `def`. The rest of the file reads `def`, `def.look` and `def.city`.
-- `Music` and `Ambience` take the city pack rather than a city name.
-- `World3D.setTrack` receives the look and the city's bus liveries. It stops indexing tables by city name.
+- `Music` takes the city pack (for its song). `Ambience` stays keyed by city id and loads `cities/<id>/ambience.js`.
+- `World3D.setTrack` receives the look, the city id and the bus liveries by city (its turntable debug view looks liveries up by city).
 - The selected race is stored as a track id under `rrr_track`. On first run, an existing `rrr_level` index is converted to the id at that position.
 - `window.__rrr` exposes `RRR` and the current `def` in place of `THEMES` and `SKYLINES`.
 - The error-attribution table (`COMPONENTS`) gains entries for the new files.
 
 ### Loading order in `index.html`
 
-`engine/registry.js`, `engine/track-builder.js`, `engine/traffic-spawner.js`, `engine/records.js`, `packs.js`, then `world3d.js` and `game.js` as today.
+`engine/util.js`, `engine/registry.js`, `engine/track-builder.js`, `engine/traffic-spawner.js`, `engine/records.js`, `engine/race-stats.js` (step 2), `packs.js`, then `world3d.js` and `game.js` as today.
 
 ### Build
 
@@ -241,6 +244,7 @@ These are starting values, tuned by playing each track before release.
 | Mix | car 5, bike 3, bus 2, truck 2 | as classic | car 5, bike 2, bus 3, truck 2 |
 | `topSpeed` | 1.25 | 1 | 1 |
 | `driftScrub` | 0.22 | 0.08 | 0.22 |
+| `driftGrip` | 1 | 0.25 | 1 |
 | `driftExitBoost` | 0 | 0.08 | 0 |
 | `slipstream` | 0 | 0 | 0.04 |
 | `driftCashPer100` | ₹20 | ₹40 | ₹20 |
@@ -253,7 +257,8 @@ Bend sharpness 8 is above today's maximum of 6. At 8, taking the bend flat out w
 ### Mechanics
 
 - **Top speed.** The player's speed cap and each rival's top speed are multiplied by `topSpeed`. Traffic speeds are unchanged. The speedo reads up to `80 × topSpeed` km/h.
-- **Boost.** One mechanism, `player.boost = { amount, secs }`, raises the speed cap by `amount` while it lasts and is cleared by a crash.
+- **Drift grip.** While drifting into a bend, only `driftGrip` of the bend's outward push is applied. Classic is 1 (today's behaviour).
+- **Boost.** One mechanism, `player.boost` (a share of top speed) while `player.boostT` lasts, raises the speed cap and is cleared by a crash.
   - Drift exit: a drift held for at least 0.6 s gives `driftExitBoost` for 1.2 s when it ends.
   - Slipstream: each close pass gives `slipstream × chain` for 1.5 s, where `chain` counts passes made before the timer lapses, up to 5.
 - **Close pass.** A same-way vehicle (not a cow, dog or oncoming vehicle) goes from ahead of the player to behind, the player is faster and not crashed, and the sideways gap between the two bodies is under 0.25 road units. A vehicle counts once per 5 s.
@@ -263,14 +268,14 @@ Bend sharpness 8 is above today's maximum of 6. At 8, taking the bend flat out w
 
 `RaceStats` is created per race with the definition's `scoring` values.
 
-- `drift(dt, speedPct, slipPct)`, `closePass()`, `tick(dt)`, `finish(time, rank)`.
-- Exposes `driftScore`, `passes`, `chain`, `bestChain`, `time`, `rank`, and `cash()` returning the drift and pass bonuses.
+- `drift(dt, speedPct, slipPct)`, `closePass()`, `advance(dt)`, `breakChain()`, `finish(time, rank)`.
+- Exposes `driftScore`, `passes`, `chain`, `bestChain`, `time`, `rank`, `bonuses()` returning the drift and pass cash, and `summary()` for the records.
 - No DOM or game-state access.
 
 ### Results, records and screens
 
 - Finishing order decides the result on every style. Top 3 qualifies and prize money by rank is unchanged.
-- On finish, `RRR.records.submit` saves best time (any finishing rank), best drift score, most passes, and a win for 1st place.
+- On finish, `records.submit` saves best time (any finishing rank), best drift score, most passes, and a win for 1st place.
 - Title screen: style label and best time under the track name.
 - Race HUD: drift points while sliding; pass popups showing the chain.
 - Results screen: time with a NEW BEST callout, drift score, close passes, and the two bonuses added to the wallet.
@@ -281,13 +286,16 @@ Event paths use the track id where they used the theme key, for example `race-st
 
 ## Testing
 
-Tests run with Node's built-in runner: `node --test tests/`. No packages are installed. Test files load the engine and pack scripts with `require`, reading the file list from the manifest.
+Tests run with Node's built-in runner: `node --test tests/*.test.js`. No packages are installed. Test files load the engine and pack scripts with `require`, reading the file list from the manifest.
 
 **Step 1**
 
 - `registry.test.js`: merge order in `resolve`; frozen result; each validation failure (unregistered track, unknown city, unknown style, missing field, wrong type, unknown key, unknown piece kind); duplicate id.
 - `records.test.js`: defaults, best-of logic, corrupt storage. The `rrr_level` to `rrr_track` conversion is covered here as a pure function.
-- `golden-roads.test.js`: before any code moves, a fingerprint of each of the 7 roads is captured from the current game through `window.__rrr`, at tour 0, in both 3D and 2D grid spacing, and saved to `tests/golden/classic-roads.json`. The fingerprint covers what is seeded: per-segment curve, height, lane half-widths and lane count; junction positions; scenery and sign kinds per segment; and each vehicle's type, direction, lane and position. After the refactor the builder and spawner must reproduce all 7 exactly.
+- `track-builder.test.js`, `traffic-spawner.test.js`: lane patterns, junctions on and off, recipe limits, traffic counts and mix, and that a seed always gives the same result.
+- `golden-roads.test.js`: before any code moves, `tests/golden/capture.js` runs the original track and traffic code, cut out of commit `e274c43`, in Node and saves a fingerprint of each of the 7 roads at tour 0, in both 3D and 2D grid spacing, to `tests/golden/classic-roads.json`. The fingerprint covers what is seeded: per-segment curve, height, lane half-widths and lane count; junction positions; scenery and sign kinds per segment; and each vehicle's type, direction, lane and position. The builder and spawner must reproduce all 7 exactly under the classic style.
+- `packs.test.js`: the shipped packs validate and carry exactly the old tables' data (`tests/golden/legacy-data.json`, from the same capture).
+- `skylines.test.js`: every city's painters run with only the paint kit.
 - In the browser: one race started and finished in 3D and one in 2D (`?2d`), the Mac app built and launched from `file://`, and the console checked for errors.
 
 **Step 2**
@@ -302,3 +310,15 @@ Each step is released to web and Homebrew and verified with `brew upgrade`. Vers
 
 - Step 1: a patch release with no visible change.
 - Step 2: a minor release with the styles, stats and records in the changelog.
+
+## Changes from prototyping
+
+Both steps were prototyped outside the repo before the plans were written. These points differ from the design as first approved:
+
+- **`driftGrip` (new handling value).** In this game a bend pushes the auto outward harder than steering can pull it back above about half speed, drifting or not. Lower drift scrub and an exit boost alone could not make drifting the fast way round a sharp bend, so drift tracks also reduce that push while you drift into the bend. With `driftGrip` 0.25 a scripted driver took sharpness-8 bends in about 2.9 s sliding against 6 s without, staying on the road.
+- **Golden capture runs in Node,** from the pinned commit, not in the browser. It needs no manual step and gives the same result on every run.
+- **Skylines have their own registry** (`RRR.skylines`), so city packs stay plain data.
+- **`engine/util.js`** holds the helpers the engine and `game.js` share.
+- **`RaceStats` method names** are `advance` and `bonuses`, because the game's error reporter attributes `tick` and `cash` to the audio code.
+- **Pack files are generated once** from the old tables by a throwaway script, then maintained by hand.
+
