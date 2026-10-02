@@ -15,6 +15,7 @@ Three sets of clips, each made only when asked for; everything else already in v
                      entry has the take (`seed`) that was picked as the clearest.
   --samples DIR      also write every clip made in this run to DIR as .mp3, to listen to.
   --takes N          takes per unpinned curse (default 3).
+  --resume           reuse the clips already in --samples DIR (after a run that was cut short).
 
 In lines.json `line` is the bubble text and `say` what the voice actually says (native script; hawker
 calls stretch the key vowel).
@@ -58,6 +59,7 @@ args.add_argument("--player", action="store_true")
 args.add_argument("--hawkers", action="store_true")
 args.add_argument("--samples", metavar="DIR")
 args.add_argument("--takes", type=int, default=3)
+args.add_argument("--resume", action="store_true")
 args = args.parse_args()
 if not (args.rivals or args.player or args.hawkers):
     raise SystemExit("nothing to do: pass --rivals, --player and/or --hawkers")
@@ -91,7 +93,7 @@ def parler(text, description, seed):
     with torch.no_grad():
         out = model.generate(input_ids=d.input_ids, attention_mask=d.attention_mask,
                              prompt_input_ids=p.input_ids, prompt_attention_mask=p.attention_mask)
-    return out.cpu().numpy().squeeze().astype(np.float32), model.config.sampling_rate
+    return np.atleast_1d(out.cpu().numpy().squeeze()).astype(np.float32), model.config.sampling_rate
 
 
 _mms = {}
@@ -121,9 +123,13 @@ def shouted(text, description, seeds):
     takes = []
     for seed in seeds:
         a, sr = parler(text, description, seed)
+        if len(a) < sr * 0.25:   # now and then the model says nothing at all
+            continue
         f0, ok, _ = librosa.pyin(a, fmin=60, fmax=500, sr=sr)
         f0 = f0[ok & ~np.isnan(f0)]
         takes.append((float(np.median(f0)) if len(f0) > 4 else 0.0, len(a) / sr, a, sr))
+    if not takes:
+        return shouted(text, description, [s + 1000 for s in seeds])
     mid = float(np.median([t[1] for t in takes]))
     sane = [t for t in takes if 0.6 * mid <= t[1] <= 1.6 * mid] or takes
     best = max(sane, key=lambda t: t[0])
@@ -165,16 +171,20 @@ if args.samples:
     os.makedirs(args.samples, exist_ok=True)
 with tempfile.TemporaryDirectory() as tmp:
     for n, (key, label, make, fx) in enumerate(jobs):
-        audio, sr = make()
-        audio = audio / (np.max(np.abs(audio)) + 1e-9) * 0.9
-        src, dst = os.path.join(tmp, f"{n}.wav"), os.path.join(tmp, f"{n}.mp3")
-        wav.write(src, sr, (audio * 32767).astype(np.int16))
-        subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", src, "-af", TRIM + fx,
-                        "-ac", "1", "-c:a", "libmp3lame", "-b:a", "40k", dst], check=True)
-        mp3 = open(dst, "rb").read()
+        sample = os.path.join(args.samples, re.sub(r"[^A-Za-z0-9|]+", "_", key).strip("_").replace("|", "-") + ".mp3") if args.samples else None
+        if args.resume and sample and os.path.exists(sample):
+            mp3 = open(sample, "rb").read()
+        else:
+            audio, sr = make()
+            audio = audio / (np.max(np.abs(audio)) + 1e-9) * 0.9
+            src, dst = os.path.join(tmp, f"{n}.wav"), os.path.join(tmp, f"{n}.mp3")
+            wav.write(src, sr, (audio * 32767).astype(np.int16))
+            subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", src, "-af", TRIM + fx,
+                            "-ac", "1", "-c:a", "libmp3lame", "-b:a", "40k", dst], check=True)
+            mp3 = open(dst, "rb").read()
+            if sample:
+                open(sample, "wb").write(mp3)
         clips[key] = "data:audio/mpeg;base64," + base64.b64encode(mp3).decode()
-        if args.samples:
-            open(os.path.join(args.samples, re.sub(r"[^A-Za-z0-9|]+", "_", key).strip("_").replace("|", "-") + ".mp3"), "wb").write(mp3)
         print(f"{n + 1:3d}/{len(jobs)} {label}", flush=True)
 
 with open(OUT_JS, "w", encoding="utf8") as f:
