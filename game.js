@@ -124,9 +124,9 @@ const COMPONENTS = [
   ['audio', new RegExp(`^(?:Sfx|Music|Ambience|Object)?\\.?(?:${AUDIO_METHODS})$|^(?:Sfx|Music|Ambience|TwoStroke)`)],
   ['traffic', /^(updateDog|startChase|updateTraffic|honk)$/],
   ['rivals-combat', /^(updateRivals|resolveAttack|startAttack|curse)$/],
-  ['player-physics', /^(updatePlayer|crashPlayer|checkCollisions)$/],
+  ['player-physics', /^(updatePlayer|crashPlayer|checkCollisions|endDrift|updateClosePasses)$/],
   ['hawkers', /^(updateHawkers)$/],
-  ['race-rules', /^(checkFinish|buildResults|advanceAfterResults|setupRace|currentRank|resetPlayer|updateAttract)$/],
+  ['race-rules', /^(?:RaceStats\.|Records\.)?(checkFinish|buildResults|advanceAfterResults|setupRace|currentRank|resetPlayer|updateAttract|closePass|breakChain|advance|bonuses|summary|submit)$/],
   ['config', /^(?:Registry\.|RRR\.)?(register|check|checkMerged|deepFreeze|validate|resolve|resolveDef)$/],
   ['traffic', /^(?:TrafficSpawner\.)?(spawn|deck|busLook|roadSpot|addVehicle|addCow|addDog|spawnTraffic)$/],
   ['track', /^(?:TrackBuilder\.)?(build|loadTrack|addRoad|addSegment|lastY|layPieces|layoutLanes|layoutJunctions|placeScenery|placeSigns|settleRoadside|findSegment|attractSetup)$/],
@@ -1399,6 +1399,10 @@ let def = null, theme = null;
 // level: the selected race's place in ORDER (saved as a track id)
 let level = RRR.selectedTrackIndex(store, ORDER), cash = store.get('cash', 0), round = store.get('round', 0);
 const unlocked = ORDER.length - 1; // every race is open from the start
+// stats: this race's drift score and close passes (engine/race-stats.js) · records: per-track bests (engine/records.js)
+// titleBest: the selected track's records, shown on the title screen
+const records = new RRR.Records(store);
+let stats = null, titleBest = null;
 let state = 'title', paused = false, pauseSel = 0, countdown = 0, raceTime = 0, finishTimer = 0, finishDist = 0, startZ = 0;
 let position = 0, skyOffset = 0, farOffset = 0, nearOffset = 0, shake = 0;
 let rivals = [], traffic = [], finishOrder = [], results = null;
@@ -1412,7 +1416,8 @@ const playerW = () => (Math.abs(Math.cos(bodyAngle())) * TUK_NW * ROAD_W + Math.
 const playerL = () => Math.abs(Math.cos(bodyAngle())) * TUK_LEN + Math.abs(Math.sin(bodyAngle())) * TUK_NW * ROAD_W;
 function resetPlayer() {
   Object.assign(player, { x: 0, dist: PLAYER_Z, speed: 0, health: 100, lean: 0, rot: 0, tip: 0, crash: 0, crashDir: 1,
-    atk: null, hurt: 0, inv: 0, kos: 0, finished: false, time: 0, name: 'YOU', steer: 0, puff: 0, hornCd: 0, isPlayer: true, heading: 0, slip: 0, drift: 0, brkWas: false });
+    atk: null, hurt: 0, inv: 0, kos: 0, finished: false, time: 0, name: 'YOU', steer: 0, puff: 0, hornCd: 0, isPlayer: true, heading: 0, slip: 0, drift: 0, brkWas: false,
+    boost: 0, boostT: 0, driftT: 0, driftPts: 0 }); // boost: share of top speed added while boostT lasts · driftT, driftPts: the current drift's time and points
 }
 
 // ------------------------------------------------------------------ track loading
@@ -1448,7 +1453,8 @@ function wrapDelta(d) { d = ((d % trackLength) + trackLength) % trackLength; ret
 // ------------------------------------------------------------------ race setup
 function setupRace() {
   loadTrack(level);
-  trackEvent(`race-start/${def.city.id}/${def.id}`, `Race started: ${def.name}`);
+  stats = new RRR.RaceStats(def.scoring);
+  trackEvent(`race-start/${def.city.id}/${def.id}`, `Race started: ${def.name} (${def.style})`);
   resetPlayer();
   const diff = 1 + round * 0.04;
   const nR = def.rivals.count;
@@ -1468,7 +1474,7 @@ function setupRace() {
     const c = RIVAL_COLORS[ri % RIVAL_COLORS.length];
     rivals.push({ name: names[ri], color: c.body, palette: c, img: SP.rivals[ri % SP.rivals.length], nw: TUK_NW, voicePitch: rand(0.7, 1.35),
       x: slots[i].x, dist: rowZ(slots[i].row) + shiftZ, speed: 0,
-      top: MAX_SPEED * clamp(def.rivals.skill * diff - 0.06 + Math.random() * 0.08, 0.7, 1.02),
+      top: MAX_SPEED * def.handling.topSpeed * clamp(def.rivals.skill * diff - 0.06 + Math.random() * 0.08, 0.7, 1.02),
       health: 100, ko: 0, koBy: null, rot: 0, atk: null, cd: rand(1, 3), aggr: rand(0.6, 1.2), laneX: laneX(1, Math.floor(Math.random() * 2)),
       laneT: rand(3, 8), delay: rand(0.05, 0.5), finished: false, time: 0, hurt: 0, scr: null, isRival: true });
     ri++;
@@ -1703,6 +1709,7 @@ function crashPlayer(reason, dmg, dir) {
   if (player.crash > 0) return;
   player.crash = 2.4; player.crashDir = dir || (Math.random() < 0.5 ? -1 : 1);
   player.health = Math.max(0, player.health - dmg); player.atk = null;
+  player.drift = 0; player.driftT = 0; player.driftPts = 0; player.boostT = 0; if (stats) stats.breakChain();
   Sfx.crash(); shake = 0.6; msg(reason, '#ff5252', 2);
   for (let i = 0; i < 18; i++) particles.push({ x: W / 2 + rand(-60, 60), y: H - 80, vx: rand(-200, 200), vy: rand(-260, -60), t: rand(0.5, 1), size: rand(3, 7), color: pick(['#ffd54f', '#bdbdbd', '#795548', '#ff7043']), g: 500 });
 }
@@ -1742,6 +1749,7 @@ function update(dt) {
     guard('traffic', () => updateCross(dt));
     guard('rivals-combat', separateRivals);
     if (state === 'race') guard('player-physics', checkCollisions);
+    if (state === 'race') guard('player-physics', () => updateClosePasses(dt));
     guard('hawkers', () => updateHawkers(dt));
     guard('race-rules', () => {
       checkFinish();
@@ -1792,16 +1800,22 @@ function updatePlayer(dt, controlled) {
     } else if (acc || player.speed > PIVOT_SPEED) player.heading *= Math.exp(-(0.8 + 3 * sp) * dt);
     if (Math.abs(player.heading) > maxH) player.heading += (Math.sign(player.heading) * maxH - player.heading) * Math.min(1, dt * 4);
     player.x += player.speed * Math.sin(player.heading) * dt / ROAD_W;  // the sideways part of where you're heading
-    player.x -= dx * sp * seg.curve * CENTRIFUGAL;
+    // a drift into the bend carries the auto round it: on drift tracks less of the bend's outward push gets through
+    const grip = player.drift && player.drift === Math.sign(seg.curve) ? def.handling.driftGrip : 1;
+    player.x -= dx * sp * seg.curve * CENTRIFUGAL * grip;
     if (acc) player.speed += ACCEL * dt; else if (brk) player.speed += BRAKE * dt; else player.speed += DECEL * dt;
     if (hand) player.speed += BRAKE * 0.5 * dt; // handbrake: rear wheels locked
     // drift: steer + brake tap at speed kicks the back out; the body slides at an angle while you keep going
     const tap = brk && !player.brkWas; player.brkWas = brk;
     // a brake tap or the handbrake (Space) kicks the back out
     if (!player.drift && steer && (tap || hand) && player.speed > DRIFT_MIN) { player.drift = Math.sign(steer); Sfx.noise(0.25, 0.25, 2500); }
-    if (player.drift && (!steer || Math.sign(steer) !== player.drift || player.speed < DRIFT_END)) player.drift = 0;
+    if (player.drift && (!steer || Math.sign(steer) !== player.drift || player.speed < DRIFT_END)) endDrift();
     player.slip += (player.drift * DRIFT_SLIP - player.slip) * Math.min(1, dt * (player.drift ? 3.5 : 6));
-    if (player.drift) player.speed -= player.speed * 0.22 * dt;   // tyres scrubbing
+    if (player.drift) {
+      player.speed -= player.speed * def.handling.driftScrub * dt;   // tyres scrubbing
+      player.driftT += dt;
+      if (controlled && player.speed > DRIFT_END) player.driftPts += stats.drift(dt, player.speed / MAX_SPEED, Math.abs(player.slip) / DRIFT_SLIP);
+    }
     if (Math.abs(player.slip) > 0.12 && player.speed > DRIFT_END * 0.8) layTyreMarks();
     else player.markAt = null;
     if (Math.abs(player.x) > seg.half) {
@@ -1819,7 +1833,10 @@ function updatePlayer(dt, controlled) {
     player.rot = player.lean * 0.2 + wobble + (player.atk ? player.atk.side * 0.04 : 0);
   }
   player.x = clamp(player.x, -seg.half - 1.8, seg.half + 1.8);
-  player.speed = clamp(player.speed, 0, MAX_SPEED);
+  // top speed is the style's, raised for a moment by a boost (a drift exit or a slipstream); above it, speed bleeds off
+  player.boostT -= dt;
+  const cap = MAX_SPEED * def.handling.topSpeed * (1 + (player.boostT > 0 ? player.boost : 0));
+  player.speed = clamp(player.speed, 0, Math.max(cap, player.speed - MAX_SPEED * 0.5 * dt));
   const move = player.speed * Math.cos(player.crash > 0 ? 0 : player.heading) * dt; // the down-the-road part
   player.dist += move;
   position = ((player.dist - PLAYER_Z) % trackLength + trackLength) % trackLength;
@@ -1830,6 +1847,37 @@ function updatePlayer(dt, controlled) {
   // exhaust (2D only: in 3D the smoke is in the world, see world3d.js)
   player.puff -= dt;
   if (!use3D && player.puff <= 0 && player.crash <= 0) { player.puff = 0.07 + (1 - sp) * 0.08; particles.push({ x: playerScr ? playerScr.x + (playerScr.y - playerScr.top) * 0.3 : W / 2 + 75, y: playerScr ? playerScr.y - 18 : H - 50, vx: rand(10, 40), vy: rand(-50, -20), t: 0.7, size: rand(4, 8), color: 'rgba(200,200,200,.35)', grow: 16 }); }
+}
+
+// A drift ends: its points pop up, and one held for DRIFT_HOLD seconds kicks the auto forward on tracks whose
+// style gives a drift-exit boost.
+const DRIFT_HOLD = 0.6, BOOST_SECS = 1.2;
+function endDrift() {
+  if (player.driftPts >= 10) popup(`DRIFT +${Math.round(player.driftPts)}`, W / 2, H - 250, '#ffd21f', 28);
+  if (player.driftT >= DRIFT_HOLD && def.handling.driftExitBoost > 0) { player.boost = def.handling.driftExitBoost; player.boostT = BOOST_SECS; Sfx.whoosh(); }
+  player.drift = 0; player.driftT = 0; player.driftPts = 0;
+}
+
+// Lane surfing: overtaking same-way traffic with little room to spare is a close pass. Each one counts in the
+// race's stats; on tracks whose style has a slipstream it also raises your top speed for a moment, more for
+// each pass in a quick chain.
+const CLOSE_GAP = 0.25, PASS_AGAIN = 5; // road units between the two bodies · seconds before the same vehicle counts again
+function updateClosePasses(dt) {
+  stats.advance(dt);
+  for (const c of traffic) {
+    if (c.dir !== 1) continue; // cows, dogs and oncoming traffic don't count
+    const dz = wrapDelta(c.z - player.dist), was = c.passDz;
+    c.passDz = dz; if (c.passCd > 0) c.passCd -= dt;
+    // it was just ahead and now it isn't (a jump from far ahead is the lap wrapping round, not a pass)
+    if (!(was > 0 && was < 2000 && dz <= 0) || c.passCd > 0 || player.crash > 0 || player.speed <= c.speed) continue;
+    const gap = Math.abs(c.x - player.x) - (c.nw + playerW()) / 2;
+    if (gap < 0 || gap > CLOSE_GAP) continue;
+    c.passCd = PASS_AGAIN;
+    const chain = stats.closePass();
+    if (def.handling.slipstream > 0) { player.boost = def.handling.slipstream * chain; player.boostT = RRR.RaceStats.CHAIN_SECS; }
+    popup(chain > 1 ? `CLOSE! \u00d7${chain}` : 'CLOSE!', W / 2 + Math.sign(c.x - player.x) * 150, H - 230, '#80deea', 26);
+    Sfx.whoosh();
+  }
 }
 
 function updateRivals(dt) {
@@ -2267,8 +2315,11 @@ function buildResults() {
   const order = [...finishOrder, ...unfinished];
   const rank = order.indexOf(player) + 1;
   const prize = PRIZES[rank - 1] || 0, bonus = player.kos * 100;
-  cash += prize + bonus;
-  results = { order, rank, prize, bonus, qualified: rank <= 3 };
+  stats.finish(player.finished ? player.time : null, rank);
+  const skill = stats.bonuses(); // drift and lane-surf cash, at the style's rates
+  cash += prize + bonus + skill.drift + skill.passes;
+  // beaten: which of the track's bests this race beat · best: the bests after it
+  results = { order, rank, prize, bonus, skill, stats, qualified: rank <= 3, beaten: records.submit(def.id, stats.summary()), best: records.get(def.id) };
   trackEvent(`race-finish/${ordinal(rank)}`, `Finished ${ordinal(rank)}: ${def.name}`);
   store.set('cash', cash);
   state = 'results';
@@ -2285,6 +2336,7 @@ function advanceAfterResults() {
 
 function attractSetup() {
   loadTrack(level);
+  titleBest = records.get(def.id);
   resetPlayer(); rivals = []; traffic = []; player.speed = MAX_SPEED * 0.5;
 }
 function updateAttract(dt) {
@@ -2574,6 +2626,8 @@ function drawHUD() {
   text(fmtTime(raceTime), 190, 34, 18, '#fff', 'right');
   text(`TRACK ${level + 1}`, 190, 58, 12, '#ffcc80', 'right');
   text(`KO ${player.kos}`, 190, 80, 12, '#ff8a80', 'right');
+  if (player.drift && player.driftPts >= 1) text(`DRIFT ${Math.round(player.driftPts)}`, W / 2, 30, 22, '#ffd21f');
+  if (stats.chain > 1 && def.handling.slipstream > 0) text(`SLIPSTREAM \u00d7${stats.chain}`, W / 2, 58, 16, '#80deea');
   if (touch) text(`${Math.round(player.speed / MAX_SPEED * KMH)} KM/H`, 24, 84, 11, '#ffd21f', 'left');
   else {
     text('ESC MENU', 24, 84, 9, 'rgba(255,255,255,.55)', 'left');
@@ -2610,9 +2664,9 @@ function drawHUD() {
   const cx = W - 80, cy = H - 26, R = 58;
   panel(cx - R - 12, cy - R - 14, R * 2 + 24, R + 36, 0.5);
   ctx.strokeStyle = 'rgba(255,255,255,.25)'; ctx.lineWidth = 8; ctx.beginPath(); ctx.arc(cx, cy, R - 6, Math.PI, 0); ctx.stroke();
-  const sp = player.speed / MAX_SPEED;
-  ctx.strokeStyle = sp > 0.85 ? '#ff7043' : '#ffd21f'; ctx.beginPath(); ctx.arc(cx, cy, R - 6, Math.PI, Math.PI + Math.PI * sp); ctx.stroke();
-  const na = Math.PI + Math.PI * sp; ctx.strokeStyle = '#fff'; ctx.lineWidth = 3;
+  const sp = player.speed / MAX_SPEED, dial = clamp(sp / def.handling.topSpeed, 0, 1); // full dial = this track's top speed
+  ctx.strokeStyle = player.boostT > 0 ? '#80deea' : dial > 0.85 ? '#ff7043' : '#ffd21f'; ctx.beginPath(); ctx.arc(cx, cy, R - 6, Math.PI, Math.PI + Math.PI * dial); ctx.stroke();
+  const na = Math.PI + Math.PI * dial; ctx.strokeStyle = '#fff'; ctx.lineWidth = 3;
   ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(na) * (R - 14), cy + Math.sin(na) * (R - 14)); ctx.stroke();
   text(`${Math.round(sp * KMH)}`, cx, cy - 20, 22, '#fff');
   text('KM/H', cx, cy - 4, 9, '#ccc');
@@ -2696,10 +2750,12 @@ function drawTitle() {
   ctx.globalAlpha = 0.4 + a * 0.6; text('PRESS ENTER TO RACE', W / 2, 462, 26, '#fff'); ctx.globalAlpha = 1;
   // track selector
   const canL = level > 0, canR = level < unlocked;
-  panel(W / 2 - 250, 408, 500, 34, 0.55);
+  panel(W / 2 - 250, 402, 500, 44, 0.55);
   text('\u25c0', W / 2 - 232, 425, 16, canL ? '#ffd21f' : 'rgba(255,255,255,.2)');
   text('\u25b6', W / 2 + 232, 425, 16, canR ? '#ffd21f' : 'rgba(255,255,255,.2)');
-  text(def.name, W / 2, 425, 16, '#fff');
+  text(def.name, W / 2, 417, 16, '#fff');
+  const b = titleBest, wins = b.wins ? `  \u00b7  ${b.wins} WIN${b.wins > 1 ? 'S' : ''}` : '';
+  text(`${def.styleLabel}${b.bestTime === null ? '' : `  \u00b7  BEST ${fmtTime(b.bestTime)}`}${wins}`, W / 2, 435, 11, '#ffcc80');
   text(`Race ${level + 1} of ${ORDER.length}  \u00b7  \u2190 \u2192 choose  \u00b7  Wallet ${fmtCash(cash)}${round ? `  \u00b7  Tour ${round + 1}` : ''}`, W / 2, 500, 12, '#ffcc80', 'center', 'system-ui, sans-serif');
   text('Mind the tip-over: three wheels don\'t like sharp turns at full speed!', W / 2, 522, 12, '#ddd', 'center', 'system-ui, sans-serif');
   text('Engine: kalhan \u00b7 Chennai street: Nielsvdb \u00b7 Dog bark: AleXZavesa \u00b7 Horns: Anton (CC BY 4.0, freesound.org) \u00b7 Voices: Meta MMS-TTS (CC BY-NC 4.0)', W - 8, 534, 8, 'rgba(255,255,255,.45)', 'right', 'system-ui, sans-serif', false);
@@ -2726,13 +2782,16 @@ function drawResults() {
     text(a.finished ? fmtTime(a.time) : '—', W / 2 + 220, y, 16, '#ddd', 'right');
   });
   const by = 140 + r.order.length * 28;
-  text(`Prize ${fmtCash(r.prize)}   +   KO bonus ${fmtCash(r.bonus)}   =   ${fmtCash(r.prize + r.bonus)}`, W / 2, by + 8, 16, '#a5d6a7', 'center', 'system-ui, sans-serif');
-  text(`Wallet: ${fmtCash(cash)}`, W / 2, by + 36, 18, '#fff');
+  const s = r.stats, star = on => (on ? ' \u2605' : '');
+  const time = s.time === null ? '\u2014' : fmtTime(s.time) + (r.beaten.time ? ' \u2605 NEW BEST' : `  (best ${fmtTime(r.best.bestTime)})`);
+  text(`Time ${time}   \u00b7   Drift ${Math.round(s.driftScore)}${star(r.beaten.drift)}   \u00b7   Close passes ${s.passes}${star(r.beaten.passes)}`, W / 2, by + 4, 14, '#ffcc80', 'center', 'system-ui, sans-serif');
+  text(`Prize ${fmtCash(r.prize)}  +  KO ${fmtCash(r.bonus)}  +  Drift ${fmtCash(r.skill.drift)}  +  Lane surf ${fmtCash(r.skill.passes)}  =  ${fmtCash(r.prize + r.bonus + r.skill.drift + r.skill.passes)}`, W / 2, by + 28, 15, '#a5d6a7', 'center', 'system-ui, sans-serif');
+  text(`Wallet: ${fmtCash(cash)}`, W / 2, by + 54, 18, '#fff');
   const a = 0.5 + Math.sin(performance.now() / 250) * 0.5;
   ctx.globalAlpha = 0.4 + a * 0.6;
-  text(r.qualified ? (level + 1 >= ORDER.length ? 'ENTER — CLAIM YOUR CROWN' : `ENTER — NEXT: ${RRR.tracks.get(ORDER[level + 1]).name}`) : 'ENTER — TRY AGAIN (TOP 3 NEEDED)', W / 2, by + 76, 20, '#ffd21f');
+  text(r.qualified ? (level + 1 >= ORDER.length ? 'ENTER — CLAIM YOUR CROWN' : `ENTER — NEXT: ${RRR.tracks.get(ORDER[level + 1]).name}`) : 'ENTER — TRY AGAIN (TOP 3 NEEDED)', W / 2, by + 90, 20, '#ffd21f');
   ctx.globalAlpha = 1;
-  text('ESC — MAIN MENU', W / 2, by + 104, 13, '#ddd');
+  text('ESC — MAIN MENU', W / 2, by + 116, 13, '#ddd');
 }
 // a pack is broken: engine/registry.js names the track and field, shown in place of the title screen
 function drawConfigError() {
@@ -2850,5 +2909,5 @@ function step(now) {
 requestAnimationFrame(frame);
 // expose for debugging
 window.__rrr = { get state() { return state; }, player, get rivals() { return rivals; }, get results() { return results; }, setupRace,
-  step(n) { for (let i = 0; i < n; i++) update(STEP); render(); }, keys, Sfx, Music, Ambience, VehicleAudio, VoiceClips, Animals, RRR, get def() { return def; }, SP, get traffic() { return traffic; }, get segments() { return segments; }, get bubbles() { return bubbles; }, get junctions() { return junctions; }, get cross() { return crossTraffic; }, get marks() { return skidMarks; }, DriftMusic, lightOf, setLevel(l) { level = l; attractSetup(); } };
+  step(n) { for (let i = 0; i < n; i++) update(STEP); render(); }, keys, Sfx, Music, Ambience, VehicleAudio, VoiceClips, Animals, RRR, get def() { return def; }, get stats() { return stats; }, records, SP, get traffic() { return traffic; }, get segments() { return segments; }, get bubbles() { return bubbles; }, get junctions() { return junctions; }, get cross() { return crossTraffic; }, get marks() { return skidMarks; }, DriftMusic, lightOf, setLevel(l) { level = l; attractSetup(); } };
 })();
