@@ -49,7 +49,7 @@ The world is rendered in real 3D with [Three.js](https://threejs.org) (r149, bun
 
 - **Cameras:** a high **helicopter** view (default) and a low **chase** view. Press **C** to switch; your choice is saved.
 - **Classic renderer:** if a device has no WebGL, the original pseudo-3D renderer is used automatically. Add `?2d` to the URL to force it.
-- **Code layout:** `web/world3d.js` builds the road around the camera each frame from the track's curves and hills, and places the models. The game logic in `web/game.js` is the same for both renderers.
+- **Code layout:** `web/game.js` runs the race (physics, rivals, audio, HUD) for both renderers and `web/world3d.js` draws it in 3D. Each frame it rebuilds the road around the camera from the track's curves and hills and places the models. Tracks themselves are data: see **Tracks, cities and styles**.
 
 ## Gameplay
 
@@ -71,6 +71,22 @@ The world is rendered in real 3D with [Three.js](https://threejs.org) (r149, bun
 - Stray dogs sleep in the middle of the road, trot across it, and chase your auto barking *"BHOW BHOW!"*. Roadside dogs often sprint alongside your auto for a while, sometimes in pairs. They always leap clear and never get hurt, but swerving around one costs you speed. Honk to wake them and send them off the road.
 - Autos only have three wheels, so taking a sharp turn at full speed makes you lean. If you stay in the red, you tip over.
 - Clear all 4 races to become **Auto King of India**. Each new tour after that is harder.
+
+## Tracks, cities and styles
+
+Every race is a pack of plain data. Nothing about a particular track lives in the game code.
+
+| Pack | Files | Holds |
+| --- | --- | --- |
+| Track | `web/tracks/<id>/track.js` | Name, city, style, road seed and length, rivals, traffic counts and the look (sky, fog, road colours, scenery) |
+| City | `web/cities/<id>/city.js`, `skyline.js`, `ambience.js` | Street calls, curses, song, billboard ads, bus liveries, the skyline painters and the street recording |
+| Style | `web/styles/<id>.js` | How the road is put together, the traffic mix and the handling numbers |
+
+`web/packs.js` lists the packs, with tracks in race order. The files in `web/engine/` check them at startup and build the road and its traffic from them. A mistake in a pack shows a message naming the track and field in place of the title screen.
+
+To add a track, copy a folder under `web/tracks/`, change its `id` and values, and add the id to `web/packs.js`. A track can override any of its style's values, for example `traffic: { count: 40, cows: 0, dogs: 0, oncoming: 0.3 }`.
+
+Run the tests with `node --test tests/*.test.js` (Node 20 or later, nothing to install).
 
 ## Installer (DMG)
 
