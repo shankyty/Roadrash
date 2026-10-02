@@ -93,6 +93,12 @@
   if (!(/Android|iPhone|iPad|iPod|Mobile/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1)) || /[?&]3d\b/.test(location.search))
     for (const m of ['auto', 'amby']) document.write('<script src="models/' + m + '.js"><\/script>');
 </script>
+<script src="engine/util.js"></script>
+<script src="engine/registry.js"></script>
+<script src="engine/track-builder.js"></script>
+<script src="engine/traffic-spawner.js"></script>
+<script src="engine/records.js"></script>
+<script src="packs.js"></script>
 <script src="world3d.js"></script>
 <script src="game.js"></script>
 </body>
