@@ -24,7 +24,7 @@ function fresh() {
 const style = () => ({ id: 'plain', label: 'PLAIN',
   road: { lengths: [25], pieces: [{ kind: 'straight', weight: 1 }], lanes: 'alternate', junctions: true },
   traffic: { countScale: 1, oncoming: 0.8, mix: { car: 1 } },
-  handling: { topSpeed: 1, driftScrub: 0.22, driftExitBoost: 0, slipstream: 0 },
+  handling: { topSpeed: 1, driftScrub: 0.22, driftGrip: 1, driftExitBoost: 0, slipstream: 0 },
   scoring: { driftCashPer100: 0, passCash: 0 } });
 const city = () => ({ id: 'pune', hawkerCalls: ['MISAL!'], curses: ['ARE!'], song: { bpm: 100 }, ads: [['A', 'B']], busLooks: [{ op: 'PMT' }] });
 const track = () => ({ id: 'fc-road', name: 'PUNE · FC ROAD', city: 'pune', style: 'plain', seed: 5, length: 400, laps: 1,
@@ -74,7 +74,7 @@ test('resolve merges style values with the track\'s overrides, per key', () => {
   RRR.tracks.register(t);
   const def = RRR.resolve('fast');
   assert.deepStrictEqual(def.traffic, { countScale: 1, oncoming: 0.2, mix: { car: 1 }, count: 10, cows: 1, dogs: 2 });
-  assert.deepStrictEqual(def.handling, { topSpeed: 1.25, driftScrub: 0.22, driftExitBoost: 0, slipstream: 0 });
+  assert.deepStrictEqual(def.handling, { topSpeed: 1.25, driftScrub: 0.22, driftGrip: 1, driftExitBoost: 0, slipstream: 0 });
   assert.strictEqual(def.road.junctions, false);
   assert.strictEqual(def.road.lanes, 'alternate');
   assert.strictEqual(def.ambience, false);
