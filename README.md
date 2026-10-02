@@ -37,7 +37,8 @@ One hand drives and the other swings the lathi. Press **Tab** on the title or pa
 | --- | --- | --- |
 | Gas / brake / steer | ↑ ↓ ← → (right hand) | W S A D (left hand) |
 | Swing lathi left / right | **A** / **D** (left hand) | **←** / **→** (right hand) |
-| Horn (cows, dogs and traffic move aside) | Space, W or S | Space, ↑ or ↓ |
+| Horn (cows, dogs and traffic move aside) | W or S | ↑ or ↓ |
+| Handbrake: hold a steer and pull it to drift | Space | Space |
 
 **Esc** or **P** during a race opens the menu: **Resume**, **Restart race** or **Quit to main menu**. Use ↑/↓ and Enter to choose, or click an option. On the results screen, **Enter** continues and **Esc** returns to the main menu. **V** opens the **sound mixer**, with separate volumes for all sound, race (engine, horn, fights), voices, music and city noise; it's also in the pause menu, and there's a 🔊 button on phones. **M** mutes everything and **N** turns the music on or off.
 
@@ -62,10 +63,11 @@ The world is rendered in real 3D with [Three.js](https://threejs.org) (r149, bun
 - Every race has a style, shown under its name on the title screen:
   - **Speed** (Sea Link, Marina Beach Road): long straights, gentle bends, no junctions and light traffic. The autos are tuned for 100 km/h.
   - **Drift** (Marine Drive, Juhu Beach Road): tight bends one after another. A held drift keeps your speed, carries you round the bend and gives a short boost on the way out. Flat out without sliding, you run wide or tip over.
-  - **Traffic** (Western Express Highway, Ring Road): a wide road packed with traffic. Pass a vehicle closely and you get a slipstream; passes in quick succession stack it up to 5 times.
+  - **Traffic** (Western Express Highway, Ring Road): a wide road packed with traffic. Pass a moving vehicle with little room to spare and you get a slipstream; passes in quick succession stack it up to 5 times.
   - **Classic** (Charminar Road): the original mix.
 - The first across the line wins on every style. Each track also keeps your best time, best drift score, most close passes and wins, and the results screen marks a new best with a star.
 - Drifting and close passes pay a cash bonus on the results screen.
+- To drift: above about 25 km/h, hold a steer and pull the handbrake (**Space**), or tap the brake. On a phone, hold a steer button and tap the brake button. Keep steering to hold the slide; let go to straighten up. Only a slide into a bend scores and earns the exit boost.
 - Drivers who take a lathi hit shout back in their city's street slang (Bambaiya, Dakhni, Dilli or Tamil), and the lines are **spoken aloud** in Hindi or Tamil from where the speaker is on the road: panned to their side, louder when close, with Doppler as you pass. Every rival has their own voice pitch.
 - Hawkers at chai stalls and shops call out as you pass, out loud and street-style: *"Vada paaav!"*, *"Bhel puri lelo!"*, *"Chai bole, chaaai!"*, *"Irani chaaai!"*, *"Golgappe, golgappe!"*, *"Sundal, sundaaal!"*.
 - Each city has its own background music, all original and generated live in the browser: filmi dholak (Mumbai), qawwali (Hyderabad), bhangra (Delhi) and kuthu with a nadaswaram-style reed (Chennai). Press **N** to turn it on or off.
