@@ -1,5 +1,19 @@
 # Changelog
 
+## v3.4.0: Thirteen drivers, thirteen cities
+
+- **A cast of 13 drivers, one per city:** Ganpat (Mumbai), Bunty (Delhi), Saleem (Hyderabad), Murugan (Chennai), Bablu-da (Kolkata), Jassi (Chandigarh), Jintu (Guwahati), Banwari (Jaipur), Manju (Bengaluru), Nawab (Lucknow), Bhola (Varanasi), Lallan (Patna) and Kokila-ben (Ahmedabad).
+- **You race as the home driver:** in Mumbai you are Ganpat, in Hyderabad Saleem, in Delhi Bunty, in Chennai Murugan. You get their auto, their voice and their weapon, and your rivals are drawn from the other twelve.
+- **Every auto looks like its city's:** the local livery, the state's number plate, a slogan on the back (AAMCHI MUMBAI, CHAK DE PHATTE, AAVJO…), and the driver's own dress: Jassi's turban, Banwari's safa, Kokila-ben's pallu. Autos in traffic wear the city's livery too.
+- **Everyone fights their own way:**
+  - Cricket bat, hockey stick, umbrella, walking cane, wet gamchha, jooti, laptop bag, dandiya sticks, an oiled lathi, an open-hand slap, and three drivers who kick.
+  - Heavy weapons hit harder and reach further but are slow to come round again; light ones sting less and come fast.
+  - Each has its own impact sound and hit words (SIXER!, LAAT!, CHHATA!).
+- **Everyone drives their own way:** Bunty hunts you down, Jintu is quickest through bends, Jassi is flat out on the straights, Manju is first off the line, Lallan backs off for nobody, and Nawab never strikes first but never forgets who did.
+- **Curses in their own language and voice:** Bambaiya, Dilli, Dakhni, Tamil, Bengali, Punjabi, Assamese, Marwari, Kannada, Urdu, Bhojpuri, Magahi and Gujarati, each driver with a voice of their own, shouted rather than read out. The takes were picked by ear.
+- **Neon at night:** five autos carry neon strip lights that glow on the Sea Link night race.
+- **The whole cast is one data file,** `web/drivers.js`: names, colours, lines, weapons and driving numbers can be changed without touching the game code.
+
 ## v3.3.6: Tracks become packs
 
 - **Nothing changes on the road:** all 7 races have the same roads, traffic, music and skylines as before.

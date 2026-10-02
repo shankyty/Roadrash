@@ -31,12 +31,12 @@ To iterate on the game in a browser: `python3 -m http.server 8765 --directory we
 
 ## Controls
 
-One hand drives and the other swings the lathi. Press **Tab** on the title or pause screen to switch hands (the choice is saved).
+One hand drives and the other hits out with your driver's weapon. Press **Tab** on the title or pause screen to switch hands (the choice is saved).
 
 | | Arrows drive (default) | WASD drive |
 | --- | --- | --- |
 | Gas / brake / steer | ↑ ↓ ← → (right hand) | W S A D (left hand) |
-| Swing lathi left / right | **A** / **D** (left hand) | **←** / **→** (right hand) |
+| Hit left / right | **A** / **D** (left hand) | **←** / **→** (right hand) |
 | Horn (cows, dogs and traffic move aside) | W or S | ↑ or ↓ |
 | Handbrake: hold a steer and pull it to drift | Space | Space |
 
@@ -46,7 +46,7 @@ In the Mac app's **Game** menu: Pause/Resume (⌘P), Restart Race (⌘R), Quit t
 
 ## 3D
 
-The world is rendered in real 3D with [Three.js](https://threejs.org) (r149, bundled in `web/lib/`, MIT licence). Every vehicle is a 3D model: your auto, the rival autos (their rounded canopies tip over when knocked out, and the lathi swings in 3D), buses, trucks and cars. Cows and dogs are 3D models with walking legs. Buildings are solid blocks with painted shopfronts. Bends and hills are real geometry, so vehicles and buildings keep their depth when you turn.
+The world is rendered in real 3D with [Three.js](https://threejs.org) (r149, bundled in `web/lib/`, MIT licence). Every vehicle is a 3D model: your auto, the rival autos (their rounded canopies tip over when knocked out, and each driver's weapon or kick swings in 3D), buses, trucks and cars. Cows and dogs are 3D models with walking legs. Buildings are solid blocks with painted shopfronts. Bends and hills are real geometry, so vehicles and buildings keep their depth when you turn.
 
 - **Cameras:** a high **helicopter** view (default) and a low **chase** view. Press **C** to switch; your choice is saved.
 - **Classic renderer:** if a device has no WebGL, the original pseudo-3D renderer is used automatically. Add `?2d` to the URL to force it.
@@ -68,13 +68,13 @@ The world is rendered in real 3D with [Three.js](https://threejs.org) (r149, bun
 - The first across the line wins on every style. Each track also keeps your best time, best drift score, most close passes and wins, and the results screen marks a new best with a star.
 - Drifting and close passes pay a cash bonus on the results screen.
 - To drift: above about 25 km/h, hold a steer and pull the handbrake (**Space**), or tap the brake. On a phone, hold a steer button and tap the brake button. Keep steering to hold the slide; let go to straighten up. Only a slide into a bend scores and earns the exit boost.
-- Drivers who take a lathi hit shout back in their city's street slang (Bambaiya, Dakhni, Dilli or Tamil), and the lines are **spoken aloud** in Hindi or Tamil from where the speaker is on the road: panned to their side, louder when close, with Doppler as you pass. Every rival has their own voice pitch.
+- There are 13 drivers, one per city (see **The drivers**). You race as the driver of the city you're in, against the others. A driver who takes a hit shouts back in their own language and their own voice, **spoken aloud** from where they are on the road: panned to their side, louder when close, with Doppler as you pass.
 - Hawkers at chai stalls and shops call out as you pass, out loud and street-style: *"Vada paaav!"*, *"Bhel puri lelo!"*, *"Chai bole, chaaai!"*, *"Irani chaaai!"*, *"Golgappe, golgappe!"*, *"Sundal, sundaaal!"*.
 - Each city has its own background music, all original and generated live in the browser: filmi dholak (Mumbai), qawwali (Hyderabad), bhangra (Delhi) and kuthu with a nadaswaram-style reed (Chennai). Press **N** to turn it on or off.
 - Real street and market recordings play in the background of each city, louder where the road is lined with shops.
 - The engine is a real Bajaj auto-rickshaw recording: a kick-start at race start, then idle and rev loops that pitch up with your speed.
 - Finish in the top 3 to qualify, and **Enter** on the results screen takes you straight to the next race. Prize money and a ₹100 bonus for each rival you knock out go into your wallet, which is saved between sessions.
-- Rival autos catch up, ride alongside you and hit you with their own lathis. If your health runs out, you're knocked out for a few seconds.
+- Rival autos catch up, ride alongside you and hit you with their own weapons (or kick). If your health runs out, you're knocked out for a few seconds.
 - Watch out for cows, buses, trucks and cars. Crashing into roadside objects wrecks you.
 - Traffic is audible: buses, trucks, cars and rival autos have their own engine sounds (positional, with Doppler) and honk like real Indian traffic, especially when you overtake them closely. Cows moo and dogs bark from where they are.
 - Stray dogs sleep in the middle of the road, trot across it, and chase your auto barking *"BHOW BHOW!"*. Roadside dogs often sprint alongside your auto for a while, sometimes in pairs. They always leap clear and never get hurt, but swerving around one costs you speed. Honk to wake them and send them off the road.
@@ -96,6 +96,21 @@ Every race is a pack of plain data. Nothing about a particular track lives in th
 To add a track, copy a folder under `web/tracks/`, change its `id` and values, and add the id to `web/packs.js`. A track can override any of its style's values, for example `traffic: { count: 40, cows: 0, dogs: 0, oncoming: 0.3 }`.
 
 Run the tests with `node --test tests/*.test.js` (Node 20 or later, nothing to install).
+
+## The drivers
+
+The cast is one data file, `web/drivers.js`: 13 drivers, one per city. Each entry has four parts besides the name, city and a one-line personality:
+
+| Part | Holds |
+| --- | --- |
+| `look` | Body, trim and hood colours, number plate, rear slogan, the driver's shirt and headgear, and a neon colour (shown on night tracks) |
+| `voice`, `curses` | How the voice is described to the speech model, and five curses: the bubble text and what is spoken, in native script |
+| `weapon` | A swing (bat, hockey stick, umbrella, cane, cloth, shoe, bag, dandiya, lathi, bare hand) or a kick, with its power, reach, cooldown, sound and hit words |
+| `style` | Pace, speed through bends, aggression, how far they chase you, lane changes, nerve in traffic, start reaction and grudge |
+
+You drive as the driver of the track's city; your rivals are a random draw from the rest. `node tools/drivers/check.mjs --clips` checks the file and that every curse has a voice clip. The file is strict JSON after `window.RRR_DRIVERS =`, so the voice tools read it too.
+
+To change a voice: `tools/voices/audition.py` makes candidate takes of each curse and an audition page (a copy is kept at `tools/voices/audition.html`). Pick by ear, save the page's picks to a file, then run `apply_picks.py` on it and `make_voices.py --rivals <driver ids>`.
 
 ## Installer (DMG)
 
@@ -141,7 +156,7 @@ It picks up the newest `goatcounter-export-*.zip` in this folder or in `~/Downlo
   - Delhi: ["India Streets NewDelhi City"](https://freesound.org/s/263636/) by Alcappuccino, CC0.
   - Chennai: ["Chennai (India) Traffic Ambience 01"](https://freesound.org/s/465712/) by **Nielsvdb**, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
   - Hyderabad: ["Street Ambience India"](https://freesound.org/s/509181/) by guidofm (recorded in Pune), CC0.
-- Voices: the curses and hawker calls (`web/voices.js`) were generated with Meta's [MMS-TTS](https://huggingface.co/facebook/mms-tts-hin) models, [`facebook/mms-tts-hin`](https://huggingface.co/facebook/mms-tts-hin) and [`facebook/mms-tts-tam`](https://huggingface.co/facebook/mms-tts-tam), licensed [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/) (non-commercial use). They were trimmed, EQ'd and loudness-normalised. To rebuild them, see [`tools/voices/`](tools/voices/): `lines.json` holds each line's text and chosen take, and `make_voices.py` regenerates `web/voices.js` exactly.
+- Voices (`web/voices.js`): the drivers' curses were generated with AI4Bharat's [Indic Parler-TTS](https://huggingface.co/ai4bharat/indic-parler-tts) (Apache 2.0), several takes per line, picked by ear. The hawker calls and the older city curses were generated with Meta's [MMS-TTS](https://huggingface.co/facebook/mms-tts-hin) models, [`facebook/mms-tts-hin`](https://huggingface.co/facebook/mms-tts-hin) and [`facebook/mms-tts-tam`](https://huggingface.co/facebook/mms-tts-tam), licensed [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/) (non-commercial use). They were trimmed, EQ'd and loudness-normalised. To rebuild them, see [`tools/voices/`](tools/voices/): `lines.json` holds each line's text and chosen take, and `make_voices.py` regenerates `web/voices.js` exactly.
 - Animals (`web/animals.js`, trimmed and loudness-normalised):
   - Dog bark: ["Dog Bark 9"](https://freesound.org/s/853723/) by **AleXZavesa**, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
   - Dog bark and growl: ["Animal Dog Bark And Growl 01"](https://freesound.org/s/625501/) by abhisheky948, CC0.
