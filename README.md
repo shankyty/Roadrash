@@ -59,6 +59,13 @@ The world is rendered in real 3D with [Three.js](https://threejs.org) (r149, bun
   - **Delhi**: Ring Road, with India Gate, Qutub Minar, Red Fort, the Lotus Temple and Jama Masjid behind.
   - **Chennai**: Marina Beach Road, with the Kapaleeshwarar gopuram, the lighthouse and Chennai Central behind.
 - All 7 races are open from the start: pick any of them on the title screen with ← →.
+- Every race has a style, shown under its name on the title screen:
+  - **Speed** (Sea Link, Marina Beach Road): long straights, gentle bends, no junctions and light traffic. The autos are tuned for 100 km/h.
+  - **Drift** (Marine Drive, Juhu Beach Road): tight bends one after another. A held drift keeps your speed, carries you round the bend and gives a short boost on the way out. Flat out without sliding, you run wide or tip over.
+  - **Traffic** (Western Express Highway, Ring Road): a wide road packed with traffic. Pass a vehicle closely and you get a slipstream; passes in quick succession stack it up to 5 times.
+  - **Classic** (Charminar Road): the original mix.
+- The first across the line wins on every style. Each track also keeps your best time, best drift score, most close passes and wins, and the results screen marks a new best with a star.
+- Drifting and close passes pay a cash bonus on the results screen.
 - Drivers who take a lathi hit shout back in their city's street slang (Bambaiya, Dakhni, Dilli or Tamil), and the lines are **spoken aloud** in Hindi or Tamil from where the speaker is on the road: panned to their side, louder when close, with Doppler as you pass. Every rival has their own voice pitch.
 - Hawkers at chai stalls and shops call out as you pass, out loud and street-style: *"Vada paaav!"*, *"Bhel puri lelo!"*, *"Chai bole, chaaai!"*, *"Irani chaaai!"*, *"Golgappe, golgappe!"*, *"Sundal, sundaaal!"*.
 - Each city has its own background music, all original and generated live in the browser: filmi dholak (Mumbai), qawwali (Hyderabad), bhangra (Delhi) and kuthu with a nadaswaram-style reed (Chennai). Press **N** to turn it on or off.
@@ -80,7 +87,7 @@ Every race is a pack of plain data. Nothing about a particular track lives in th
 | --- | --- | --- |
 | Track | `web/tracks/<id>/track.js` | Name, city, style, road seed and length, rivals, traffic counts and the look (sky, fog, road colours, scenery) |
 | City | `web/cities/<id>/city.js`, `skyline.js`, `ambience.js` | Street calls, curses, song, billboard ads, bus liveries, the skyline painters and the street recording |
-| Style | `web/styles/<id>.js` | How the road is put together, the traffic mix and the handling numbers |
+| Style | `web/styles/<id>.js` | How the road is put together, the traffic mix, the handling numbers (top speed, drift, slipstream) and the cash rates |
 
 `web/packs.js` lists the packs, with tracks in race order. The files in `web/engine/` check them at startup and build the road and its traffic from them. A mistake in a pack shows a message naming the track and field in place of the title screen.
 
