@@ -12,7 +12,7 @@ Tamil, Meta MMS) varied only by playback pitch, so they sound robotic and alike.
 
 ## Goal
 
-A fixed cast of twelve drivers, one per city, defined entirely in one config file. Each driver has a
+A fixed cast of thirteen drivers, one per city, defined entirely in one config file. Each driver has a
 name and personality, an auto that looks like the autos of their city, a voice of their own that curses
 in their own language, and a driving style of their own.
 
@@ -45,7 +45,7 @@ One entry per driver:
 }
 ```
 
-`headgear` is one of `none`, `turban`, `safa`, `cap`. Each driver has five curses: `text` is the bubble
+`headgear` is one of `none`, `turban`, `safa`, `cap`, `pallu`. Each driver has five curses: `text` is the bubble
 (Latin capitals, as today), `say` is what the voice speaks in native script.
 
 ### Style numbers
@@ -83,6 +83,7 @@ Balance rule: the cast's mean `pace` stays at −0.02 (today's mean), and no dri
 | Lucknow | Nawab | Lakhnavi Urdu | "Pehle aap": never swings first, polite even when cursing, strong grudge once hit |
 | Varanasi | Bhola | Bhojpuri (Banarasi) | Mast-maula: unhurried and never comes looking for you, but pull alongside and the lathi is out at once |
 | Patna | Lallan | Magahi-flavoured Hindi | Brawler: never backs off in traffic, swings a lot, average pace |
+| Ahmedabad | Kokila-ben (the cast's one woman driver) | Gujarati | No-nonsense: fast steady pace, clean through bends, scolds more than she swings, but never forgets a hit |
 
 Curses stay as mild as today's (street slang, no real abuse). Characters are affectionate, not mocking.
 
@@ -106,6 +107,7 @@ slogan and the driver figure.
 | Nawab | green / cream / yellow | UP 32 | cream kurta, cap |
 | Bhola | green / saffron / yellow | UP 65 | white kurta, red gamchha tied round the head |
 | Lallan | blue / yellow / yellow | BR 01 | checked shirt, no headgear |
+| Kokila-ben | green / bandhani red / yellow | GJ 01 | sari, pallu over the head; slogan AAVJO |
 
 These are config values, so any of them can be changed without touching code.
 
@@ -126,7 +128,8 @@ These are config values, so any of them can be changed without touching code.
   driver still curses in the track city's slang (the existing `CURSES` table, now used only for you).
 - **2D sprites.** `makeTuk` takes the slogan; `SP.rivals` is built from the cast.
 - **3D autos.** `autoModel(pal, rearCanvas, look)` paints the driver's shirt and lathi sleeve from
-  `look.shirt` and adds the headgear (turban and safa: a wrapped shape over the head; cap: a flat one).
+  `look.shirt` and adds the headgear (turban and safa: a wrapped shape over the head; cap: a flat one; pallu: cloth draped
+  over the head and one shoulder).
 - **Traffic autos.** Autos in traffic take the track city's livery instead of a random rival palette, so
   Delhi's streets have green and yellow autos. They have no named driver, slogan or lathi.
 - **HUD and screens.** The nearest-rival bar and the results table show `NAME · CITY`. The start screen
@@ -140,16 +143,16 @@ Apache 2.0), used for all curses:
 
 - **Rival curses** come from `web/drivers.js`: each line is spoken by the driver's `speaker` with their
   `describe` prompt, then goes through the existing shout chain (compressor, soft clip, presence boost),
-  retuned so it no longer pitch-shifts the voice. 12 drivers × 5 lines = 60 clips, keyed `"<id>|<text>"`.
+  retuned so it no longer pitch-shifts the voice. 13 drivers × 5 lines = 65 clips, keyed `"<id>|<text>"`.
 - **Your curses** (28 lines in `lines.json`) are regenerated with Parler using one Hindi and one Tamil
   speaker that no rival uses.
 - **Hawker calls** (20 lines) stay on MMS, untouched.
 
-`voices.js` grows from 48 to about 108 clips, roughly 355 KB to 800 KB. The credits line adds Indic
+`voices.js` grows from 48 to about 113 clips, roughly 355 KB to 830 KB. The credits line adds Indic
 Parler-TTS.
 
-Speaker plan: Bengali, Kannada, Assamese, Tamil and Punjabi have their own named speakers, and Lucknow
-uses an Urdu voice. The model has
+Speaker plan: Bengali, Kannada, Assamese, Tamil and Punjabi have their own named speakers, Lucknow
+uses an Urdu voice, and Kokila-ben uses a female Gujarati speaker (the only female voice in the cast). The model has
 no Bhojpuri or Magahi voice, so Bhola's Bhojpuri and Lallan's Magahi lines are written in Devanagari and
 spoken by a Hindi or Maithili speaker. The Hindi-script drivers (Mumbai, Delhi, Jaipur, Varanasi, Patna,
 Hyderabad) share the model's Hindi speakers, so they are separated by description (pitch, pace,
@@ -175,7 +178,7 @@ The web game has no test runner; checks are a script plus the running game.
 - In the browser preview through `window.__rrr`: for each of the seven tracks, `setupRace` 50 times and
   confirm the home driver is always on the grid and nobody appears twice; step a race and confirm style
   fields change behaviour (Jintu's bend speed above Jassi's, Nawab never swings before being hit, Bhola never chases from beyond his short range).
-- Screenshots of all twelve autos in 3D and in 2D (`?2d`).
+- Screenshots of all thirteen autos in 3D and in 2D (`?2d`).
 - No console errors over a full race on a Mumbai and a Chennai track.
 
 ## Out of scope
