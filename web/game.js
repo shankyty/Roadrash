@@ -130,24 +130,12 @@ const THEMES = {
 };
 
 // ------------------------------------------------------------------ utils
-const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-const lerp = (a, b, p) => a + (b - a) * p;
-const easeIn = (a, b, p) => a + (b - a) * p * p;
-const easeInOut = (a, b, p) => a + (b - a) * ((-Math.cos(p * Math.PI) / 2) + 0.5);
+const { clamp, lerp, easeIn, easeInOut, rand, pick, mulberry32, weightedPick } = RRR.util; // engine/util.js
 const pctRemaining = (n, total) => (n % total) / total;
-const rand = (a, b) => a + Math.random() * (b - a);
-const pick = (arr, r = Math.random) => arr[Math.floor(r() * arr.length)];
 const overlap = (x1, w1, x2, w2) => !((x1 + w1 / 2) < (x2 - w2 / 2) || (x1 - w1 / 2) > (x2 + w2 / 2));
 const ordinal = n => n + (['th', 'st', 'nd', 'rd'][(n % 100 > 10 && n % 100 < 14) ? 0 : (n % 10 < 4 ? n % 10 : 0)] || 'th');
 const fmtTime = t => { const m = Math.floor(t / 60), s = t - m * 60; return `${m}:${s < 10 ? '0' : ''}${s.toFixed(1)}`; };
 const fmtCash = n => '₹' + Math.round(n).toLocaleString('en-IN');
-function mulberry32(a) {
-  return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
-}
-function weightedPick(weights, r) {
-  const entries = Object.entries(weights); let total = 0; for (const [, w] of entries) total += w;
-  let x = r() * total; for (const [k, w] of entries) { if ((x -= w) < 0) return k; } return entries[0][0];
-}
 function project(p, camX, camY, camZ) {
   p.camera.x = p.world.x - camX; p.camera.y = p.world.y - camY; p.camera.z = p.world.z - camZ;
   p.screen.scale = CAM_DEPTH / p.camera.z;
@@ -649,7 +637,7 @@ const DriftMusic = {
 };
 
 // ------------------------------------------------------------------ street ambience
-// Real market/street recordings per city (web/ambience-<city>.js, loaded on demand). The loop is
+// Real market/street recordings per city (web/cities/<city>/ambience.js, loaded on demand). The loop is
 // played as overlapping copies with crossfades so there is no seam, and it swells near shops.
 const Ambience = {
   city: null, bufs: {}, requested: {}, bus: null, next: 0, timer: null, sources: [],
@@ -659,8 +647,8 @@ const Ambience = {
     this.city = city; this.stopAll();
     if (!this.requested[city]) {
       this.requested[city] = true;
-      const tag = document.createElement('script'); tag.src = `ambience-${city}.js`;
-      tag.onerror = () => reportError('audio', `ambience-${city}.js failed to load`);
+      const tag = document.createElement('script'); tag.src = `cities/${city}/ambience.js`;
+      tag.onerror = () => reportError('audio', `cities/${city}/ambience.js failed to load`);
       document.head.appendChild(tag);
     }
   },

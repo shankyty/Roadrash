@@ -111,7 +111,7 @@ It picks up the newest `goatcounter-export-*.zip` in this folder or in `~/Downlo
 
 ## Credits
 
-- Street ambience (trimmed, loudness-normalised loops in `web/ambience-*.js`):
+- Street ambience (trimmed, loudness-normalised loops in `web/cities/<city>/ambience.js`):
   - Mumbai: ["Mumbai - Market"](https://freesound.org/s/453005/) by Lenguaverde, CC0.
   - Delhi: ["India Streets NewDelhi City"](https://freesound.org/s/263636/) by Alcappuccino, CC0.
   - Chennai: ["Chennai (India) Traffic Ambience 01"](https://freesound.org/s/465712/) by **Nielsvdb**, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
