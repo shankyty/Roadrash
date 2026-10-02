@@ -21,7 +21,7 @@ class Registry {
 // A key ending in ? is optional. Keys that aren't listed are reported, which catches typos.
 const ROAD = { lengths: 'array', pieces: 'array', lanes: 'string', junctions: 'boolean' };
 const TRAFFIC = { countScale: 'number', oncoming: 'number', mix: 'object' };
-const HANDLING = { topSpeed: 'number', driftScrub: 'number', driftExitBoost: 'number', slipstream: 'number' };
+const HANDLING = { topSpeed: 'number', driftScrub: 'number', driftGrip: 'number', driftExitBoost: 'number', slipstream: 'number' };
 const SCORING = { driftCashPer100: 'number', passCash: 'number' };
 const optional = shape => Object.fromEntries(Object.entries(shape).map(([k, v]) => [k.endsWith('?') ? k : k + '?', v]));
 const SHAPES = {

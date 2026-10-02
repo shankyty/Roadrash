@@ -22,6 +22,12 @@ RRR.styles.register({
     oncoming: 0.8,                       // oncoming vehicles = same-way vehicles × this
     mix: { car: 4, bike: 4, bus: 2, truck: 1, tractor: 1 },
   },
-  handling: { topSpeed: 1, driftScrub: 0.22, driftExitBoost: 0, slipstream: 0 },
-  scoring: { driftCashPer100: 0, passCash: 0 },
+  handling: {
+    topSpeed: 1,                         // the autos' top speed, as a share of 80 km/h
+    driftScrub: 0.22,                    // share of speed a drift loses each second
+    driftGrip: 1,                        // share of a bend's outward push still felt while drifting into it
+    driftExitBoost: 0,                   // top speed raised by this share for a moment after a held drift
+    slipstream: 0,                       // top speed raised by this share per close pass in a chain
+  },
+  scoring: { driftCashPer100: 20, passCash: 10 },   // rupees per 100 drift points, and per close pass
 });
