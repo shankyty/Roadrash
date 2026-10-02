@@ -60,3 +60,16 @@ test('solid roadside things block every segment they span', () => {
   for (let k = 0; k < Math.ceil(b.len / 200); k++) assert.ok(segments[n + k].solids.includes(b));
   assert.ok(Math.abs(b.offset) > segments[n].half); // moved out past the road edge
 });
+
+test('the tables the validator reads match the builder: every piece and scenery kind builds from exactly the listed parameters', () => {
+  assert.deepStrictEqual(Object.keys(RRR.PIECE_PARAMS).sort(), Object.keys(RRR.PIECES).sort());
+  for (const [kind, params] of Object.entries(RRR.PIECE_PARAMS)) {
+    const piece = { kind, weight: 1 };
+    for (const [name, type] of Object.entries(params)) piece[name] = type === 'numbers' ? [2] : 2;
+    assert.doesNotThrow(() => buildRoad(testDef({ road: { pieces: [piece] } })), kind);
+  }
+  for (const kind of RRR.SCENERY_KINDS) {
+    const road = buildRoad({ ...testDef(), look: { ...testDef().look, density: 1, scenery: { [kind]: 1 } } });
+    assert.ok(road.segments.some(s => s.sprites.some(q => q.kind === kind)), kind);
+  }
+});

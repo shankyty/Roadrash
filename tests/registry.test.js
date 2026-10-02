@@ -10,7 +10,10 @@ function fresh() {
     delete require.cache[require.resolve(file)]; require(file);
   }
   const RRR = globalThis.RRR;
-  RRR.PIECES = { straight() {} }; RRR.VEHICLES = { car() {} }; // stand-ins for engine/track-builder.js and traffic-spawner.js
+  // stand-ins for engine/track-builder.js and traffic-spawner.js
+  RRR.PIECES = { straight() {}, curve() {}, curveHill() {} }; RRR.VEHICLES = { car() {}, bike() {} };
+  RRR.PIECE_PARAMS = { straight: {}, curve: { curves: 'numbers', hills: 'numbers' }, curveHill: { curve: 'number', hill: 'number' } };
+  RRR.SCENERY_KINDS = ['palm', 'tree'];
   RRR.styles.register(style());
   RRR.cities.register(city());
   RRR.skylines.register({ id: 'pune', far() {}, near() {} });
@@ -119,4 +122,63 @@ test('validate reports a city without a skyline', () => {
 test('validate without a manifest says packs.js did not load', () => {
   const RRR = fresh(); RRR.manifest = null;
   assert.deepStrictEqual(RRR.validate(), ['packs.js did not load: there is no manifest']);
+});
+
+// a track whose road recipe, traffic mix or scenery is changed; the style's own are fine
+const problemsOf = change => withTrack(fresh(), change);
+test('validate reports an empty list of road pieces', () => {
+  assert.deepStrictEqual(problemsOf(t => { t.road = { pieces: [] }; }), ['track "changed".road.pieces: must be a non-empty array']);
+});
+test('validate reports road lengths that are empty or not numbers above 0', () => {
+  const msg = ['track "changed".road.lengths: must be a non-empty array of numbers above 0'];
+  assert.deepStrictEqual(problemsOf(t => { t.road = { lengths: [] }; }), msg);
+  assert.deepStrictEqual(problemsOf(t => { t.road = { lengths: [25, 0] }; }), msg);
+  assert.deepStrictEqual(problemsOf(t => { t.road = { lengths: [25, '50'] }; }), msg);
+});
+test('validate reports a road piece with a mistyped, missing or unknown parameter', () => {
+  const pieces = (...p) => t => { t.road = { pieces: p }; };
+  assert.deepStrictEqual(problemsOf(pieces({ kind: 'curve', weight: 1, curvs: [1, 2], hills: [0] })), [
+    'track "changed".road.pieces[0].curves: missing',
+    'track "changed".road.pieces[0].curvs: unknown key']);
+  assert.deepStrictEqual(problemsOf(pieces({ kind: 'curve', weight: 1, curves: [], hills: [0] })),
+    ['track "changed".road.pieces[0].curves: must be a non-empty array of numbers']);
+  assert.deepStrictEqual(problemsOf(pieces({ kind: 'curve', weight: 1, curves: [1, 'x'], hills: [0] })),
+    ['track "changed".road.pieces[0].curves: must be a non-empty array of numbers']);
+  assert.deepStrictEqual(problemsOf(pieces({ kind: 'curveHill', weight: 1, curve: '6', hill: 30 })),
+    ['track "changed".road.pieces[0].curve: must be a number']);
+  assert.deepStrictEqual(problemsOf(pieces({ kind: 'straight', weight: 1, curves: [1] })), ['track "changed".road.pieces[0].curves: unknown key']);
+});
+test('validate reports a traffic mix that is empty or has a share that is not a positive whole number', () => {
+  assert.deepStrictEqual(problemsOf(t => { t.traffic.mix = {}; }), ['track "changed".traffic.mix: must be a non-empty object']);
+  for (const share of [1.5, -1, 0, 'x'])
+    assert.deepStrictEqual(problemsOf(t => { t.traffic.mix = { car: share }; }), ['track "changed".traffic.mix.car: must be a positive whole number']);
+});
+test('validate reports scenery that is empty, of an unknown kind or with a weight that is not above 0', () => {
+  assert.deepStrictEqual(problemsOf(t => { t.look.scenery = {}; }), ['track "changed".look.scenery: must be a non-empty object']);
+  assert.deepStrictEqual(problemsOf(t => { t.look.scenery = { plam: 4, tree: 1 }; }), ['track "changed".look.scenery.plam: unknown scenery kind']);
+  for (const w of [0, -2, '3'])
+    assert.deepStrictEqual(problemsOf(t => { t.look.scenery = { tree: w }; }), ['track "changed".look.scenery.tree: must be a number above 0']);
+});
+test('validate checks the road and traffic a track inherits from its style too', () => {
+  const RRR = fresh(); RRR.styles.get('plain').road.lengths = [];
+  assert.deepStrictEqual(RRR.validate(), ['track "fc-road".road.lengths: must be a non-empty array of numbers above 0']);
+});
+test('validate reports a manifest without one of its lists', () => {
+  for (const list of ['styles', 'cities', 'tracks']) {
+    const RRR = fresh(); delete RRR.manifest[list];
+    assert.deepStrictEqual(RRR.validate(), [`packs.js manifest: "${list}" must be a list of pack ids`]);
+    RRR.manifest[list] = 'x';
+    assert.deepStrictEqual(RRR.validate(), [`packs.js manifest: "${list}" must be a list of pack ids`]);
+  }
+});
+test('load writes the pack script tags only while the page is still being parsed', () => {
+  const RRR = fresh(), written = [], manifest = { styles: ['a'], cities: [], tracks: [] };
+  try {
+    globalThis.document = { readyState: 'loading', write: s => written.push(s) };
+    RRR.load(manifest);
+    assert.deepStrictEqual(written, ['<script src="styles/a.js"><\/script>']);
+    globalThis.document.readyState = 'complete';
+    RRR.load(manifest);
+    assert.strictEqual(written.length, 1);
+  } finally { delete globalThis.document; }
 });

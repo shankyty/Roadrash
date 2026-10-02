@@ -1,5 +1,5 @@
 'use strict';
-// Captures fingerprints of the 7 roads and their traffic from the game as it was before the track-pack
+// Captures fingerprints of the 7 roads and their traffic, for tours 0 and 1, from the game as it was before the track-pack
 // refactor (commit e274c43), by running the original functions cut out of that commit's web/game.js.
 // Line numbers are pinned to that commit, so they never go stale.
 //   node tests/golden/capture.js          writes classic-roads.json and legacy-data.json next to this file
@@ -31,8 +31,8 @@ const body = [
   'function legacyTraffic() {', lines(1995, 2024), 'return traffic; }',
   `return {
     TRACKS, THEMES, HAWKER_CALLS, CURSES, SONGS, BUS_LOOKS, BILLBOARDS,
-    build(i, in3D, sprites, themeSpritesFor) {
-      use3D = in3D; SP = sprites; round = 0;
+    build(i, in3D, sprites, themeSpritesFor, tour) {
+      use3D = in3D; SP = sprites; round = tour;
       track = TRACKS[i]; track.themeDef = THEMES[track.theme]; theme = track.themeDef;
       themeSprites = themeSpritesFor(theme);
       buildTrack(track);
@@ -48,10 +48,10 @@ const IDS = { marine: 'marine-drive', hyderabad: 'charminar-road', sealink: 'sea
 function capture() {
   const out = {};
   legacy.TRACKS.forEach((t, i) => {
-    for (const mode of ['3d', '2d']) {
+    for (const mode of ['3d', '2d']) for (const round of [0, 1]) { // tour 1 pins the seed + round * 1000 and seed + 99 + round terms
       const SP = stubSprites();
-      const { road, traffic } = legacy.build(i, mode === '3d', SP, th => stubThemeSprites(th.buildings.length, legacy.BILLBOARDS.length + th.ads.length));
-      out[`${IDS[t.theme]}/${mode}`] = fingerprint(road, traffic);
+      const { road, traffic } = legacy.build(i, mode === '3d', SP, th => stubThemeSprites(th.buildings.length, legacy.BILLBOARDS.length + th.ads.length), round);
+      out[`${IDS[t.theme]}/${mode}` + (round ? `/tour${round}` : '')] = fingerprint(road, traffic);
     }
   });
   return out;

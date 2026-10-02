@@ -70,7 +70,7 @@ The world is rendered in real 3D with [Three.js](https://threejs.org) (r149, bun
 - Traffic is audible: buses, trucks, cars and rival autos have their own engine sounds (positional, with Doppler) and honk like real Indian traffic, especially when you overtake them closely. Cows moo and dogs bark from where they are.
 - Stray dogs sleep in the middle of the road, trot across it, and chase your auto barking *"BHOW BHOW!"*. Roadside dogs often sprint alongside your auto for a while, sometimes in pairs. They always leap clear and never get hurt, but swerving around one costs you speed. Honk to wake them and send them off the road.
 - Autos only have three wheels, so taking a sharp turn at full speed makes you lean. If you stay in the red, you tip over.
-- Clear all 4 races to become **Auto King of India**. Each new tour after that is harder.
+- Clear all 7 races to become **Auto King of India**. Each new tour after that is harder.
 
 ## Tracks, cities and styles
 

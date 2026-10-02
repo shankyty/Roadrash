@@ -9,7 +9,7 @@ const blankContext = () => new Proxy({}, { get: (o, k) => (k in o ? o[k] : () =>
 const kit = () => {
   const noop = () => {};
   return { mk: (w, h) => ({ width: w, height: h, getContext: blankContext }), ell: noop, rr: noop, shade: c => c, lerp: (a, b, p) => a + (b - a) * p,
-    mulberry32: RRR.util.mulberry32, LAYER_W: 1920, litWindows: noop, fillerBlocks: noop, trees: noop, waterBand: noop, cutOut: noop, archPath: noop, onion: noop };
+    mulberry32: RRR.util.mulberry32, LAYER_W: 1920, litWindows: noop, fillerBlocks: noop, trees: noop, waterBand: noop, cutOut: (g, fn) => fn(), archPath: noop, onion: noop };
 };
 
 for (const id of RRR.manifest.cities) for (const layer of ['far', 'near']) {
