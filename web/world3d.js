@@ -312,7 +312,15 @@ vec3 nightLight(vec3 p) {
     else if (shape === 'hockey') { s.add(cylX(15, 640, c, 500)); s.add(rbox(44, 150, 40, c, 815, -58, 0, 16)); }
     else if (shape === 'umbrella') { s.add(cylX(8, 640, '#8d6e63', 480)); s.add(cylX(30, 430, c, 540)); s.add(rbox(26, 70, 26, '#8d6e63', 170, -30, 0, 10)); }
     else if (shape === 'cane') { s.add(cylX(11, 540, c, 450)); s.add(sph('#d4af37', 50, 50, 50, 185, 0, 0)); }
-    else if (shape === 'cloth') { s.add(rbox(620, 14, 84, c, 520, 0, 0, 6)); s.add(rbox(40, 16, 88, '#f5f5f5', 800, 0, 0, 6)); }
+    else if (shape === 'cloth') {
+      // a gamchha: a broad strip of cloth, hung face-on to the camera behind (edge-on it was a thin line), drooping
+      // towards its end, with the white bands of its check and a fringe
+      for (const [x, y, len, h, rz] of [[345, 0, 240, 100, 0], [565, -16, 240, 112, -0.13], [770, -52, 210, 122, -0.27]]) {
+        const seg = rbox(len, h, 12, c, x, y, 0, 6); seg.rotation.z = rz; s.add(seg);
+        const band = box(18, h + 2, 14, '#f5f5f5', x + len * 0.22, y - Math.sin(-rz) * len * 0.22, 0); band.rotation.z = rz; s.add(band);
+      }
+      const fringe = box(26, 128, 14, '#f5f5f5', 872, -80, 0); fringe.rotation.z = -0.27; s.add(fringe);
+    }
     else if (shape === 'shoe') { s.add(rbox(220, 64, 96, c, 320, 0, 0, 28)); s.add(sph(c, 70, 70, 60, 430, 26, 0)); }
     else if (shape === 'bag') { s.add(cylX(6, 200, '#555555', 320)); s.add(rbox(250, 180, 74, c, 530, 0, 0, 18)); }
     else if (shape === 'dandiya') for (const k of [-1, 1]) { const d = cylX(12, 360, c, 400, k * 26, 0); d.rotation.z += k * 0.07; s.add(d); s.add(cylX(13, 40, '#ffd21f', 330, k * 21, 0)); }

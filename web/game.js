@@ -78,7 +78,7 @@ function deviceSummary() {
 //   error/<kind>/<problem>/<OS-browser>
 // with the details needed to reproduce them in the title (version, game state, OS/browser versions,
 // screen, audio state, stack). Nothing personal is sent. Also logged to the console.
-const GAME_VERSION = '3.7.0';
+const GAME_VERSION = '3.7.1';
 // 3D quality tier: mobile browsers < laptop/desktop browsers < the Mac app. 'smooth' (phones and tablets,
 // when 3D is forced there with ?3d) keeps the frame rate up with fewer polygons and a lower resolution; 'high' for computer browsers; 'ultra'
 // in the Mac app (loaded from file://): finest models, detail kept farther away, full Retina resolution.
@@ -2634,8 +2634,9 @@ function drawAttack(x, y, w, h, atk, weapon) {
     ctx.fillStyle = '#d4af37'; ctx.beginPath(); ctx.arc(...at(-0.04), w * 0.022, 0, Math.PI * 2); ctx.fill();
   } else if (shape === 'cloth') { // a wet gamchha: it trails behind the hand, then cracks out straight
     const wob = (1 - ease) * w * 0.16 * side, [mx, my] = at(0.28), [ex, ey] = at(0.56);
-    ctx.strokeStyle = c; ctx.lineWidth = w * 0.045; ctx.beginPath(); ctx.moveTo(hx, hy); ctx.quadraticCurveTo(mx - nx * wob, my - ny * wob, ex, ey); ctx.stroke();
-    ctx.strokeStyle = '#fff'; ctx.lineWidth = w * 0.012; ctx.setLineDash([w * 0.03, w * 0.05]); ctx.beginPath(); ctx.moveTo(hx, hy); ctx.quadraticCurveTo(mx - nx * wob, my - ny * wob, ex, ey); ctx.stroke(); ctx.setLineDash([]);
+    ctx.lineCap = 'butt'; ctx.strokeStyle = c; ctx.lineWidth = w * 0.085; ctx.beginPath(); ctx.moveTo(hx, hy); ctx.quadraticCurveTo(mx - nx * wob, my - ny * wob, ex, ey); ctx.stroke();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = w * 0.085; ctx.setLineDash([w * 0.018, w * 0.11]); ctx.lineDashOffset = -w * 0.08; ctx.beginPath(); ctx.moveTo(hx, hy); ctx.quadraticCurveTo(mx - nx * wob, my - ny * wob, ex, ey); ctx.stroke(); ctx.setLineDash([]);
+    ctx.lineDashOffset = 0; ctx.lineCap = 'round';
     len = 0.56;
   } else if (shape === 'shoe') {
     line(...at(0.0), ...at(0.15), c, w * 0.07);

@@ -1,5 +1,9 @@
 # Changelog
 
+## v3.7.1: A gamchha you can see
+
+- **Bhola's gamchha is now clearly a cloth:** a broad red strip with white bands and a fringe that droops from his hand. In 3D it used to hang edge-on to the camera, so from behind it was a thin line that looked like nothing at all.
+
 ## v3.7.0: Pick your driver
 
 - **Race as any of the 13 drivers.** On the title screen, **↑** and **↓** (or W and S, GAS and BRAKE on a phone, or a tap on the driver row) step through the cast. You get that driver's auto, weapon, voice and curses in every race.
