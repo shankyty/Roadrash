@@ -1,5 +1,10 @@
 # Changelog
 
+## v3.5.2: The pink auto is Kokila-ben's
+
+- **Kokila-ben drives the pink auto:** pink body and hood, a perforated engine hatch on the back, corner tail lamps, and a blue visor with a tricolour stripe, modelled on photos of a real pink auto. Her plate is still her own Gujarat one.
+- **Nawab has his green, cream and yellow auto back,** with PEHLE AAP on the rear. v3.5.1 gave the pink auto to him by mistake.
+
 ## v3.5.1: Lucknow's pink auto
 
 - **Nawab drives a pink auto,** modelled on photos of a real Lucknow one: pink body and hood, a perforated engine hatch on the back in place of a slogan band, corner tail lamps, the plate low on the right with a tassel, and a blue canvas visor with a tricolour stripe.
