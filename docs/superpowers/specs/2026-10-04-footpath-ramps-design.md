@@ -1,7 +1,7 @@
 # Driveable footpaths and cart ramps: design
 
 Date: 2026-10-04
-Status: awaiting review
+Status: approved; revised after prototyping (see "Changes from prototyping")
 
 ## Goal
 
@@ -49,7 +49,8 @@ Every track gets a raised footpath on both sides that the auto can drive on. Cro
 
 - A driver with `daring` above 0 who is held up by traffic chooses between pulling out onto the oncoming side (today's behaviour) and mounting the footpath. The footpath is chosen with probability `0.5 × daring`.
 - On the footpath a rival pays the same kerb costs, lines up with each cart, jumps straight, and lands on the footpath.
-- A rival approaching a cart below the take-off speed drops back to the road before it.
+- A rival approaching a cart below the take-off speed drops back to the road before it. One that reaches a cart too slowly anyway is knocked out by it.
+- A rival only mounts the footpath when no cart is within 25 segments, so it has room to line up.
 - A rival leaves the footpath when there is room in the outer lane and it has been on the footpath at least 1.5 s, or after 8 s. The cooldown before the next attempt is the one used for pulling out.
 - A rival in the air cannot hit or be hit.
 - Drivers with `daring` 0 never leave the road.
@@ -73,7 +74,7 @@ Distances across the road are in road units (one lane is 0.6). `half` is a segme
 
 - The kerb line is at `half + 1/6`. The band between the lane edge and the kerb line counts as road when a footpath exists (no off-road slowdown).
 - `B` is the footpath's back edge, `half + 1/6 + width`.
-- Furniture offsets with a footpath, measured from `B`: lamp posts, signs, signals and milestones at `B + 0.1`; trees and palms from `B + 0.2` to `B + 0.45`; billboards and scenery chai stalls from `B + 0.15` to `B + 0.35`; building and temple fronts from `B + 0.45` to `B + 0.75`.
+- With a footpath, every piece of street furniture (lamp posts, signs, signals, milestones, trees, hoardings, scenery stalls, building and temple fronts) stands 0.7 road units further out than it does without one, which puts the nearest of them just behind `B`.
 - With `footpath: false` every offset is today's.
 - The raised height is visual only. Zones are decided by the sideways position.
 
@@ -82,7 +83,7 @@ Distances across the road are in road units (one lane is 0.6). `half` is a segme
 Placed per side by the footpath pass, with a generator seeded from the track seed and the tour number.
 
 - The first stall on a side is at least 150 segments after the start line. The gap to the next is drawn from `stallEvery`.
-- A stall is skipped if any segment from 12 before it to 4 after it is in a junction's clear zone or in a lane taper.
+- A stall is skipped unless the road is plain (no junction or its clear zone, no lane taper, not the start line) from 4 segments before its cart to 100 after it. That run-out is longer than the longest jump, so a straight jump at any speed comes down on the footpath.
 - The stall stands at the footpath's centre and covers its width.
 - The cart starts 8 segments before the stall and is 4 segments long (800 track units). It stands at the footpath's centre and is 0.4 wide.
 - Both are solid roadside objects. A stall is a `chai` sprite flagged as standing on the footpath, so its hawker calls out like any other stall's. A cart has the new kind `cart`.
@@ -118,7 +119,7 @@ scoring: { driftCashPer100: 20, passCash: 10, jumpCash: 15, flyoverCash: 40 },
 
 | Style | `stallEvery` |
 | --- | --- |
-| traffic | 100 to 200 |
+| traffic | 120 to 220 |
 | classic, drift | 150 to 300 |
 | speed | 250 to 450 |
 
@@ -134,10 +135,10 @@ Pure functions on `RRR.footpath`. No DOM, no game state.
 
 - `zoneAt(half, footpath, x)`: `'road'`, `'footpath'` or `'grass'`. With `footpath` false, the zones are today's: road up to `half`, grass beyond.
 - `kerbCrossing(half, footpath, xBefore, xAfter)`: `'climb'`, `'drop'` or `null`.
-- `linedUp(cartX, x)`: whether the auto is within the cart's take-off width.
-- `jump(speedShare, heading)`: `{ airTime, peak, sideways }`, where `sideways` is road units per second.
+- `takesOff(cartX, x, speedShare)`: whether the auto is within the cart's take-off width and fast enough.
+- `jump(speedShare)`: `{ airTime, peak }`. The game keeps the auto's heading frozen for the flight, so its sideways movement in the air is the same rule as on the ground.
 - `heightAt(jump, t)`: height above the road at time `t` into the flight.
-- `furnitureOffsets(footpath)`: the offset ranges for each kind of roadside object, with and without a footpath.
+- `furnitureShift(footpath)`: how far out street furniture moves (0 without a footpath).
 
 The constants for the jump (minimum speed, air-time terms, peak factor, landing loss, take-off width) live here.
 
@@ -222,3 +223,15 @@ By eye: both renderers at a cart and stall, and the Mac bundle loaded from `file
 6. README, changelog, release as the next minor version.
 
 Rivals are last so they can be held back without affecting the rest.
+
+## Changes from prototyping
+
+The feature was prototyped outside the repo before the plan was written. These points differ from the design as first approved:
+
+- **Run-out after a cart.** Flights are long (66 segments at 80 km/h, 97 at 100 km/h), and the footpath moves sideways where lanes taper. Stalls are now placed only where the road is plain for 100 segments past the cart, so a straight jump always lands on the footpath. This removes some stall positions; traffic tracks' spacing moved to 120 to 220 to keep the next cart clear of a landing.
+- **Full-width blocking.** With the roadside collision test used for trees and posts, an auto straddling the kerb slipped past a stall. Stalls and carts use their full width.
+- **Furniture moves by one amount** (0.7 road units) in place of per-kind ranges. It keeps today's layout, shifted out.
+- **Sideways flight comes from a frozen heading** in the game, not from a value the rules module returns.
+- **Rivals:** one that reaches a cart too slowly is knocked out; one only mounts the footpath when no cart is close.
+- **3D:** the footpath slopes down to road level in the segment next to a junction, and an auto's contact shadow stays on the ground while it is in the air.
+
