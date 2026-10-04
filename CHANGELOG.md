@@ -1,5 +1,15 @@
 # Changelog
 
+## v3.6.0: Seven rivals, and some of them use the wrong side
+
+- **Seven rivals in every race.** Marine Drive had five, and Charminar Road and the Sea Link six.
+- **Daring drivers overtake on the oncoming side:**
+  - Lallan, Murugan, Bunty, Ganpat and Banwari pull out across the centre line when traffic holds them up and the gap in what's coming looks big enough to them, then dive back in. It makes them much quicker through heavy traffic.
+  - The more daring the driver, the smaller the gap they take and the later they leave it. Sometimes they are boxed in and meet a bus head-on, which knocks them out for a few seconds.
+  - The other eight never cross the line. It is one number per driver, `style.daring`, in `web/drivers.js`.
+- **Kokila-ben's auto is pink all over,** like the real one: the hood is the same pink as the body, the blue visor is gone, and the seats are dark.
+- **New default sound levels** for new players: race, music and city noise at 30%, voices at 100%. Levels you have already set in the mixer are kept.
+
 ## v3.5.3: AAVJO is back
 
 - **Kokila-ben's pink auto says AAVJO again,** painted on the back above the engine hatch.
