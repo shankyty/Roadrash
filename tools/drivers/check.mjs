@@ -30,7 +30,9 @@ for (const d of drivers) {
   const l = d.look || {}, v = d.voice || {}, w = d.weapon || {}, s = d.style || {};
   for (const k of ['body', 'trim', 'canopy', 'shirt', 'headgearColor']) must(hex(l[k]), `look.${k} must be #rrggbb`);
   must(typeof l.plate === 'string' && l.plate.length <= 10, 'look.plate missing or over 10 characters');
-  must(typeof l.slogan === 'string' && l.slogan.length <= 24, 'look.slogan missing or over 24 characters');
+  must(typeof l.slogan === 'string' && l.slogan.length <= 24 && (l.slogan || l.rear === 'grille'), 'look.slogan missing or over 24 characters');
+  must(l.rear === undefined || ['slogan', 'grille'].includes(l.rear), 'look.rear must be slogan or grille');
+  must(l.visor === undefined || hex(l.visor), 'look.visor must be #rrggbb');
   must(HEADGEAR.includes(l.headgear), `look.headgear must be one of ${HEADGEAR}`);
   must(l.neon === null || hex(l.neon), 'look.neon must be #rrggbb or null');
   for (const k of ['lang', 'describe']) must(typeof v[k] === 'string' && v[k], `voice.${k} missing`);

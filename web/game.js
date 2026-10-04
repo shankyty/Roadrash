@@ -194,7 +194,7 @@ function driverProblem(d) {
   const hex = v => /^#[0-9a-f]{6}$/i.test(v || '');
   if (!d || typeof d.id !== 'string' || !d.name || !d.city) return 'no id, name or city';
   const l = d.look, w = d.weapon, st = d.style;
-  if (!l || !['body', 'trim', 'canopy', 'shirt'].every(k => hex(l[k])) || typeof l.plate !== 'string' || (l.neon && !hex(l.neon))) return 'bad look';
+  if (!l || !['body', 'trim', 'canopy', 'shirt'].every(k => hex(l[k])) || typeof l.plate !== 'string' || (l.neon && !hex(l.neon)) || (l.visor && !hex(l.visor))) return 'bad look';
   if (!w || !['swing', 'kick'].includes(w.kind) || !hex(w.color) || !num(w.power, 0.5, 2) || !num(w.reach, 0.5, 1.5) || !num(w.cooldown, 0.5, 2) || !Array.isArray(w.hitWords) || !w.hitWords.length) return 'bad weapon';
   if (!st || !num(st.pace, -0.1, 0.05) || !num(st.bends, 0, 0.5) || !num(st.aggression, 0, 2) || !num(st.chase, 100, 3000) || !span(st.weave, 0.5, 30) || !num(st.nerve, 0, 1) || !span(st.launch, 0, 2) || !num(st.grudge, 1, 5)) return 'bad style';
   if (!Array.isArray(d.curses) || !d.curses.every(c => c && typeof c.text === 'string') || !d.voice || typeof d.voice.rate !== 'number') return 'bad curses or voice';
@@ -895,7 +895,9 @@ function shade(hex, amt) {
 function flipped(src) { const c = mk(src.width, src.height), g = c.getContext('2d'); g.translate(src.width, 0); g.scale(-1, 1); g.drawImage(src, 0, 0); return c; }
 
 // Auto-rickshaw seen from behind.
-function makeTuk(body, trim, canopy, plate, slogan = 'HORN OK PLEASE') {
+// rear: 'slogan' (a band in the trim colour with a slogan, the plate in the middle) or 'grille' (the plain back of
+// a rear-engined auto: a perforated engine hatch, the plate low on the right with a tassel)
+function makeTuk(body, trim, canopy, plate, slogan = 'HORN OK PLEASE', rear = 'slogan') {
   const c = mk(240, 232), g = c.getContext('2d');
   g.fillStyle = 'rgba(0,0,0,.35)'; ell(g, 120, 218, 114, 11); g.fill();
   for (const wx of [30, 210]) {
@@ -926,17 +928,43 @@ function makeTuk(body, trim, canopy, plate, slogan = 'HORN OK PLEASE') {
   const sh = g.createLinearGradient(0, 112, 0, 190);
   sh.addColorStop(0, 'rgba(255,255,255,.28)'); sh.addColorStop(0.4, 'rgba(255,255,255,0)'); sh.addColorStop(1, 'rgba(0,0,0,.35)');
   lower(); g.fillStyle = sh; g.fill();
-  g.fillStyle = trim; g.fillRect(15, 121, 210, 16);
-  g.fillStyle = isLight(trim) ? '#111' : '#fff'; g.font = 'bold 11px Arial, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.fillText(slogan, 120, 129.5, 200);
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  if (rear === 'grille') {
+    // the hood's canvas is riveted down along the top of the tub
+    g.fillStyle = 'rgba(0,0,0,.28)'; for (let x = 24; x <= 216; x += 12) { g.beginPath(); g.arc(x, 117, 1.6, 0, Math.PI * 2); g.fill(); }
+    // engine hatch: a pressed panel with a perforated grille, a badge on it, and a second slot below
+    g.strokeStyle = 'rgba(0,0,0,.3)'; g.lineWidth = 2; rr(g, 58, 124, 124, 60, 5); g.stroke();
+    g.strokeStyle = 'rgba(255,255,255,.22)'; g.lineWidth = 1; rr(g, 60, 126, 120, 56, 4); g.stroke();
+    const holes = (x0, y0, w, h) => {
+      g.fillStyle = 'rgba(0,0,0,.16)'; rr(g, x0, y0, w, h, 5); g.fill();
+      g.fillStyle = 'rgba(0,0,0,.55)';
+      for (let y = y0 + 3, row = 0; y < y0 + h - 1; y += 3.5, row++) for (let x = x0 + 3 + (row % 2) * 1.75; x < x0 + w - 2; x += 3.5) { g.beginPath(); g.arc(x, y, 1, 0, Math.PI * 2); g.fill(); }
+    };
+    holes(70, 130, 100, 30); holes(80, 166, 80, 11);
+    g.fillStyle = '#cfd4d8'; rr(g, 108, 141, 24, 8, 3); g.fill();
+    g.fillStyle = 'rgba(160,20,30,.75)'; g.fillRect(60, 187, 120, 2);
+  } else {
+    g.fillStyle = trim; g.fillRect(15, 121, 210, 16);
+    g.fillStyle = isLight(trim) ? '#111' : '#fff'; g.font = 'bold 11px Arial, sans-serif';
+    g.fillText(slogan, 120, 129.5, 200);
+  }
   for (const tx of [22, 196]) {
     g.fillStyle = '#7a0000'; rr(g, tx, 142, 22, 26, 5); g.fill();
     g.fillStyle = '#ff2b2b'; rr(g, tx + 3, 145, 16, 20, 4); g.fill();
     g.fillStyle = 'rgba(255,255,255,.5)'; rr(g, tx + 5, 147, 6, 6, 2); g.fill();
   }
-  g.fillStyle = '#ffd400'; rr(g, 86, 148, 68, 24, 3); g.fill();
-  g.strokeStyle = '#111'; g.lineWidth = 1.5; rr(g, 86, 148, 68, 24, 3); g.stroke();
-  g.fillStyle = '#111'; g.font = 'bold 12px Arial, sans-serif'; g.fillText(plate, 120, 160.5);
+  if (rear === 'grille') {
+    g.fillStyle = 'rgba(255,255,255,.75)'; for (const tx of [22, 196]) { rr(g, tx + 3, 157, 16, 8, 3); g.fill(); }   // clear lower lens
+    g.fillStyle = '#ffd400'; rr(g, 184, 171, 40, 15, 2); g.fill();
+    g.strokeStyle = '#111'; g.lineWidth = 1; rr(g, 184, 171, 40, 15, 2); g.stroke();
+    g.fillStyle = '#111'; g.font = 'bold 7px Arial, sans-serif'; g.fillText(plate, 204, 179, 36);
+    g.strokeStyle = '#d8502f'; g.lineWidth = 1.5;                                                                     // a tassel under the plate
+    for (const dx of [-2, 0, 2]) { g.beginPath(); g.moveTo(204, 186); g.lineTo(204 + dx, 200); g.stroke(); }
+  } else {
+    g.fillStyle = '#ffd400'; rr(g, 86, 148, 68, 24, 3); g.fill();
+    g.strokeStyle = '#111'; g.lineWidth = 1.5; rr(g, 86, 148, 68, 24, 3); g.stroke();
+    g.fillStyle = '#111'; g.font = 'bold 12px Arial, sans-serif'; g.fillText(plate, 120, 160.5);
+  }
   g.fillStyle = '#9aa3a8'; rr(g, 28, 191, 184, 8, 4); g.fill();
   g.fillStyle = '#5a5a5a'; rr(g, 168, 198, 26, 8, 3); g.fill();
   // nimbu-mirchi charm
@@ -1410,7 +1438,7 @@ const SP = {};
 function buildSharedSprites() {
   SP.player = makeTuk('#1e9e4a', '#ffd21f', '#151515', 'DL 1R 4207');
   SP.rivalOf = {};
-  for (const d of DRIVERS) SP.rivalOf[d.id] = makeTuk(d.look.body, d.look.trim, d.look.canopy, d.look.plate, d.look.slogan);
+  for (const d of DRIVERS) SP.rivalOf[d.id] = makeTuk(d.look.body, d.look.trim, d.look.canopy, d.look.plate, d.look.slogan, d.look.rear);
   SP.rivals = DRIVERS.map(d => SP.rivalOf[d.id]);
   SP.cowR = makeCow(); SP.cowL = flipped(SP.cowR);
   SP.dogs = DOG_COATS.map(coat => {

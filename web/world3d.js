@@ -396,6 +396,12 @@ vec3 nightLight(vec3 p) {
     const drvZ = M ? -R + 300 : -R + 400;
     const drv = new T.Mesh(capsule(62, 60), lambert(shirt)); drv.position.set(0, 470 - lowY, drvZ); g.add(drv);
     const head = new T.Mesh(unitSphere, lambert('#8d5524')); head.scale.set(100, 115, 100); head.position.set(0, 620 - lowY, drvZ); g.add(head);
+    // a canvas visor strip across the front of the hood, with a tricolour stripe down the middle of it
+    if (look && look.visor) {
+      const vy = 812 - lowY, vz = -R + (M ? 215 : 150);
+      g.add(rbox(Wd * 1.07, 46, 170, look.visor, 0, vy, vz, 20));
+      if (look.visorFlag) [['#ff9933', -22], ['#ffffff', 0], ['#138808', 22]].forEach(([c, dx]) => g.add(box(20, 48, 174, c, 60 + dx, vy + 1, vz)));
+    }
     // what the driver wears on their head
     const hg = look && look.headgear, hc = look && look.headgearColor, hy = 620 - lowY;
     if (hg === 'turban' || hg === 'safa') {

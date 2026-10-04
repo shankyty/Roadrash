@@ -155,7 +155,8 @@ window.RRR_DRIVERS = [
   {
     "id": "nawab", "name": "NAWAB", "city": "lucknow", "cityName": "LUCKNOW",
     "tag": "Pehle aap: never strikes first, but never forgets who did",
-    "look": { "body": "#1e8e3e", "trim": "#f3e9d2", "canopy": "#f5c400", "plate": "UP 32 NW", "slogan": "PEHLE AAP",
+    "look": { "body": "#e8559b", "trim": "#e8559b", "canopy": "#e679ad", "plate": "UP 32 NW", "slogan": "",
+              "rear": "grille", "visor": "#1b3d9e", "visorFlag": true,
               "shirt": "#f3e9d2", "headgear": "cap", "headgearColor": "#f3e9d2", "neon": null },
     "voice": {"lang": "ur", "describe": "A male speaker with a deep voice speaks in a very loud, angry tone with a high pitch and a fast pace, shouting with great emotional depth. The speech is very expressive and animated.", "rate": 1.0},
     "curses": [
