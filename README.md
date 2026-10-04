@@ -103,7 +103,7 @@ The cast is one data file, `web/drivers.js`: 13 drivers, one per city. Each entr
 
 | Part | Holds |
 | --- | --- |
-| `look` | Body, trim and hood colours, number plate, rear slogan (or `rear: "grille"` for a plain back with an engine hatch), an optional `visor` strip, the driver's shirt and headgear, and a neon colour (shown on night tracks) |
+| `look` | Body, trim and hood colours, number plate, rear slogan, `rear: "grille"` for a back with an engine hatch (the slogan is painted above it), an optional `visor` strip, the driver's shirt and headgear, and a neon colour (shown on night tracks) |
 | `voice`, `curses` | How the voice is described to the speech model, and five curses: the bubble text and what is spoken, in native script |
 | `weapon` | A swing (bat, hockey stick, umbrella, cane, cloth, shoe, bag, dandiya, lathi, bare hand) or a kick, with its power, reach, cooldown, sound and hit words |
 | `style` | Pace, speed through bends, aggression, how far they chase you, lane changes, nerve in traffic, start reaction and grudge |

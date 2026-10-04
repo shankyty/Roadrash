@@ -1,5 +1,10 @@
 # Changelog
 
+## v3.5.3: AAVJO is back
+
+- **Kokila-ben's pink auto says AAVJO again,** painted on the back above the engine hatch.
+- **Any auto with the plain `rear: "grille"` back can carry a slogan** this way; leave `slogan` empty for none.
+
 ## v3.5.2: The pink auto is Kokila-ben's
 
 - **Kokila-ben drives the pink auto:** pink body and hood, a perforated engine hatch on the back, corner tail lamps, and a blue visor with a tricolour stripe, modelled on photos of a real pink auto. Her plate is still her own Gujarat one.

@@ -78,7 +78,7 @@ function deviceSummary() {
 //   error/<kind>/<problem>/<OS-browser>
 // with the details needed to reproduce them in the title (version, game state, OS/browser versions,
 // screen, audio state, stack). Nothing personal is sent. Also logged to the console.
-const GAME_VERSION = '3.5.2';
+const GAME_VERSION = '3.5.3';
 // 3D quality tier: mobile browsers < laptop/desktop browsers < the Mac app. 'smooth' (phones and tablets,
 // when 3D is forced there with ?3d) keeps the frame rate up with fewer polygons and a lower resolution; 'high' for computer browsers; 'ultra'
 // in the Mac app (loaded from file://): finest models, detail kept farther away, full Retina resolution.
@@ -895,8 +895,8 @@ function shade(hex, amt) {
 function flipped(src) { const c = mk(src.width, src.height), g = c.getContext('2d'); g.translate(src.width, 0); g.scale(-1, 1); g.drawImage(src, 0, 0); return c; }
 
 // Auto-rickshaw seen from behind.
-// rear: 'slogan' (a band in the trim colour with a slogan, the plate in the middle) or 'grille' (the plain back of
-// a rear-engined auto: a perforated engine hatch, the plate low on the right with a tassel)
+// rear: 'slogan' (a band in the trim colour with a slogan, the plate in the middle) or 'grille' (the back of a
+// rear-engined auto: a perforated engine hatch, any slogan painted above it, the plate low on the right with a tassel)
 function makeTuk(body, trim, canopy, plate, slogan = 'HORN OK PLEASE', rear = 'slogan') {
   const c = mk(240, 232), g = c.getContext('2d');
   g.fillStyle = 'rgba(0,0,0,.35)'; ell(g, 120, 218, 114, 11); g.fill();
@@ -932,16 +932,23 @@ function makeTuk(body, trim, canopy, plate, slogan = 'HORN OK PLEASE', rear = 's
   if (rear === 'grille') {
     // the hood's canvas is riveted down along the top of the tub
     g.fillStyle = 'rgba(0,0,0,.28)'; for (let x = 24; x <= 216; x += 12) { g.beginPath(); g.arc(x, 117, 1.6, 0, Math.PI * 2); g.fill(); }
+    // a slogan, if there is one, is painted straight onto the tub above the hatch, which sits a little lower for it
+    const dy = slogan ? 10 : 0;
+    if (slogan) {
+      g.font = 'bold 11px Arial, sans-serif';
+      g.fillStyle = 'rgba(0,0,0,.35)'; g.fillText(slogan, 120.8, 127.3, 190);
+      g.fillStyle = isLight(body) ? '#111' : '#fff'; g.fillText(slogan, 120, 126.5, 190);
+    }
     // engine hatch: a pressed panel with a perforated grille, a badge on it, and a second slot below
-    g.strokeStyle = 'rgba(0,0,0,.3)'; g.lineWidth = 2; rr(g, 58, 124, 124, 60, 5); g.stroke();
-    g.strokeStyle = 'rgba(255,255,255,.22)'; g.lineWidth = 1; rr(g, 60, 126, 120, 56, 4); g.stroke();
+    g.strokeStyle = 'rgba(0,0,0,.3)'; g.lineWidth = 2; rr(g, 58, 124 + dy, 124, 60 - dy, 5); g.stroke();
+    g.strokeStyle = 'rgba(255,255,255,.22)'; g.lineWidth = 1; rr(g, 60, 126 + dy, 120, 56 - dy, 4); g.stroke();
     const holes = (x0, y0, w, h) => {
       g.fillStyle = 'rgba(0,0,0,.16)'; rr(g, x0, y0, w, h, 5); g.fill();
       g.fillStyle = 'rgba(0,0,0,.55)';
       for (let y = y0 + 3, row = 0; y < y0 + h - 1; y += 3.5, row++) for (let x = x0 + 3 + (row % 2) * 1.75; x < x0 + w - 2; x += 3.5) { g.beginPath(); g.arc(x, y, 1, 0, Math.PI * 2); g.fill(); }
     };
-    holes(70, 130, 100, 30); holes(80, 166, 80, 11);
-    g.fillStyle = '#cfd4d8'; rr(g, 108, 141, 24, 8, 3); g.fill();
+    holes(70, 130 + dy, 100, 30 - dy * 0.6); holes(80, 166 + dy * 0.4, 80, 11);
+    g.fillStyle = '#cfd4d8'; rr(g, 108, 141 + dy * 0.7, 24, 8, 3); g.fill();
     g.fillStyle = 'rgba(160,20,30,.75)'; g.fillRect(60, 187, 120, 2);
   } else {
     g.fillStyle = trim; g.fillRect(15, 121, 210, 16);

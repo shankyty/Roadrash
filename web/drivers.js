@@ -206,7 +206,7 @@ window.RRR_DRIVERS = [
   {
     "id": "kokila", "name": "KOKILA-BEN", "city": "ahmedabad", "cityName": "AHMEDABAD",
     "tag": "No nonsense: scolds more than she swings, and never forgets a hit",
-    "look": { "body": "#e8559b", "trim": "#e8559b", "canopy": "#e679ad", "plate": "GJ 01 KB", "slogan": "",
+    "look": { "body": "#e8559b", "trim": "#e8559b", "canopy": "#e679ad", "plate": "GJ 01 KB", "slogan": "AAVJO",
               "rear": "grille", "visor": "#1b3d9e", "visorFlag": true,
               "shirt": "#c2185b", "headgear": "pallu", "headgearColor": "#d81b60", "neon": null },
     "voice": {"lang": "gu", "describe": "Neha speaks in a very loud, angry tone with a high pitch and a fast pace, shouting with great emotional depth. The speech is very expressive and animated.", "seed": 77, "rate": 1.0},
