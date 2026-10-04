@@ -171,6 +171,9 @@ You race as the driver of the track's city: their auto, voice, curses and weapon
 its cooldown as the length of your swing). Your rivals are a random draw from the other drivers, so the
 home driver is never a rival. The grid rule below ("always included") is superseded by this.
 
+Since v3.7.0 the player can pick any driver on the title screen (up / down, remembered). The track city's
+driver is the default until they pick, and is always one of the rivals when the player is someone else.
+
 ## Game changes (`web/game.js`, `web/world3d.js`, `web/index.html`)
 
 - **Loading.** `index.html` loads `drivers.js`. On start the game validates each entry (required fields,

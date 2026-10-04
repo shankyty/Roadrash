@@ -1,5 +1,12 @@
 # Changelog
 
+## v3.7.0: Pick your driver
+
+- **Race as any of the 13 drivers.** On the title screen, **↑** and **↓** (or W and S, GAS and BRAKE on a phone, or a tap on the driver row) step through the cast. You get that driver's auto, weapon, voice and curses in every race.
+- **Your pick is remembered** between sessions. Until you pick, you are the driver of the city you're racing in, as before.
+- **The home driver races against you** when you pick someone else: the track city's own driver is always one of your seven rivals.
+- The title screen shows who you are, with their auto, city, weapon and personality. The tip-over hint made way for it.
+
 ## v3.6.0: Seven rivals, and some of them use the wrong side
 
 - **Seven rivals in every race.** Marine Drive had five, and Charminar Road and the Sea Link six.

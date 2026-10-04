@@ -68,7 +68,7 @@ The world is rendered in real 3D with [Three.js](https://threejs.org) (r149, bun
 - The first across the line wins on every style. Each track also keeps your best time, best drift score, most close passes and wins, and the results screen marks a new best with a star.
 - Drifting and close passes pay a cash bonus on the results screen.
 - To drift: above about 25 km/h, hold a steer and pull the handbrake (**Space**), or tap the brake. On a phone, hold a steer button and tap the brake button. Keep steering to hold the slide; let go to straighten up. Only a slide into a bend scores and earns the exit boost.
-- There are 13 drivers, one per city (see **The drivers**). You race as the driver of the city you're in, against the others. A driver who takes a hit shouts back in their own language and their own voice, **spoken aloud** from where they are on the road: panned to their side, louder when close, with Doppler as you pass.
+- There are 13 drivers, one per city (see **The drivers**). You race as any one of them: pick with **↑** / **↓** on the title screen (remembered); until you pick, you are the driver of the city you're in. A driver who takes a hit shouts back in their own language and their own voice, **spoken aloud** from where they are on the road: panned to their side, louder when close, with Doppler as you pass.
 - Hawkers at chai stalls and shops call out as you pass, out loud and street-style: *"Vada paaav!"*, *"Bhel puri lelo!"*, *"Chai bole, chaaai!"*, *"Irani chaaai!"*, *"Golgappe, golgappe!"*, *"Sundal, sundaaal!"*.
 - Each city has its own background music, all original and generated live in the browser: filmi dholak (Mumbai), qawwali (Hyderabad), bhangra (Delhi) and kuthu with a nadaswaram-style reed (Chennai). Press **N** to turn it on or off.
 - Real street and market recordings play in the background of each city, louder where the road is lined with shops.
@@ -108,7 +108,7 @@ The cast is one data file, `web/drivers.js`: 13 drivers, one per city. Each entr
 | `weapon` | A swing (bat, hockey stick, umbrella, cane, cloth, shoe, bag, dandiya, lathi, bare hand) or a kick, with its power, reach, cooldown, sound and hit words |
 | `style` | Pace, speed through bends, aggression, how far they chase you, lane changes, nerve in traffic, start reaction, grudge, and `daring`: whether (and how recklessly) they overtake on the oncoming side |
 
-You drive as the driver of the track's city; your rivals are a random draw from the rest. `node tools/drivers/check.mjs --clips` checks the file and that every curse has a voice clip. The file is strict JSON after `window.RRR_DRIVERS =`, so the voice tools read it too.
+You drive as the driver you picked on the title screen (or, until you pick, the track city's own). Your seven rivals always include the track city's driver, unless that's you; the rest are a random draw. `node tools/drivers/check.mjs --clips` checks the file and that every curse has a voice clip. The file is strict JSON after `window.RRR_DRIVERS =`, so the voice tools read it too.
 
 To change a voice: `tools/voices/audition.py` makes candidate takes of each curse and an audition page (a copy is kept at `tools/voices/audition.html`). Pick by ear, save the page's picks to a file, then run `apply_picks.py` on it and `make_voices.py --rivals <driver ids>`.
 
