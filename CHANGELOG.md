@@ -1,5 +1,10 @@
 # Changelog
 
+## v3.5.1: Lucknow's pink auto
+
+- **Nawab drives a pink auto,** modelled on photos of a real Lucknow one: pink body and hood, a perforated engine hatch on the back in place of a slogan band, corner tail lamps, the plate low on the right with a tassel, and a blue canvas visor with a tricolour stripe.
+- **Two new look options for any driver** in `web/drivers.js`: `rear: "grille"` for the plain rear-engine back, and `visor` (with `visorFlag`) for a coloured visor strip.
+
 ## v3.5.0: Race styles
 
 - **Every race now has a style,** shown under its name on the title screen:
