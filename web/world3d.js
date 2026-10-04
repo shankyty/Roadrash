@@ -353,8 +353,9 @@ vec3 nightLight(vec3 p) {
     }
     // rear bench seat and backrest
     const lowY = M ? 50 : 0;                                         // the Blender body sits lower, like a real one
-    g.add(rbox(Wd * 0.84, 90, 230, '#2d4f8a', 0, 440 - lowY, R - 390, 25));
-    g.add(rbox(Wd * 0.84, 230, 60, '#2d4f8a', 0, 560 - lowY, R - 285, 22));
+    const seat = (look && look.seat) || '#2d4f8a';
+    g.add(rbox(Wd * 0.84, 90, 230, seat, 0, 440 - lowY, R - 390, 25));
+    g.add(rbox(Wd * 0.84, 230, 60, seat, 0, 560 - lowY, R - 285, 22));
     // front: narrow rounded nose down to the front wheel, mudguard, dashboard panel in the upper colour
     if (!M) {
     g.add(rbox(260, 300, 200, body, 0, 300, -R + 110, 70));

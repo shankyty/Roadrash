@@ -6,7 +6,7 @@ RRR.tracks.register({
   city: 'mumbai',
   style: 'drift',
   seed: 11, length: 2600, laps: 1,
-  rivals: { count: 5, skill: 0.86 },
+  rivals: { count: 7, skill: 0.86 },
   traffic: { count: 34, cows: 8, dogs: 14 },
   look: {
     sky: ['#2b1e5a', '#c2477a', '#ffae5a'], sun: '#ffe2a0', fog: '#c96a7a', sea: '#5a4f8a',

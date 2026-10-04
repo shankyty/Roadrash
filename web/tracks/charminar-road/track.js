@@ -6,7 +6,7 @@ RRR.tracks.register({
   city: 'hyderabad',
   style: 'classic',
   seed: 37, length: 2800, laps: 1,
-  rivals: { count: 6, skill: 0.88 },
+  rivals: { count: 7, skill: 0.88 },
   traffic: { count: 40, cows: 12, dogs: 18 },
   look: {
     sky: ['#3d2a5c', '#e0785a', '#ffc46b'], sun: '#fff0c0', fog: '#d98a6a', sea: '#5a6f96',

@@ -14,7 +14,7 @@ window.RRR_DRIVERS = [
     ],
     "weapon": { "kind": "swing", "shape": "bat", "color": "#d7b98a", "power": 1.3, "reach": 1.05, "cooldown": 1.3, "sound": "wood",
                 "hitWords": ["SIXER!", "DHISHOOM!"] },
-    "style": { "pace": -0.02, "bends": 0.20, "aggression": 0.9, "chase": 900, "weave": [1.5, 4], "nerve": 0.9, "launch": [0.1, 0.35], "grudge": 1 }
+    "style": { "pace": -0.02, "bends": 0.20, "aggression": 0.9, "chase": 900, "weave": [1.5, 4], "nerve": 0.9, "launch": [0.1, 0.35], "grudge": 1, "daring": 0.6 }
   },
   {
     "id": "bunty", "name": "BUNTY", "city": "delhi", "cityName": "DELHI",
@@ -31,7 +31,7 @@ window.RRR_DRIVERS = [
     ],
     "weapon": { "kind": "kick", "color": "#2f3542", "power": 1.1, "reach": 0.8, "cooldown": 1.0, "sound": "thud",
                 "hitWords": ["LAAT!", "DHAM!"] },
-    "style": { "pace": 0.01, "bends": 0.30, "aggression": 1.3, "chase": 1300, "weave": [3, 7], "nerve": 0.6, "launch": [0.1, 0.4], "grudge": 1.3 }
+    "style": { "pace": 0.01, "bends": 0.30, "aggression": 1.3, "chase": 1300, "weave": [3, 7], "nerve": 0.6, "launch": [0.1, 0.4], "grudge": 1.3, "daring": 0.7 }
   },
   {
     "id": "saleem", "name": "SALEEM", "city": "hyderabad", "cityName": "HYDERABAD",
@@ -48,7 +48,7 @@ window.RRR_DRIVERS = [
     ],
     "weapon": { "kind": "swing", "shape": "hand", "color": "#8d5524", "power": 0.8, "reach": 0.8, "cooldown": 0.8, "sound": "slap",
                 "hitWords": ["JHAAPAD!", "CHATAAK!"] },
-    "style": { "pace": -0.03, "bends": 0.22, "aggression": 0.5, "chase": 700, "weave": [5, 10], "nerve": 0.4, "launch": [0.45, 0.6], "grudge": 2.2 }
+    "style": { "pace": -0.03, "bends": 0.22, "aggression": 0.5, "chase": 700, "weave": [5, 10], "nerve": 0.4, "launch": [0.45, 0.6], "grudge": 2.2, "daring": 0 }
   },
   {
     "id": "murugan", "name": "MURUGAN", "city": "chennai", "cityName": "CHENNAI",
@@ -65,7 +65,7 @@ window.RRR_DRIVERS = [
     ],
     "weapon": { "kind": "kick", "color": "#4e4a3a", "power": 1.25, "reach": 0.8, "cooldown": 1.2, "sound": "thud",
                 "hitWords": ["KICK-U!", "DISHUM!"] },
-    "style": { "pace": 0.02, "bends": 0.18, "aggression": 0.5, "chase": 600, "weave": [3, 7], "nerve": 1.0, "launch": [0.1, 0.3], "grudge": 1 }
+    "style": { "pace": 0.02, "bends": 0.18, "aggression": 0.5, "chase": 600, "weave": [3, 7], "nerve": 1.0, "launch": [0.1, 0.3], "grudge": 1, "daring": 0.9 }
   },
   {
     "id": "bablu", "name": "BABLU-DA", "city": "kolkata", "cityName": "KOLKATA",
@@ -82,7 +82,7 @@ window.RRR_DRIVERS = [
     ],
     "weapon": { "kind": "swing", "shape": "umbrella", "color": "#1a1a1a", "power": 0.9, "reach": 1.1, "cooldown": 1.0, "sound": "thud",
                 "hitWords": ["CHHATA!", "DHOPAASH!"] },
-    "style": { "pace": -0.04, "bends": 0.20, "aggression": 0.4, "chase": 600, "weave": [6, 12], "nerve": 0.2, "launch": [0.2, 0.45], "grudge": 1.2 }
+    "style": { "pace": -0.04, "bends": 0.20, "aggression": 0.4, "chase": 600, "weave": [6, 12], "nerve": 0.2, "launch": [0.2, 0.45], "grudge": 1.2, "daring": 0 }
   },
   {
     "id": "jassi", "name": "JASSI", "city": "chandigarh", "cityName": "CHANDIGARH",
@@ -99,7 +99,7 @@ window.RRR_DRIVERS = [
     ],
     "weapon": { "kind": "swing", "shape": "hockey", "color": "#c8a165", "power": 1.4, "reach": 1.15, "cooldown": 1.3, "sound": "wood",
                 "hitWords": ["HOCKEY!", "CHAK DE!"] },
-    "style": { "pace": 0.02, "bends": 0.32, "aggression": 1.0, "chase": 900, "weave": [4, 8], "nerve": 0.5, "launch": [0.1, 0.3], "grudge": 1 }
+    "style": { "pace": 0.02, "bends": 0.32, "aggression": 1.0, "chase": 900, "weave": [4, 8], "nerve": 0.5, "launch": [0.1, 0.3], "grudge": 1, "daring": 0 }
   },
   {
     "id": "jintu", "name": "JINTU", "city": "guwahati", "cityName": "GUWAHATI",
@@ -116,7 +116,7 @@ window.RRR_DRIVERS = [
     ],
     "weapon": { "kind": "kick", "color": "#263238", "power": 1.2, "reach": 0.85, "cooldown": 1.1, "sound": "thud",
                 "hitWords": ["GOAL!", "DHAM!"] },
-    "style": { "pace": -0.03, "bends": 0.12, "aggression": 0.6, "chase": 700, "weave": [4, 8], "nerve": 0.6, "launch": [0.15, 0.4], "grudge": 1 }
+    "style": { "pace": -0.03, "bends": 0.12, "aggression": 0.6, "chase": 700, "weave": [4, 8], "nerve": 0.6, "launch": [0.15, 0.4], "grudge": 1, "daring": 0 }
   },
   {
     "id": "banwari", "name": "BANWARI", "city": "jaipur", "cityName": "JAIPUR",
@@ -133,7 +133,7 @@ window.RRR_DRIVERS = [
     ],
     "weapon": { "kind": "swing", "shape": "shoe", "color": "#b5651d", "power": 0.8, "reach": 0.85, "cooldown": 0.8, "sound": "slap",
                 "hitWords": ["JOOTI!", "PATAAK!"] },
-    "style": { "pace": -0.03, "bends": 0.26, "aggression": 0.9, "chase": 900, "weave": [1.5, 4], "nerve": 0.7, "launch": [0.05, 0.5], "grudge": 1.2 }
+    "style": { "pace": -0.03, "bends": 0.26, "aggression": 0.9, "chase": 900, "weave": [1.5, 4], "nerve": 0.7, "launch": [0.05, 0.5], "grudge": 1.2, "daring": 0.5 }
   },
   {
     "id": "manju", "name": "MANJU", "city": "bengaluru", "cityName": "BENGALURU",
@@ -150,7 +150,7 @@ window.RRR_DRIVERS = [
     ],
     "weapon": { "kind": "swing", "shape": "bag", "color": "#2b2b2b", "power": 1.1, "reach": 0.9, "cooldown": 1.2, "sound": "thud",
                 "hitWords": ["THUD!", "DHAM!"] },
-    "style": { "pace": -0.02, "bends": 0.18, "aggression": 0.6, "chase": 700, "weave": [5, 10], "nerve": 0.1, "launch": [0.05, 0.15], "grudge": 1 }
+    "style": { "pace": -0.02, "bends": 0.18, "aggression": 0.6, "chase": 700, "weave": [5, 10], "nerve": 0.1, "launch": [0.05, 0.15], "grudge": 1, "daring": 0 }
   },
   {
     "id": "nawab", "name": "NAWAB", "city": "lucknow", "cityName": "LUCKNOW",
@@ -167,7 +167,7 @@ window.RRR_DRIVERS = [
     ],
     "weapon": { "kind": "swing", "shape": "cane", "color": "#5d4037", "power": 0.9, "reach": 1.1, "cooldown": 0.9, "sound": "wood",
                 "hitWords": ["CHHADI!", "SATAAK!"] },
-    "style": { "pace": -0.03, "bends": 0.20, "aggression": 0, "chase": 800, "weave": [5, 10], "nerve": 0.4, "launch": [0.2, 0.45], "grudge": 2.5 }
+    "style": { "pace": -0.03, "bends": 0.20, "aggression": 0, "chase": 800, "weave": [5, 10], "nerve": 0.4, "launch": [0.2, 0.45], "grudge": 2.5, "daring": 0 }
   },
   {
     "id": "bhola", "name": "BHOLA", "city": "varanasi", "cityName": "VARANASI",
@@ -184,7 +184,7 @@ window.RRR_DRIVERS = [
     ],
     "weapon": { "kind": "swing", "shape": "cloth", "color": "#c62828", "power": 0.7, "reach": 1.2, "cooldown": 0.7, "sound": "slap",
                 "hitWords": ["SATAAK!", "CHATAAK!"] },
-    "style": { "pace": -0.05, "bends": 0.16, "aggression": 1.3, "chase": 500, "weave": [6, 12], "nerve": 0.5, "launch": [0.3, 0.55], "grudge": 1.5 }
+    "style": { "pace": -0.05, "bends": 0.16, "aggression": 1.3, "chase": 500, "weave": [6, 12], "nerve": 0.5, "launch": [0.3, 0.55], "grudge": 1.5, "daring": 0 }
   },
   {
     "id": "lallan", "name": "LALLAN", "city": "patna", "cityName": "PATNA",
@@ -201,13 +201,13 @@ window.RRR_DRIVERS = [
     ],
     "weapon": { "kind": "swing", "shape": "lathi", "color": "#a87b3f", "power": 1.15, "reach": 1.2, "cooldown": 1.2, "sound": "wood",
                 "hitWords": ["LATTH!", "DHISHOOM!"] },
-    "style": { "pace": -0.03, "bends": 0.24, "aggression": 1.2, "chase": 1100, "weave": [3, 7], "nerve": 1.0, "launch": [0.15, 0.4], "grudge": 1.5 }
+    "style": { "pace": -0.03, "bends": 0.24, "aggression": 1.2, "chase": 1100, "weave": [3, 7], "nerve": 1.0, "launch": [0.15, 0.4], "grudge": 1.5, "daring": 1.0 }
   },
   {
     "id": "kokila", "name": "KOKILA-BEN", "city": "ahmedabad", "cityName": "AHMEDABAD",
     "tag": "No nonsense: scolds more than she swings, and never forgets a hit",
-    "look": { "body": "#e8559b", "trim": "#e8559b", "canopy": "#e679ad", "plate": "GJ 01 KB", "slogan": "AAVJO",
-              "rear": "grille", "visor": "#1b3d9e", "visorFlag": true,
+    "look": { "body": "#e8559b", "trim": "#e8559b", "canopy": "#e8559b", "plate": "GJ 01 KB", "slogan": "AAVJO",
+              "rear": "grille", "seat": "#2a2a2e",
               "shirt": "#c2185b", "headgear": "pallu", "headgearColor": "#d81b60", "neon": null },
     "voice": {"lang": "gu", "describe": "Neha speaks in a very loud, angry tone with a high pitch and a fast pace, shouting with great emotional depth. The speech is very expressive and animated.", "seed": 77, "rate": 1.0},
     "curses": [
@@ -219,6 +219,6 @@ window.RRR_DRIVERS = [
     ],
     "weapon": { "kind": "swing", "shape": "dandiya", "color": "#e53935", "power": 0.75, "reach": 0.9, "cooldown": 0.7, "sound": "wood",
                 "hitWords": ["DANDIYA!", "THAK THAK!"] },
-    "style": { "pace": 0.0, "bends": 0.14, "aggression": 0.5, "chase": 600, "weave": [5, 10], "nerve": 0.5, "launch": [0.1, 0.25], "grudge": 2.0 }
+    "style": { "pace": 0.0, "bends": 0.14, "aggression": 0.5, "chase": 600, "weave": [5, 10], "nerve": 0.5, "launch": [0.1, 0.25], "grudge": 2.0, "daring": 0 }
   }
 ];

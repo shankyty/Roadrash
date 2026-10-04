@@ -187,16 +187,16 @@ const PLAIN_DRIVER = { id: 'plain', name: 'RAJU', city: '', cityName: '', tag: '
   look: { body: '#d7263d', trim: '#ffd166', canopy: '#141414', plate: 'UP 32 BT', slogan: 'HORN OK PLEASE', shirt: '#3949ab', headgear: 'none', headgearColor: '#000000', neon: null },
   voice: { lang: 'hi', describe: '', rate: 1 }, curses: [],
   weapon: { kind: 'swing', shape: 'lathi', color: '#c8a165', power: 1, reach: 1, cooldown: 1, sound: 'wood', hitWords: HIT_WORDS },
-  style: { pace: -0.02, bends: 0.22, aggression: 0.9, chase: 900, weave: [3, 8], nerve: 0.5, launch: [0.05, 0.5], grudge: 1 } };
+  style: { pace: -0.02, bends: 0.22, aggression: 0.9, chase: 900, weave: [3, 8], nerve: 0.5, launch: [0.05, 0.5], grudge: 1, daring: 0 } };
 const LATHI = PLAIN_DRIVER.weapon; // what you swing in a city that has no driver of its own
 function driverProblem(d) {
   const num = (v, lo, hi) => typeof v === 'number' && v >= lo && v <= hi, span = (v, lo, hi) => Array.isArray(v) && v.length === 2 && num(v[0], lo, hi) && num(v[1], v[0], hi);
   const hex = v => /^#[0-9a-f]{6}$/i.test(v || '');
   if (!d || typeof d.id !== 'string' || !d.name || !d.city) return 'no id, name or city';
   const l = d.look, w = d.weapon, st = d.style;
-  if (!l || !['body', 'trim', 'canopy', 'shirt'].every(k => hex(l[k])) || typeof l.plate !== 'string' || (l.neon && !hex(l.neon)) || (l.visor && !hex(l.visor))) return 'bad look';
+  if (!l || !['body', 'trim', 'canopy', 'shirt'].every(k => hex(l[k])) || typeof l.plate !== 'string' || (l.neon && !hex(l.neon)) || (l.visor && !hex(l.visor)) || (l.seat && !hex(l.seat))) return 'bad look';
   if (!w || !['swing', 'kick'].includes(w.kind) || !hex(w.color) || !num(w.power, 0.5, 2) || !num(w.reach, 0.5, 1.5) || !num(w.cooldown, 0.5, 2) || !Array.isArray(w.hitWords) || !w.hitWords.length) return 'bad weapon';
-  if (!st || !num(st.pace, -0.1, 0.05) || !num(st.bends, 0, 0.5) || !num(st.aggression, 0, 2) || !num(st.chase, 100, 3000) || !span(st.weave, 0.5, 30) || !num(st.nerve, 0, 1) || !span(st.launch, 0, 2) || !num(st.grudge, 1, 5)) return 'bad style';
+  if (!st || !num(st.pace, -0.1, 0.05) || !num(st.bends, 0, 0.5) || !num(st.aggression, 0, 2) || !num(st.chase, 100, 3000) || !span(st.weave, 0.5, 30) || !num(st.nerve, 0, 1) || !span(st.launch, 0, 2) || !num(st.grudge, 1, 5) || (st.daring !== undefined && !num(st.daring, 0, 1))) return 'bad style';
   if (!Array.isArray(d.curses) || !d.curses.every(c => c && typeof c.text === 'string') || !d.voice || typeof d.voice.rate !== 'number') return 'bad curses or voice';
   return null;
 }
@@ -223,7 +223,7 @@ const rivalLabel = r => r.driver && r.driver.cityName ? `${r.name} · ${r.driver
 // ------------------------------------------------------------------ audio
 // iOS: play as media so the silent switch doesn't mute the game (Safari 17+)
 try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) { /* older iOS */ }
-const VOL_DEFAULTS = { master: 1, race: 0.35, voices: 0.7, music: 0.4, city: 0.7 };
+const VOL_DEFAULTS = { master: 1, race: 0.3, voices: 1, music: 0.3, city: 0.3 };
 const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
 // Auto-rickshaw engine: single-cylinder two-stroke. Each firing is a pop that rings an exhaust
 // resonance and a tinny body rattle; off-throttle it misfires ("ring-ding-ding").
@@ -1551,7 +1551,7 @@ function setupRace() {
     rivals.push({ name: d.name, driver: d, style: st, weapon: d.weapon, color: d.look.body, palette: d.look, img: SP.rivalOf[d.id], nw: TUK_NW,
       x: slots[i].x, dist: rowZ(slots[i].row) + shiftZ, speed: 0,
       top: MAX_SPEED * def.handling.topSpeed * clamp(def.rivals.skill * diff + st.pace + rand(-0.01, 0.01), 0.7, 1.02),
-      health: 100, ko: 0, koBy: null, rot: 0, atk: null, cd: rand(1, 3), grudgeT: 0, laneX: laneX(1, Math.floor(Math.random() * 2)),
+      health: 100, ko: 0, koBy: null, rot: 0, atk: null, cd: rand(1, 3), grudgeT: 0, out: false, outT: 0, outCd: rand(2, 5), laneX: laneX(1, Math.floor(Math.random() * 2)),
       laneT: rand(st.weave[0], st.weave[1]), delay: rand(st.launch[0], st.launch[1]), finished: false, time: 0, hurt: 0, scr: null, isRival: true });
     ri++;
   }
@@ -1964,6 +1964,7 @@ function updateClosePasses(dt) {
   }
 }
 
+const WRONG_SIDE_X = laneX(-1, 0), PASS_TIME = 2.2; // the oncoming lane by the centre line; seconds a pass takes
 function updateRivals(dt) {
   for (const r of rivals) {
     const seg = findSegment(r.dist);
@@ -1974,6 +1975,7 @@ function updateRivals(dt) {
     if (r.ko > 0) {
       r.ko -= dt; r.speed = Math.max(0, r.speed - r.speed * 3 * dt - 2000 * dt);
       r.rot = lerp(r.rot, (r.koDir || 1) * 1.45, Math.min(1, dt * 7));
+      if (r.x > -0.2) r.x = lerp(r.x, -0.2, Math.min(1, dt * 2)); // a wreck on the wrong side skids back towards its own
       if (r.ko <= 0) { r.health = 55; r.rot = 0; r.x = clamp(r.x, -halfAt(r.dist) + 0.3, -0.3); }
       r.dist += r.speed * dt; continue;
     }
@@ -1983,21 +1985,41 @@ function updateRivals(dt) {
     if (dz < -2500) target *= 1.1; else if (dz > 6000) target *= 0.92;
     const engaged = !r.finished && !player.finished && player.crash <= 0 && Math.abs(dz) < st.chase;
     if (engaged) target = clamp(player.speed + (dz < 0 ? 700 : -250), MAX_SPEED * 0.3, r.top * 1.03);
+    if (r.out) target = Math.max(target, r.top * 1.03); // out on the wrong side: flat out, to get it over with
     if (r.finished) target = MAX_SPEED * 0.35;
     r.speed += clamp(target - r.speed, -MAX_SPEED * 0.6 * dt, MAX_SPEED / 5 * dt);
 
     // steering: avoid traffic, otherwise chase player or keep lane
     let tx = r.laneX;
     r.laneT -= dt; if (r.laneT <= 0) { r.laneT = rand(st.weave[0], st.weave[1]); r.laneX = laneX(1, Math.floor(Math.random() * seg.lanes)); }
-    const rMin = -seg.half + 0.2, rMax = -0.15; // rivals stay on our side of the centre line
+    const rMin = -seg.half + 0.2; let rMax = -0.15; // rivals keep to our side of the centre line (the daring: see below)
     if (engaged) tx = player.x + (r.x >= player.x ? 1 : -1) * 0.4;
-    let nearest = null, nd = 1800;
+    let nearest = null, nd = 1800, meet = 1e9, roomBack = true;
     for (const c of traffic) {
-      if (c.dir === -1) continue; // oncoming: on the other side
       const reach = use3D ? (c.len || 0) / 2 + TUK_LEN / 2 : 0, gapZ = wrapDelta(c.z - r.dist) - reach; // bumper-to-bumper gap
+      if (c.dir === -1) { // oncoming: seconds until the nearest one in the lane by the centre line reaches us
+        if (gapZ > -2 * reach - 200 && Math.abs(c.x - WRONG_SIDE_X) < (r.nw + c.nw) / 2 + 0.12) meet = Math.min(meet, Math.max(0, gapZ) / (r.speed + c.speed + 1));
+        continue;
+      }
       if (gapZ > -2 * reach && gapZ < nd && Math.abs(c.x - r.x) < (r.nw + c.nw) / 2 + 0.1) { nearest = c; nd = gapZ; }
+      // anything alongside or just ahead in our inner lane: no room to pull back in yet
+      if (gapZ > -2 * reach - 300 && gapZ < 500 && c.x + (r.nw + c.nw) / 2 + 0.05 > laneX(1, 0)) roomBack = false;
     }
-    if (nearest) {
+    // A daring driver held up by traffic pulls out onto the oncoming side to get past, if the gap in what's coming
+    // looks big enough to them (the more daring, the smaller the gap they'll take). They dive back once there's
+    // room, or when something is nearly on them. They don't always make it.
+    const daring = st.daring || 0;
+    r.outCd -= dt;
+    if (r.out) {
+      r.outT += dt;
+      const coming = meet < lerp(1.0, 0.4, daring); // the more daring leave it later
+      if (roomBack && (r.outT > 0.6 || coming) || r.outT > 7 || r.finished) { r.out = false; r.outCd = rand(1.5, 4); r.laneX = laneX(1, 0); }
+      else if (coming) r.speed = Math.max(0, r.speed - MAX_SPEED * 0.9 * dt); // boxed in with something coming: stand on the brakes and hope
+    } else if (daring > 0 && nearest && nd < 800 && r.outCd <= 0 && !r.finished && r.speed > MAX_SPEED * 0.25) {
+      if (meet > PASS_TIME * lerp(1.5, 0.6, daring)) { r.out = true; r.outT = 0; } else r.outCd = 0.5; // not now: look again in a moment
+    }
+    if (r.out) { tx = WRONG_SIDE_X; rMax = WRONG_SIDE_X; }
+    else if (nearest) {
       const gap = (r.nw + nearest.nw) / 2 + lerp(0.22, 0.1, st.nerve); // the nervier, the closer they shave it
       let side = r.x >= nearest.x ? 1 : -1;
       const nx = nearest.x + side * gap; if (nx < rMin || nx > rMax) side = -side;
@@ -2007,6 +2029,16 @@ function updateRivals(dt) {
     tx = clamp(tx, rMin, rMax);
     r.x += clamp(tx - r.x, -1.3 * dt, 1.3 * dt);
     r.dist += r.speed * dt;
+    if (r.x > -0.1) { // on or over the centre line, oncoming traffic is solid: a head-on knocks them out
+      for (const c of traffic) {
+        if (c.dir !== -1) continue;
+        const reach = use3D ? ((c.len || 0) + TUK_LEN) / 2 : 230;
+        if (Math.abs(wrapDelta(c.z - r.dist)) >= reach || Math.abs(c.x - r.x) >= (r.nw + c.nw) / 2 * 0.9) continue;
+        r.ko = 3; r.koBy = 'traffic'; r.koDir = r.x >= c.x ? 1 : -1; r.speed *= 0.1; r.out = false; r.outCd = rand(4, 8); c.speed = 0; r.headOns = (r.headOns || 0) + 1;
+        if (Math.abs(dz) < 3500) { Sfx.crash(); curse(r); }
+        break;
+      }
+    }
 
     if (engaged && !r.atk) {
       r.cd -= dt;

@@ -33,6 +33,7 @@ for (const d of drivers) {
   must(typeof l.slogan === 'string' && l.slogan.length <= 24 && (l.slogan || l.rear === 'grille'), 'look.slogan missing or over 24 characters');
   must(l.rear === undefined || ['slogan', 'grille'].includes(l.rear), 'look.rear must be slogan or grille');
   must(l.visor === undefined || hex(l.visor), 'look.visor must be #rrggbb');
+  must(l.seat === undefined || hex(l.seat), 'look.seat must be #rrggbb');
   must(HEADGEAR.includes(l.headgear), `look.headgear must be one of ${HEADGEAR}`);
   must(l.neon === null || hex(l.neon), 'look.neon must be #rrggbb or null');
   for (const k of ['lang', 'describe']) must(typeof v[k] === 'string' && v[k], `voice.${k} missing`);
@@ -56,6 +57,7 @@ for (const d of drivers) {
   must(within(s.nerve, 0, 1), 'style.nerve must be 0 to 1');
   must(pair(s.launch, 0.05, 0.6), 'style.launch must be [min, max] within 0.05 to 0.6');
   must(within(s.grudge, 1, 2.5), 'style.grudge must be 1 to 2.5');
+  must(within(s.daring, 0, 1), 'style.daring must be 0 to 1');
 }
 
 const dup = key => drivers.map(d => d[key]).filter((v, i, a) => a.indexOf(v) !== i);

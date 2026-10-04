@@ -6,7 +6,7 @@ RRR.tracks.register({
   city: 'mumbai',
   style: 'speed',
   seed: 27, length: 3000, laps: 1,
-  rivals: { count: 6, skill: 0.9 },
+  rivals: { count: 7, skill: 0.9 },
   traffic: { count: 46, cows: 0, dogs: 0 },
   ambience: false,                        // no street recording out here
   look: {

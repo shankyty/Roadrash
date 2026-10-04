@@ -8,6 +8,9 @@ const legacy = require('./golden/legacy-data.json');
 test('every shipped pack validates', () => {
   assert.deepStrictEqual(RRR.validate(), []);
 });
+test('every race has seven rivals', () => {
+  for (const id of RRR.order()) assert.strictEqual(RRR.tracks.get(id).rivals.count, 7, id);
+});
 test('race order is unchanged', () => {
   assert.deepStrictEqual(RRR.order(), legacy.TRACKS.map(t => legacy.IDS[t.theme]));
 });
@@ -17,8 +20,9 @@ for (const old of legacy.TRACKS) {
     const t = RRR.tracks.get(id), { city, ads, ambience, ...look } = legacy.THEMES[old.theme];
     assert.strictEqual(t.name, old.name);
     assert.strictEqual(t.city, city);
-    assert.deepStrictEqual([t.seed, t.length, t.laps, t.rivals.count, t.rivals.skill, t.traffic.count, t.traffic.cows, t.traffic.dogs],
-      [old.seed, old.length, old.laps, old.rivals, old.skill, old.traffic, old.cows, old.dogs]);
+    // (rivals.count is not compared: since v3.6.0 every race has seven rivals, see below)
+    assert.deepStrictEqual([t.seed, t.length, t.laps, t.rivals.skill, t.traffic.count, t.traffic.cows, t.traffic.dogs],
+      [old.seed, old.length, old.laps, old.skill, old.traffic, old.cows, old.dogs]);
     assert.deepStrictEqual(t.look, look);
     assert.strictEqual(t.ambience, ambience);
     assert.deepStrictEqual(RRR.cities.get(city).ads, ads);
