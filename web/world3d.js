@@ -445,7 +445,7 @@ vec3 nightLight(vec3 p) {
       armPivot.add(weaponMesh(weapon));
     }
     arm.add(armPivot); arm.visible = false;
-    g.userData.arm = arm; g.userData.armPivot = armPivot; g.userData.kick = kick; g.add(arm);
+    g.userData.arm = arm; g.userData.armPivot = armPivot; g.userData.armX = armPivot.position.x; g.userData.weapon = weapon; g.add(arm);
     // neon strip lights (a decked-out auto, on a night track): along the foot of the tub, round the edge of the
     // hood, and their glow on the road
     if (look && look.neon && theme && theme.night) {
@@ -1963,7 +1963,7 @@ vec3 nightLight(vec3 p) {
   function rivalPreview(arg) {
     const [id, hit] = (arg || '').split('/'), d = (cfg.DRIVERS || []).find(o => o.id === id);
     const m = d ? autoModel(d.look, SP.rivalOf[d.id], d) : autoModel({ body: '#1a1a1a', trim: '#f5c400', canopy: '#f5c400' }, SP.rivals[0]);
-    if (hit) { m.userData.arm.visible = true; m.userData.armPivot.rotation.z = m.userData.kick ? 0.05 : -0.2; }
+    if (hit) poseArm(m, cfg.attackPoseAt(d ? d.weapon : {}, cfg.moveOf(d ? d.weapon : {}).at), 1); // held at the moment it lands
     return m;
   }
   // heading relative to the road from how the object actually moved since the last frame: sideways
@@ -1986,6 +1986,12 @@ vec3 nightLight(vec3 p) {
     p.pitch = Math.atan2(a - b, len); p.y += Math.max(0, (a + b) / 2 - p.y) + 4;
     return p;
   }
+  // put the attacking arm (or leg) in a pose of its move: up or down (z), swept forward or back (y), thrust out (ext)
+  function poseArm(m, pose, side) {
+    const arm = m.userData.arm, pivot = m.userData.armPivot;
+    arm.visible = true; arm.rotation.y = side < 0 ? Math.PI - pose.y : pose.y;
+    pivot.rotation.z = pose.z; pivot.position.x = m.userData.armX + pose.ext;
+  }
   function placeAuto(obj, m, d, x, rot, atk, hurt, bounce) {
     const p = onGround(placeAt(d, x), d, x, m.userData.size.l);
     // your auto faces its real heading (sharp pivots); rivals point the way they're moving
@@ -2003,10 +2009,7 @@ vec3 nightLight(vec3 p) {
     if (m.userData.frontWheel) m.userData.frontWheel.rotation.y = obj.isPlayer ? -(obj.steer || 0) * 0.7 : -yaw * 1.6;
     const arm = m.userData.arm;
     if (atk) {
-      const k = Math.min(1, atk.t / atk.dur), e = 1 - (1 - k) * (1 - k);
-      arm.visible = true; arm.rotation.y = atk.side < 0 ? Math.PI : 0;
-      // a swing comes down from overhead to level; a kick comes up from the footboard to level
-      m.userData.armPivot.rotation.z = m.userData.kick ? -1.3 + 1.42 * e : 1.9 - 2.25 * e;
+      poseArm(m, cfg.attackPose(atk, obj.weapon || m.userData.weapon || {}), atk.side);
     } else arm.visible = false;
     spinWheels(m, obj.dist || 0);
     return p;

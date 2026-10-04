@@ -12,7 +12,7 @@ window.RRR_DRIVERS = [
       { "text": "APUN KO MAARA?!", "say": "अपुन को मारा?!", "seed": 77 },
       { "text": "WAAT LAGA DUNGA!", "say": "वाट लगा दूंगा!", "seed": 77 }
     ],
-    "weapon": { "kind": "swing", "shape": "bat", "color": "#d7b98a", "power": 1.3, "reach": 1.05, "cooldown": 1.3, "sound": "wood",
+    "weapon": { "kind": "swing", "move": "pull", "contact": "body", "shape": "bat", "color": "#d7b98a", "power": 1.3, "reach": 1.05, "cooldown": 1.3, "sound": "wood",
                 "hitWords": ["SIXER!", "DHISHOOM!"] },
     "style": { "pace": -0.02, "bends": 0.20, "aggression": 0.9, "chase": 900, "weave": [1.5, 4], "nerve": 0.9, "launch": [0.1, 0.35], "grudge": 1, "daring": 0.6 }
   },
@@ -29,7 +29,7 @@ window.RRR_DRIVERS = [
       { "text": "BADTAMEEZ!", "say": "बदतमीज़!", "seed": 23 },
       { "text": "BHAI SAHAB, DHANG SE!", "say": "भाई साहब, ढंग से!", "seed": 11 }
     ],
-    "weapon": { "kind": "kick", "color": "#2f3542", "power": 1.1, "reach": 0.8, "cooldown": 1.0, "sound": "thud",
+    "weapon": { "kind": "kick", "move": "sidekick", "contact": "body", "color": "#2f3542", "power": 1.1, "reach": 0.8, "cooldown": 1.0, "sound": "thud",
                 "hitWords": ["LAAT!", "DHAM!"] },
     "style": { "pace": 0.01, "bends": 0.30, "aggression": 1.3, "chase": 1300, "weave": [3, 7], "nerve": 0.6, "launch": [0.1, 0.4], "grudge": 1.3, "daring": 0.7 }
   },
@@ -46,7 +46,7 @@ window.RRR_DRIVERS = [
       { "text": "KAIKU MAARA?!", "say": "कायकू मारा?!" },
       { "text": "BAIGAN!", "say": "बैंगन!" }
     ],
-    "weapon": { "kind": "swing", "shape": "hand", "color": "#8d5524", "power": 0.8, "reach": 0.8, "cooldown": 0.8, "sound": "slap",
+    "weapon": { "kind": "swing", "move": "slap", "contact": "head", "shape": "hand", "color": "#8d5524", "power": 0.8, "reach": 0.8, "cooldown": 0.8, "sound": "slap",
                 "hitWords": ["JHAAPAD!", "CHATAAK!"] },
     "style": { "pace": -0.03, "bends": 0.22, "aggression": 0.5, "chase": 700, "weave": [5, 10], "nerve": 0.4, "launch": [0.45, 0.6], "grudge": 2.2, "daring": 0 }
   },
@@ -63,7 +63,7 @@ window.RRR_DRIVERS = [
       { "text": "AIYYO!", "say": "ஐயோ!" },
       { "text": "ITHU TOO MUCH DA!", "say": "இது டூ மச் டா!" }
     ],
-    "weapon": { "kind": "kick", "color": "#4e4a3a", "power": 1.25, "reach": 0.8, "cooldown": 1.2, "sound": "thud",
+    "weapon": { "kind": "kick", "move": "highkick", "contact": "head", "color": "#4e4a3a", "power": 1.25, "reach": 0.8, "cooldown": 1.2, "sound": "thud",
                 "hitWords": ["KICK-U!", "DISHUM!"] },
     "style": { "pace": 0.02, "bends": 0.18, "aggression": 0.5, "chase": 600, "weave": [3, 7], "nerve": 1.0, "launch": [0.1, 0.3], "grudge": 1, "daring": 0.9 }
   },
@@ -80,7 +80,7 @@ window.RRR_DRIVERS = [
       { "text": "PAGOL NAKI?!", "say": "পাগল নাকি?!" },
       { "text": "ORE BABA RE!", "say": "ওরে বাবা রে!" }
     ],
-    "weapon": { "kind": "swing", "shape": "umbrella", "color": "#1a1a1a", "power": 0.9, "reach": 1.1, "cooldown": 1.0, "sound": "thud",
+    "weapon": { "kind": "swing", "move": "jab", "contact": "body", "shape": "umbrella", "color": "#1a1a1a", "power": 0.9, "reach": 1.1, "cooldown": 1.0, "sound": "thud",
                 "hitWords": ["CHHATA!", "DHOPAASH!"] },
     "style": { "pace": -0.04, "bends": 0.20, "aggression": 0.4, "chase": 600, "weave": [6, 12], "nerve": 0.2, "launch": [0.2, 0.45], "grudge": 1.2, "daring": 0 }
   },
@@ -97,7 +97,7 @@ window.RRR_DRIVERS = [
       { "text": "TERI AISI KI TAISI!", "say": "ਤੇਰੀ ਐਸੀ ਕੀ ਤੈਸੀ!" },
       { "text": "CHAL OYE!", "say": "ਚੱਲ ਓਏ!" }
     ],
-    "weapon": { "kind": "swing", "shape": "hockey", "color": "#c8a165", "power": 1.4, "reach": 1.15, "cooldown": 1.3, "sound": "wood",
+    "weapon": { "kind": "swing", "move": "lowsweep", "contact": "low", "shape": "hockey", "color": "#c8a165", "power": 1.4, "reach": 1.15, "cooldown": 1.3, "sound": "wood",
                 "hitWords": ["HOCKEY!", "CHAK DE!"] },
     "style": { "pace": 0.02, "bends": 0.32, "aggression": 1.0, "chase": 900, "weave": [4, 8], "nerve": 0.5, "launch": [0.1, 0.3], "grudge": 1, "daring": 0 }
   },
@@ -114,7 +114,7 @@ window.RRR_DRIVERS = [
       { "text": "AATORI JA!", "say": "আঁতৰি যা!", "seed": 11 },
       { "text": "BAAP RE!", "say": "বাপ ৰে!", "seed": 23 }
     ],
-    "weapon": { "kind": "kick", "color": "#263238", "power": 1.2, "reach": 0.85, "cooldown": 1.1, "sound": "thud",
+    "weapon": { "kind": "kick", "move": "volley", "contact": "low", "color": "#263238", "power": 1.2, "reach": 0.85, "cooldown": 1.1, "sound": "thud",
                 "hitWords": ["GOAL!", "DHAM!"] },
     "style": { "pace": -0.03, "bends": 0.12, "aggression": 0.6, "chase": 700, "weave": [4, 8], "nerve": 0.6, "launch": [0.15, 0.4], "grudge": 1, "daring": 0 }
   },
@@ -131,7 +131,7 @@ window.RRR_DRIVERS = [
       { "text": "KAAIN KARE HAI?!", "say": "कांई करे है?!" },
       { "text": "AE CHHORE, SAMBHAL KE!", "say": "ऐ छोरे, संभल के!", "describe": "A young male speaker with a sharp, nasal voice speaks in a very loud, angry tone with a high pitch and a fast pace, shouting with great emotional depth. The speech is very expressive and animated.", "seed": 11 }
     ],
-    "weapon": { "kind": "swing", "shape": "shoe", "color": "#b5651d", "power": 0.8, "reach": 0.85, "cooldown": 0.8, "sound": "slap",
+    "weapon": { "kind": "swing", "move": "smack", "contact": "head", "shape": "shoe", "color": "#b5651d", "power": 0.8, "reach": 0.85, "cooldown": 0.8, "sound": "slap",
                 "hitWords": ["JOOTI!", "PATAAK!"] },
     "style": { "pace": -0.03, "bends": 0.26, "aggression": 0.9, "chase": 900, "weave": [1.5, 4], "nerve": 0.7, "launch": [0.05, 0.5], "grudge": 1.2, "daring": 0.5 }
   },
@@ -148,7 +148,7 @@ window.RRR_DRIVERS = [
       { "text": "THALE KETTIDYA?!", "say": "ತಲೆ ಕೆಟ್ಟಿದ್ಯಾ?!" },
       { "text": "SWALPA NODKONDU HOGO!", "say": "ಸ್ವಲ್ಪ ನೋಡ್ಕೊಂಡು ಹೋಗೋ!" }
     ],
-    "weapon": { "kind": "swing", "shape": "bag", "color": "#2b2b2b", "power": 1.1, "reach": 0.9, "cooldown": 1.2, "sound": "thud",
+    "weapon": { "kind": "swing", "move": "roundhouse", "contact": "body", "shape": "bag", "color": "#2b2b2b", "power": 1.1, "reach": 0.9, "cooldown": 1.2, "sound": "thud",
                 "hitWords": ["THUD!", "DHAM!"] },
     "style": { "pace": -0.02, "bends": 0.18, "aggression": 0.6, "chase": 700, "weave": [5, 10], "nerve": 0.1, "launch": [0.05, 0.15], "grudge": 1, "daring": 0 }
   },
@@ -165,7 +165,7 @@ window.RRR_DRIVERS = [
       { "text": "MIYAN, HOSH MEIN!", "say": "میاں، ہوش میں!", "seed": 77 },
       { "text": "NAMAAKOOL!", "say": "نامعقول!", "describe": "An old male speaker with a rough, raspy voice speaks in a very loud, angry tone with a high pitch and a fast pace, shouting with great emotional depth. The speech is very expressive and animated.", "seed": 11 }
     ],
-    "weapon": { "kind": "swing", "shape": "cane", "color": "#5d4037", "power": 0.9, "reach": 1.1, "cooldown": 0.9, "sound": "wood",
+    "weapon": { "kind": "swing", "move": "uppercut", "contact": "body", "shape": "cane", "color": "#5d4037", "power": 0.9, "reach": 1.1, "cooldown": 0.9, "sound": "wood",
                 "hitWords": ["CHHADI!", "SATAAK!"] },
     "style": { "pace": -0.03, "bends": 0.20, "aggression": 0, "chase": 800, "weave": [5, 10], "nerve": 0.4, "launch": [0.2, 0.45], "grudge": 2.5, "daring": 0 }
   },
@@ -182,7 +182,7 @@ window.RRR_DRIVERS = [
       { "text": "HAT JA, BHAKK!", "say": "हट जा, भक्क!", "describe": "An old male speaker with a rough, raspy voice speaks in a very loud, angry tone with a high pitch and a fast pace, shouting with great emotional depth. The speech is very expressive and animated.", "seed": 77 },
       { "text": "AB DEKHA TAMASHA!", "say": "अब देखा तमाशा!" }
     ],
-    "weapon": { "kind": "swing", "shape": "cloth", "color": "#c62828", "power": 0.7, "reach": 1.2, "cooldown": 0.7, "sound": "slap",
+    "weapon": { "kind": "swing", "move": "whip", "contact": "head", "wet": true, "shape": "cloth", "color": "#c62828", "power": 0.7, "reach": 1.2, "cooldown": 0.7, "sound": "slap",
                 "hitWords": ["SATAAK!", "CHATAAK!"] },
     "style": { "pace": -0.05, "bends": 0.16, "aggression": 1.3, "chase": 500, "weave": [6, 12], "nerve": 0.5, "launch": [0.3, 0.55], "grudge": 1.5, "daring": 0 }
   },
@@ -199,7 +199,7 @@ window.RRR_DRIVERS = [
       { "text": "DEKH LEBO TORA!", "say": "देख लेबो तोरा!", "seed": 77 },
       { "text": "GARDA UDA DEB!", "say": "गर्दा उड़ा देब!", "seed": 77 }
     ],
-    "weapon": { "kind": "swing", "shape": "lathi", "color": "#a87b3f", "power": 1.15, "reach": 1.2, "cooldown": 1.2, "sound": "wood",
+    "weapon": { "kind": "swing", "move": "chop", "contact": "head", "shape": "lathi", "color": "#a87b3f", "power": 1.15, "reach": 1.2, "cooldown": 1.2, "sound": "wood",
                 "hitWords": ["LATTH!", "DHISHOOM!"] },
     "style": { "pace": -0.03, "bends": 0.24, "aggression": 1.2, "chase": 1100, "weave": [3, 7], "nerve": 1.0, "launch": [0.15, 0.4], "grudge": 1.5, "daring": 1.0 }
   },
@@ -217,7 +217,7 @@ window.RRR_DRIVERS = [
       { "text": "DOBA JEVO!", "say": "ડોબા જેવો!" },
       { "text": "HAVE JO TU!", "say": "હવે જો તું!" }
     ],
-    "weapon": { "kind": "swing", "shape": "dandiya", "color": "#e53935", "power": 0.75, "reach": 0.9, "cooldown": 0.7, "sound": "wood",
+    "weapon": { "kind": "swing", "move": "double", "contact": "head", "shape": "dandiya", "color": "#e53935", "power": 0.75, "reach": 0.9, "cooldown": 0.7, "sound": "wood",
                 "hitWords": ["DANDIYA!", "THAK THAK!"] },
     "style": { "pace": 0.0, "bends": 0.14, "aggression": 0.5, "chase": 600, "weave": [5, 10], "nerve": 0.5, "launch": [0.1, 0.25], "grudge": 2.0, "daring": 0 }
   }
