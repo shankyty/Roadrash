@@ -210,13 +210,27 @@ const DRIVERS = (() => {
   for (let i = 0; out.length < 8; i++) out.push({ ...PLAIN_DRIVER, id: 'plain' + i, name: ['RAJU', 'PAPPU', 'CHINTU', 'MUNNA', 'GUDDU', 'TINKU', 'SONU'][i] });
   return out;
 })();
-// You race as the track city's own driver: their auto, their voice, their weapon.
+// You race as one of the cast: their auto, their voice, their weapon. It's whoever you picked on the title
+// screen (remembered), or, until you pick, the track city's own driver.
 const homeDriver = city => DRIVERS.find(d => d.city === city) || null;
-// Your rivals: a draw from everyone else.
-function pickGrid(city, n, r = Math.random) {
-  const a = DRIVERS.filter(d => d.city !== city);
-  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
-  return a.slice(0, n);
+let pickedDriver = store.get('driver', null);
+const playerDriver = () => DRIVERS.find(d => d.id === pickedDriver) || homeDriver(def.city.id);
+function setPlayerDriver(me) {
+  Object.assign(player, { driver: me, weapon: me ? me.weapon : LATHI, palette: me ? me.look : null, img: me ? SP.rivalOf[me.id] : SP.player });
+  if (use3D) World3D.forget([player]); // your 3D auto is rebuilt in this driver's colours (and neon, at night)
+}
+function cycleDriver(step) {
+  const next = DRIVERS[(Math.max(0, DRIVERS.indexOf(player.driver)) + step + DRIVERS.length) % DRIVERS.length];
+  pickedDriver = next.id; store.set('driver', pickedDriver); setPlayerDriver(next); Sfx.beep(false);
+}
+const WEAPON_NAMES = { lathi: 'LATHI', bat: 'CRICKET BAT', hockey: 'HOCKEY STICK', umbrella: 'UMBRELLA', cane: 'WALKING CANE', cloth: 'WET GAMCHHA', shoe: 'JOOTI', bag: 'LAPTOP BAG', dandiya: 'DANDIYA', hand: 'SLAP' };
+const weaponName = w => w.kind === 'kick' ? 'KICK' : WEAPON_NAMES[w.shape] || 'LATHI';
+// Your rivals: the track city's own driver is always among them (unless that's you); the rest are a draw from
+// everyone else.
+function pickGrid(city, n, me = homeDriver(city), r = Math.random) {
+  const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  const home = DRIVERS.filter(d => d.city === city && d !== me).slice(0, 1);
+  return shuffle([...home, ...shuffle(DRIVERS.filter(d => d !== me && !home.includes(d)))].slice(0, n));
 }
 const rivalLabel = r => r.driver && r.driver.cityName ? `${r.name} · ${r.driver.cityName}` : r.name;
 
@@ -1509,9 +1523,7 @@ const crossGo = j => { const t = lightPhase(j); return t >= 14.5 && t < 21; };
 function loadTrack(idx) {
   def = RRR.resolve(ORDER[idx % ORDER.length]);
   theme = def.look;
-  const me = homeDriver(def.city.id);
-  Object.assign(player, { driver: me, weapon: me ? me.weapon : LATHI, palette: me ? me.look : null, img: me ? SP.rivalOf[me.id] : SP.player });
-  if (use3D) World3D.forget([player]); // your 3D auto is rebuilt in this driver's colours (and neon, at night)
+  setPlayerDriver(playerDriver());
   Music.setCity(def.city);
   Ambience.setCity(def.city.id);
   const r = mulberry32(def.seed * 3);
@@ -1543,7 +1555,7 @@ function setupRace() {
   const rowZ = row => PLAYER_Z + (rows - 1 - row) * gridGap();
   const shiftZ = PLAYER_Z - rowZ(slots[playerSlot].row);
   player.x = slots[playerSlot].x;
-  const grid = pickGrid(def.city.id, nR);
+  const grid = pickGrid(def.city.id, nR, player.driver);
   let ri = 0;
   for (let i = 0; i < slots.length; i++) {
     if (i === playerSlot) continue;
@@ -1670,6 +1682,7 @@ function onPress(code) {
   if ((code === 'KeyP' || code === 'Escape') && RACING_STATES.includes(state)) { openPause(); return; }
   if (code === 'Escape' && (state === 'results' || state === 'champion')) { runCommand('menu'); return; }
   if (state === 'title' && code === 'Enter') { setupRace(); return; }
+  if (state === 'title' && ['ArrowUp', 'KeyW', 'T_up', 'ArrowDown', 'KeyS', 'T_down'].includes(code)) { cycleDriver(['ArrowUp', 'KeyW', 'T_up'].includes(code) ? -1 : 1); return; }
   if (state === 'title' && ['ArrowLeft', 'ArrowRight', 'KeyA', 'KeyD', 'T_left', 'T_right'].includes(code)) {
     const next = clamp(level + (['ArrowRight', 'KeyD', 'T_right'].includes(code) ? 1 : -1), 0, unlocked);
     if (next !== level) { level = next; store.set('track', ORDER[level]); attractSetup(); Sfx.beep(false); }
@@ -2938,6 +2951,7 @@ function drawControls(top) {
   ctx.strokeStyle = 'rgba(255,255,255,.15)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(W / 2, top + 14); ctx.lineTo(W / 2, top + 160); ctx.stroke();
   text(`TAB: switch hands  ·  C camera  ·  P pause  ·  V sound mixer  ·  M mute  ·  N music`, W / 2, top + 168, 11, '#ffcc80', 'center', 'system-ui, sans-serif');
 }
+const TITLE_DRIVER_ROW = { x: W / 2 - 250, y: 439, w: 500, h: 40 }; // tap or click: left half previous driver, right half next
 function drawTitle() {
   ctx.fillStyle = 'rgba(10,5,20,.45)'; ctx.fillRect(0, 0, W, H);
   ctx.save(); ctx.translate(W / 2, 110); ctx.rotate(-0.04);
@@ -2946,17 +2960,25 @@ function drawTitle() {
   text('RICKSHAW RUMBLE', 0, 0, 38, '#4caf50'); ctx.restore();
   drawControls(222);
   const a = 0.5 + Math.sin(performance.now() / 250) * 0.5;
-  ctx.globalAlpha = 0.4 + a * 0.6; text('PRESS ENTER TO RACE', W / 2, 462, 26, '#fff'); ctx.globalAlpha = 1;
+  ctx.globalAlpha = 0.4 + a * 0.6; text('PRESS ENTER TO RACE', W / 2, 496, 24, '#fff'); ctx.globalAlpha = 1;
   // track selector
   const canL = level > 0, canR = level < unlocked;
-  panel(W / 2 - 250, 402, 500, 44, 0.55);
-  text('\u25c0', W / 2 - 232, 425, 16, canL ? '#ffd21f' : 'rgba(255,255,255,.2)');
-  text('\u25b6', W / 2 + 232, 425, 16, canR ? '#ffd21f' : 'rgba(255,255,255,.2)');
-  text(def.name, W / 2, 417, 16, '#fff');
+  panel(W / 2 - 250, 398, 500, TITLE_DRIVER_ROW.y + TITLE_DRIVER_ROW.h - 398, 0.55);
+  text('\u25c0', W / 2 - 232, 420, 16, canL ? '#ffd21f' : 'rgba(255,255,255,.2)');
+  text('\u25b6', W / 2 + 232, 420, 16, canR ? '#ffd21f' : 'rgba(255,255,255,.2)');
+  text(def.name, W / 2, 412, 16, '#fff');
   const b = titleBest, wins = b.wins ? `  \u00b7  ${b.wins} WIN${b.wins > 1 ? 'S' : ''}` : '';
-  text(`${def.styleLabel}${b.bestTime === null ? '' : `  \u00b7  BEST ${fmtTime(b.bestTime)}`}${wins}`, W / 2, 435, 11, '#ffcc80');
-  text(`Race ${level + 1} of ${ORDER.length}  \u00b7  \u2190 \u2192 choose  \u00b7  Wallet ${fmtCash(cash)}${round ? `  \u00b7  Tour ${round + 1}` : ''}`, W / 2, 500, 12, '#ffcc80', 'center', 'system-ui, sans-serif');
-  text('Mind the tip-over: three wheels don\'t like sharp turns at full speed!', W / 2, 522, 12, '#ddd', 'center', 'system-ui, sans-serif');
+  text(`${def.styleLabel}${b.bestTime === null ? '' : `  \u00b7  BEST ${fmtTime(b.bestTime)}`}${wins}`, W / 2, 429, 11, '#ffcc80');
+  // driver selector: who you race as (their auto, weapon and voice)
+  const me = player.driver, row = TITLE_DRIVER_ROW;
+  ctx.fillStyle = 'rgba(255,255,255,.14)'; ctx.fillRect(row.x + 14, row.y, row.w - 28, 1);
+  text('\u25b2', W / 2 - 232, row.y + 12, 11, '#ffd21f'); text('\u25bc', W / 2 - 232, row.y + 27, 11, '#ffd21f');
+  if (me) {
+    ctx.drawImage(player.img, W / 2 - 214, row.y + 4, 34, 33);
+    text(`YOU: ${me.name}  \u00b7  ${me.cityName}  \u00b7  ${weaponName(me.weapon)}`, W / 2 + 14, row.y + 13, 14, '#fff');
+    text(me.tag, W / 2 + 14, row.y + 29, 11, '#ffcc80', 'center', 'system-ui, sans-serif');
+  }
+  text(`Race ${level + 1} of ${ORDER.length}  \u00b7  \u2190 \u2192 track  \u00b7  \u2191 \u2193 driver  \u00b7  Wallet ${fmtCash(cash)}${round ? `  \u00b7  Tour ${round + 1}` : ''}`, W / 2, 518, 12, '#ffcc80', 'center', 'system-ui, sans-serif');
   text('Engine: kalhan \u00b7 Chennai street: Nielsvdb \u00b7 Dog bark: AleXZavesa \u00b7 Horns: Anton (CC BY 4.0, freesound.org) \u00b7 Voices: AI4Bharat Indic Parler-TTS, Meta MMS-TTS (CC BY-NC 4.0)', W - 8, 534, 8, 'rgba(255,255,255,.45)', 'right', 'system-ui, sans-serif', false);
 }
 function drawChampion() {
@@ -3057,6 +3079,7 @@ canvas.addEventListener('click', e => {
     });
     return;
   }
+  if (state === 'title' && !paused && inRect(x, y, TITLE_DRIVER_ROW)) { cycleDriver(x < W / 2 ? -1 : 1); return; }
   if (!paused) return;
   PAUSE_MENU.forEach((m, i) => { const r = pauseItemRect(i); if (x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h) runCommand(m.cmd); });
 });
@@ -3107,6 +3130,6 @@ function step(now) {
 }
 requestAnimationFrame(frame);
 // expose for debugging
-window.__rrr = { get state() { return state; }, player, drivers: DRIVERS, pickGrid, homeDriver, get rivals() { return rivals; }, get results() { return results; }, setupRace,
+window.__rrr = { get state() { return state; }, player, drivers: DRIVERS, pickGrid, homeDriver, cycleDriver, get rivals() { return rivals; }, get results() { return results; }, setupRace,
   step(n) { for (let i = 0; i < n; i++) update(STEP); render(); }, keys, Sfx, Music, Ambience, VehicleAudio, VoiceClips, Animals, RRR, get def() { return def; }, get stats() { return stats; }, records, SP, get traffic() { return traffic; }, get segments() { return segments; }, get bubbles() { return bubbles; }, get junctions() { return junctions; }, get cross() { return crossTraffic; }, get marks() { return skidMarks; }, DriftMusic, lightOf, setLevel(l) { level = l; attractSetup(); } };
 })();
