@@ -38,9 +38,9 @@ Every track gets a raised footpath on both sides that the auto can drive on. Cro
 - A chai stall blocks the footpath at intervals. The stall and its calling hawker already exist in both renderers.
 - A hand cart stands before each stall, resting on its pull handles so its bed slopes up in the direction of travel. Carts are on the footpath only.
 - Driving onto the cart at 30 km/h or more launches the auto. Faster means higher and longer.
-- The jump goes where the auto is pointing at take-off. There is no steering in the air.
-  - Pointing straight: the auto clears the stall and lands on the footpath.
-  - Pointing at the road: it flies over the nearest lane or lanes and lands in the road.
+- The jump carries on the way the auto was going at take-off. There is no steering in the air.
+  - Holding the footpath's line (on a straight or round a bend): the auto clears the stall and lands on the footpath.
+  - Steering at the road: it flies over the nearest lane or lanes and lands in the road.
 - In the air the auto touches nothing: not traffic, cows, the stall or the kerb.
 - Landing on clear ground keeps most of the speed. Landing on a vehicle is a crash. Landing on a roadside object is a wreck.
 - Hitting the cart below 30 km/h, hitting it from the side, or hitting a stall without jumping is a wreck, like any roadside object today.
@@ -136,7 +136,7 @@ Pure functions on `RRR.footpath`. No DOM, no game state.
 - `zoneAt(half, footpath, x)`: `'road'`, `'footpath'` or `'grass'`. With `footpath` false, the zones are today's: road up to `half`, grass beyond.
 - `kerbCrossing(half, footpath, xBefore, xAfter)`: `'climb'`, `'drop'` or `null`.
 - `takesOff(cartX, x, speedShare)`: whether the auto is within the cart's take-off width and fast enough.
-- `jump(speedShare)`: `{ airTime, peak }`. The game keeps the auto's heading frozen for the flight, so its sideways movement in the air is the same rule as on the ground.
+- `jump(speedShare)`: `{ airTime, peak }`. The game keeps the sideways speed the auto left the ground with for the flight (see Sideways below), so the flight continues its last moment of driving.
 - `heightAt(jump, t)`: height above the road at time `t` into the flight.
 - `furnitureShift(footpath)`: how far out street furniture moves (0 without a footpath).
 
@@ -205,7 +205,7 @@ Scripted browser checks, in 3D and 2D:
 
 - Climbing the kerb multiplies speed by `1 − climbLoss`; dropping by `1 − dropLoss`; driving along the footpath through a junction costs nothing.
 - A straight jump at 60 km/h clears the stall and lands on the footpath.
-- A jump with the auto pointed at the road lands in a lane.
+- A jump with the auto steering at the road lands in a lane.
 - Landing on a bus crashes. Hitting a cart at 20 km/h wrecks. Hitting a stall without jumping wrecks.
 - A flyover pays `flyoverCash`; a plain jump pays `jumpCash`; both show on the results screen.
 - A rival with `daring` 1 held up by traffic mounts the footpath, jumps a cart and returns to the road. A rival with `daring` 0 never does.
@@ -231,7 +231,7 @@ The feature was prototyped outside the repo before the plan was written. These p
 - **Run-out after a cart.** Flights are long (66 segments at 80 km/h, 97 at 100 km/h), and the footpath moves sideways where lanes taper. Stalls are now placed only where the road is plain for 100 segments past the cart, so a straight jump always lands on the footpath. This removes some stall positions; traffic tracks' spacing moved to 120 to 220 to keep the next cart clear of a landing.
 - **Full-width blocking.** With the roadside collision test used for trees and posts, an auto straddling the kerb slipped past a stall. Stalls and carts use their full width.
 - **Furniture moves by one amount** (0.7 road units) in place of per-kind ranges. It keeps today's layout, shifted out.
-- **Sideways flight comes from a frozen heading** in the game, not from a value the rules module returns.
+- **Sideways flight comes from the sideways speed at take-off**, worked out in the game, not from a value the rules module returns.
 - **Rivals:** one that reaches a cart too slowly is knocked out; one only mounts the footpath when no cart is close.
 - **3D:** the footpath slopes down to road level in the segment next to a junction, and an auto's contact shadow stays on the ground while it is in the air.
 
