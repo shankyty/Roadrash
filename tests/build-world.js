@@ -1,7 +1,7 @@
 'use strict';
 // Builds a road and its traffic in Node from a definition, with stub sprites and the game's own constants.
 const path = require('path');
-for (const f of ['util', 'registry', 'track-builder', 'traffic-spawner']) require(path.join(__dirname, '..', 'web', 'engine', `${f}.js`));
+for (const f of ['util', 'registry', 'footpath', 'track-builder', 'traffic-spawner']) require(path.join(__dirname, '..', 'web', 'engine', `${f}.js`));
 const RRR = globalThis.RRR;
 const { stubSprites, stubThemeSprites } = require('./stub-sprites.js');
 

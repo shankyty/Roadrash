@@ -1,6 +1,6 @@
 'use strict';
 // Builds a track's road from its resolved definition: the road pieces from the style's recipe, then lanes,
-// junctions, the start line, roadside scenery and signs. No DOM access and no state between builds.
+// junctions, the start line, roadside scenery and signs, and the footpath's stalls and cart ramps. No DOM access and no state between builds.
 (() => {
 const RRR = (globalThis.RRR = globalThis.RRR || {});
 const { easeIn, easeInOut, pick, mulberry32, weightedPick } = RRR.util;
@@ -34,7 +34,7 @@ class TrackBuilder {
   // constants: { SEG_LEN, RUMBLE_LEN, PLAYER_Z, GRID_GAP } · sprites: the shared sprite table (SP)
   // themeSprites: { buildings, billboards } painted for this track · random: source for cosmetic offsets
   constructor({ def, round, constants, sprites, themeSprites, random = Math.random }) {
-    Object.assign(this, { def, constants, SP: sprites, themeSprites });
+    Object.assign(this, { def, round, constants, SP: sprites, themeSprites });
     this.rand = (a, b) => a + random() * (b - a);
     this.R = mulberry32(def.seed + round * 1000);
     this.sgn = () => (this.R() < 0.5 ? -1 : 1);
@@ -52,6 +52,7 @@ class TrackBuilder {
     if (this.def.road.junctions) this.layoutJunctions(fs);
     this.placeScenery();
     this.placeSigns(fs);
+    if (this.def.road.footpath) this.placeFootpath(fs);
     this.settleRoadside();
     return { segments, trackLength, startZ, junctions: this.junctions };
   }
@@ -169,21 +170,43 @@ class TrackBuilder {
       sign(n, pick(['limit40', 'limit50', 'limit60', 'limit50', 'keepleft', 'nohorn'], R), R() < 0.75 ? -1 : 1);
     }
   }
+  // Stalls block the footpath at intervals, each with a cart ramp a little before it. They come from their own
+  // seeded generator, so adding or moving them never changes the road, its scenery or its signs.
+  placeFootpath(fs) {
+    const { SP, segments } = this, { SEG_LEN } = this.constants, fp = this.def.road.footpath, F = RRR.footpath, N = segments.length;
+    const G = mulberry32(this.def.seed * 7 + this.round);
+    const gap = () => fp.stallEvery[0] + Math.floor(G() * (fp.stallEvery[1] - fp.stallEvery[0] + 1));
+    // a cart, its stall and the landing beyond need a plain stretch: no junction, no lanes tapering, not the start line
+    const plain = k => { const q = segments[k]; return !q.clear && !q.junction && !q.finish && q.hw1 === q.hw2; };
+    // the inner edge of something w wide standing in the middle of the footpath (for a road edge at 1)
+    const inner = (side, w) => side * (1 + F.KERB_W + (fp.width - w) / 2);
+    for (const side of [-1, 1]) {
+      for (let n = fs + 150 + gap(); n < N - 60; n += gap()) {
+        const k0 = n - F.CART.lead; // the cart's first segment
+        let ok = k0 + F.CART.runout < N; for (let k = k0 - 4; ok && k <= k0 + F.CART.runout; k++) ok = plain(k);
+        if (!ok) continue;
+        segments[n].sprites.push({ img: SP.chai, offset: inner(side, F.STALL_W), nw: F.STALL_W, solid: true, kind: 'chai', onPath: true });
+        segments[k0].sprites.push({ img: SP.cart, offset: inner(side, F.CART.width), nw: F.CART.width, solid: true, kind: 'cart', onPath: true,
+          len: F.CART.length * SEG_LEN, seg0: k0 });
+      }
+    }
+  }
   settleRoadside() {
-    const { segments } = this, { SEG_LEN } = this.constants;
-    // everything by the roadside was placed for a road edge at 1: move it out to this stretch's edge
+    const { segments } = this, { SEG_LEN } = this.constants, shift = RRR.footpath.furnitureShift(this.def.road.footpath);
+    // everything by the roadside was placed for a road edge at 1: move it out to this stretch's edge, and
+    // (all but what stands on the footpath) on past the footpath
     segments.forEach((seg, n) => {
       for (const s of seg.sprites) {
         if (s.center || s.edgeDone) continue;
         const span = s.kind === 'building' ? Math.ceil((s.len || 1400) / SEG_LEN) : 1;
         let h = 0; for (let k = 0; k <= span; k++) h = Math.max(h, segments[(n + k) % segments.length].half);
-        s.offset += Math.sign(s.offset) * (h - 1); s.edgeDone = true;
+        s.offset += Math.sign(s.offset) * (h - 1 + (s.onPath ? 0 : shift)); s.edgeDone = true;
       }
     });
-    // solid things block every segment they span (a building is several segments long)
+    // solid things block every segment they span (a building or a cart is several segments long)
     segments.forEach((seg, n) => {
       for (const s of seg.sprites) if (s.solid) {
-        const span = s.kind === 'building' ? Math.ceil(s.len / SEG_LEN) : 1;
+        const span = s.len ? Math.ceil(s.len / SEG_LEN) : 1;
         for (let k = 0; k < span; k++) segments[(n + k) % segments.length].solids.push(s);
       }
     });

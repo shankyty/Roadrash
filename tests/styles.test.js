@@ -56,3 +56,22 @@ test('charminar-road (classic) keeps the classic road, traffic and handling', ()
   assert.deepStrictEqual([def.handling.topSpeed, def.handling.driftScrub, def.handling.driftGrip, def.handling.driftExitBoost, def.handling.slipstream], [1, 0.22, 1, 0, 0]);
   assert.deepStrictEqual([def.traffic.countScale, def.traffic.oncoming], [1, 0.8]);
 });
+
+for (const id of RRR.order()) {
+  test(`${id} has a footpath with stalls spaced as its style says, each with a cart`, () => {
+    const { def, road } = world(id), fp = def.road.footpath;
+    assert.deepStrictEqual([fp.width, fp.climbLoss, fp.dropLoss], [0.6, 0.25, 0.12]);
+    for (const side of [-1, 1]) {
+      const at = road.segments.flatMap((s, n) => s.sprites.some(q => q.onPath && q.kind === 'chai' && Math.sign(q.offset) === side) ? [n] : []);
+      assert.ok(at.length >= 2, `only ${at.length} stalls on side ${side}`);
+      for (let i = 1; i < at.length; i++) assert.ok(at[i] - at[i - 1] >= fp.stallEvery[0]); // (a skipped spot makes a gap longer, never shorter)
+    }
+    const stalls = road.segments.reduce((n, s) => n + s.sprites.filter(q => q.onPath && q.kind === 'chai').length, 0);
+    const carts = road.segments.reduce((n, s) => n + s.sprites.filter(q => q.kind === 'cart').length, 0);
+    assert.strictEqual(carts, stalls);
+  });
+}
+test('stalls are closest together on traffic tracks and furthest apart on speed tracks', () => {
+  const low = id => RRR.resolve(id).road.footpath.stallEvery[0];
+  assert.ok(low('western-express') < low('charminar-road') && low('charminar-road') < low('sea-link'));
+});
