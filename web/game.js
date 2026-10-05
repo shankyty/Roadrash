@@ -114,7 +114,7 @@ const COMPONENTS = [
   ['audio', new RegExp(`^(?:Sfx|Music|Ambience|Object)?\\.?(?:${AUDIO_METHODS})$|^(?:Sfx|Music|Ambience|TwoStroke)`)],
   ['traffic', /^(updateDog|startChase|updateTraffic|honk)$/],
   ['rivals-combat', /^(updateRivals|resolveAttack|startAttack|curse)$/],
-  ['player-physics', /^(updatePlayer|crashPlayer|checkCollisions|endDrift|updateClosePasses)$/],
+  ['player-physics', /^(updatePlayer|crashPlayer|checkCollisions|endDrift|updateClosePasses|hitKerb|takeOff|landPlayer)$/],
   ['hawkers', /^(updateHawkers)$/],
   ['race-rules', /^(?:RaceStats\.|Records\.)?(checkFinish|buildResults|advanceAfterResults|setupRace|currentRank|resetPlayer|updateAttract|closePass|breakChain|advance|bonuses|summary|submit)$/],
   ['config', /^(?:Registry\.|RRR\.)?(register|check|checkMerged|deepFreeze|validate|resolve|resolveDef)$/],
@@ -1286,6 +1286,24 @@ function makeLamp(side) {
   return c;
 }
 
+// A hand cart parked on its pull handles, seen from behind: its plank bed slopes up away from you (the ramp).
+function makeCart() {
+  const c = mk(220, 170), g = c.getContext('2d');
+  g.fillStyle = 'rgba(0,0,0,.28)'; ell(g, 110, 160, 100, 9); g.fill();
+  for (const x of [22, 198]) { // the two tyres, either side of the bed
+    g.fillStyle = '#1c1c1c'; ell(g, x, 108, 15, 40); g.fill();
+    g.fillStyle = '#8d8d8d'; ell(g, x, 108, 6, 16); g.fill();
+  }
+  g.fillStyle = '#5d4037'; g.fillRect(36, 96, 148, 10);                                   // axle beam
+  g.fillStyle = '#a1764a'; g.beginPath(); g.moveTo(34, 150); g.lineTo(186, 150); g.lineTo(164, 44); g.lineTo(56, 44); g.closePath(); g.fill(); // the bed
+  g.strokeStyle = '#6d4c2f'; g.lineWidth = 2;
+  for (let i = 1; i < 5; i++) { const t = i / 5; g.beginPath(); g.moveTo(34 + 152 * t, 150); g.lineTo(56 + 108 * t, 44); g.stroke(); }    // planks
+  g.strokeStyle = '#4e342e'; g.lineWidth = 5; g.strokeRect(56, 42, 108, 4);                // the raised far end
+  g.strokeStyle = '#7b3f1d'; g.lineWidth = 7; g.lineCap = 'round';
+  for (const [a, b] of [[40, 28], [180, 192]]) { g.beginPath(); g.moveTo(a, 148); g.lineTo(b, 164); g.stroke(); }                        // shafts on the ground
+  g.beginPath(); g.moveTo(24, 164); g.lineTo(196, 164); g.stroke();                        // pull bar
+  return c;
+}
 function makeChai() {
   const c = mk(270, 240), g = c.getContext('2d');
   g.fillStyle = 'rgba(0,0,0,.25)'; ell(g, 135, 232, 120, 8); g.fill();
@@ -1504,7 +1522,7 @@ function buildSharedSprites() {
   SP.palm = makePalm(); SP.palmF = flipped(SP.palm);
   const r = mulberry32(7); SP.trees = [makeTree(r), makeTree(r), makeTree(r)];
   SP.temple = makeTemple(); SP.lampL = makeLamp(-1); SP.lampR = makeLamp(1);
-  SP.chai = makeChai(); SP.milestone = makeMilestone(); SP.arch = makeArch();
+  SP.chai = makeChai(); SP.cart = makeCart(); SP.milestone = makeMilestone(); SP.arch = makeArch();
   SP.signs = Object.fromEntries(['signal', 'junction', 'narrow', 'nohorn', 'keepleft', 'limit40', 'limit50', 'limit60'].map(k => [k, makeSign(k)]));
   SP.signal = makeSignal(); SP.cop = makeCop();
 }
@@ -1534,7 +1552,8 @@ const playerL = () => Math.abs(Math.cos(bodyAngle())) * TUK_LEN + Math.abs(Math.
 function resetPlayer() {
   Object.assign(player, { x: 0, dist: PLAYER_Z, speed: 0, health: 100, lean: 0, rot: 0, tip: 0, crash: 0, crashDir: 1,
     atk: null, hurt: 0, inv: 0, kos: 0, finished: false, time: 0, name: 'YOU', steer: 0, puff: 0, hornCd: 0, isPlayer: true, heading: 0, slip: 0, drift: 0, brkWas: false,
-    boost: 0, boostT: 0, driftT: 0, driftPts: 0 }); // boost: share of top speed added while boostT lasts · driftT, driftPts: the current drift's time and points
+    boost: 0, boostT: 0, driftT: 0, driftPts: 0, // boost: share of top speed added while boostT lasts · driftT, driftPts: the current drift's time and points
+    air: null, y: 0 }); // air: the jump in progress (off a cart ramp), or null · y: height above the road
 }
 
 // ------------------------------------------------------------------ track loading
@@ -1543,6 +1562,11 @@ function resetPlayer() {
 // carriageway is x < 0 and oncoming traffic uses x > 0.
 const { LANE_W, laneX } = RRR.road;
 const halfAt = z => findSegment(z).half;
+// The footpath (engine/footpath.js): a raised, driveable strip behind the kerb stones on both sides, with chai
+// stalls blocking it and a hand cart before each stall as a ramp. zoneOf: 'road', 'footpath' or 'grass'.
+const FP = RRR.footpath;
+const footpath = () => def.road.footpath; // this track's footpath settings, or false
+const zoneOf = (seg, x) => FP.zoneAt(seg.half, footpath(), x, !!seg.junction);
 const gridGap = () => (use3D ? TUK_LEN + 350 : 520); // between rows of the starting grid: 3D autos need a real gap
 // traffic lights: a 22 s cycle per junction; main road green, amber, then red while the cross road goes
 const LIGHT_CYCLE = 22;
@@ -1562,7 +1586,7 @@ function loadTrack(idx) {
   bgLayers = { far: def.skyline.far(PAINT, theme, def.seed), near: def.skyline.near(PAINT, theme, def.seed + 5) };
   ({ segments, trackLength, startZ, junctions } = RRR.buildTrack({ def, round, sprites: SP, themeSprites,
     constants: { SEG_LEN, RUMBLE_LEN, PLAYER_Z, GRID_GAP: gridGap() } }));
-  if (use3D) World3D.setTrack({ segments, trackLength, theme, city: def.city.id, SP, themeSprites, CAR_COLORS, CAR_LOOKS, TRACTOR_LOOKS, BUS_LOOKS, BIKE_LOOKS, DOG_COATS, DRIVERS, attackPose, attackPoseAt, moveOf, MAX_SPEED, LANE_W });
+  if (use3D) World3D.setTrack({ segments, trackLength, theme, city: def.city.id, SP, themeSprites, CAR_COLORS, CAR_LOOKS, TRACTOR_LOOKS, BUS_LOOKS, BIKE_LOOKS, DOG_COATS, DRIVERS, attackPose, attackPoseAt, moveOf, MAX_SPEED, LANE_W, footpath: def.road.footpath });
 }
 
 function findSegment(z) { return segments[Math.floor(((z % trackLength) + trackLength) % trackLength / SEG_LEN) % segments.length]; }
@@ -1797,11 +1821,12 @@ function impact(x, y, w, side) {
   if (w.wet) for (let i = 0; i < 30; i++) particles.push({ x: x + rand(-14, 14), y: y + rand(-12, 12), vx: rand(-260, 260) + side * 170, vy: rand(-380, -20), g: 760, t: rand(0.5, 1), size: rand(2.4, 5.4), color: pick(['#bfe6ff', '#8fd0ff', '#e3f4ff']) });
 }
 function resolveAttack(att, side) {
+  if (att.air) return; // (or hit from it)
   const attIsPlayer = !!att.isPlayer, w = att.weapon || LATHI;
   const targets = attIsPlayer ? rivals.filter(r => !r.ko) : [player];
   let best = null, bestDz = 1e9;
   for (const t of targets) {
-    if (t === att) continue;
+    if (t === att || t.air) continue; // (no one can be hit in the air)
     if (t.isPlayer && (t.crash > 0 || t.inv > 0)) continue;
     const dz = t.dist - att.dist, dx = t.x - att.x;
     if (Math.abs(dz) < 440 && dx * side > 0.02 && Math.abs(dx) < 0.8 * w.reach && Math.abs(dz) < bestDz) { best = t; bestDz = Math.abs(dz); }
@@ -1846,6 +1871,7 @@ function crashPlayer(reason, dmg, dir) {
   player.crash = 2.4; player.crashDir = dir || (Math.random() < 0.5 ? -1 : 1);
   player.health = Math.max(0, player.health - dmg); player.atk = null;
   player.drift = 0; player.driftT = 0; player.driftPts = 0; player.boostT = 0; if (stats) stats.breakChain();
+  player.air = null; player.y = 0;
   Sfx.crash(); shake = 0.6; msg(reason, '#ff5252', 2);
   for (let i = 0; i < 18; i++) particles.push({ x: W / 2 + rand(-60, 60), y: H - 80, vx: rand(-200, 200), vy: rand(-260, -60), t: rand(0.5, 1), size: rand(3, 7), color: pick(['#ffd54f', '#bdbdbd', '#795548', '#ff7043']), g: 500 });
 }
@@ -1905,7 +1931,7 @@ function updateEngine() {
 }
 
 function updatePlayer(dt, controlled) {
-  const seg = findSegment(player.dist);
+  const seg = findSegment(player.dist), x0 = player.x;
   const sp = player.speed / MAX_SPEED;
   const dx = dt * 2 * sp;
   let steer = 0, acc = false, brk = false, hand = false;
@@ -1916,7 +1942,15 @@ function updatePlayer(dt, controlled) {
 
   if (player.atk) { player.atk.t += dt; if (!player.atk.done && player.atk.t > player.atk.at) { player.atk.done = true; resolveAttack(player, player.atk.side); } if (player.atk.t > player.atk.dur) player.atk = null; }
 
-  if (player.crash > 0) {
+  if (player.air) {
+    // in the air: no steering, throttle or grip. The auto flies the way it was pointing; the road bends on underneath
+    const a = player.air; a.t += dt;
+    player.x += player.speed * Math.sin(player.heading) * dt / ROAD_W;
+    player.x -= dx * sp * seg.curve * CENTRIFUGAL;
+    player.y = FP.heightAt(a, a.t);
+    if (!a.over) a.over = traffic.some(c => c.type !== 'cow' && c.type !== 'dog' && Math.abs(wrapDelta(c.z - player.dist)) < ((c.len || 0) + TUK_LEN) / 2 && overlap(player.x, TUK_NW, c.x, c.nw));
+    if (a.t >= a.airTime) landPlayer();
+  } else if (player.crash > 0) {
     player.crash -= dt;
     player.speed = Math.max(0, player.speed - player.speed * 2.5 * dt - 1500 * dt);
     player.rot = lerp(player.rot, player.crashDir * 1.45, Math.min(1, dt * 7));
@@ -1957,7 +1991,7 @@ function updatePlayer(dt, controlled) {
     }
     if (Math.abs(player.slip) > 0.12 && player.speed > DRIFT_END * 0.8) layTyreMarks();
     else player.markAt = null;
-    if (Math.abs(player.x) > seg.half) {
+    if (zoneOf(seg, player.x) === 'grass') {
       if (player.speed > OFFROAD_LIMIT) player.speed += OFFROAD_DECEL * dt;
       if (Math.random() < sp * 0.8) particles.push({ x: (playerScr ? playerScr.x : W / 2) + rand(-100, 100), y: playerScr ? playerScr.y - 6 : H - 30, vx: rand(-60, 60), vy: rand(-80, -20), t: 0.6, size: rand(6, 12), color: 'rgba(160,120,70,.6)' });
     }
@@ -1972,6 +2006,9 @@ function updatePlayer(dt, controlled) {
     player.rot = player.lean * 0.2 + wobble + (player.atk ? player.atk.side * 0.04 : 0);
   }
   player.x = clamp(player.x, -seg.half - 1.8, seg.half + 1.8);
+  // the kerb: climbing onto the footpath or dropping off it costs speed (not in the air, and not at a junction,
+  // where the footpath is at road level)
+  if (!player.air && player.crash <= 0) { const k = FP.kerbCrossing(seg.half, footpath(), x0, player.x, !!seg.junction); if (k) hitKerb(k); }
   // top speed is the style's, raised for a moment by a boost (a drift exit or a slipstream); above it, speed bleeds off
   player.boostT -= dt;
   const cap = MAX_SPEED * def.handling.topSpeed * (1 + (player.boostT > 0 ? player.boost : 0));
@@ -1997,6 +2034,33 @@ function endDrift() {
   player.drift = 0; player.driftT = 0; player.driftPts = 0;
 }
 
+// The kerb: a jolt, and a share of your speed (more going up than coming down).
+function hitKerb(way) {
+  const fp = footpath();
+  player.speed *= 1 - (way === 'climb' ? fp.climbLoss : fp.dropLoss);
+  shake = Math.max(shake, 0.12); Sfx.bump();
+}
+// Off the end of a cart: the flight is set by the speed, and its direction by where the auto is pointing.
+function takeOff() {
+  if (player.drift) endDrift();
+  player.air = { ...FP.jump(player.speed / MAX_SPEED), t: 0, over: false, fromPath: zoneOf(findSegment(player.dist), player.x) === 'footpath' };
+  player.lean = 0; player.tip = 0; player.rot = 0;
+  Sfx.whoosh();
+}
+// Back down: on top of a vehicle or a cow it's a crash; otherwise the jump counts, and one that left the
+// footpath, passed over a vehicle and came down in the road is a flyover.
+function landPlayer() {
+  const a = player.air, seg = findSegment(player.dist);
+  player.air = null; player.y = 0; player.speed *= 1 - FP.JUMP.landLoss; shake = Math.max(shake, 0.2); Sfx.bump();
+  for (const c of traffic) {
+    if (c.type === 'dog' || Math.abs(wrapDelta(c.z - player.dist)) >= ((c.len || 0) + TUK_LEN) / 2 || !overlap(player.x, playerW(), c.x, c.nw)) continue;
+    crashPlayer(`LANDED ON A ${c.label}!`, 25); player.speed = 0; return;
+  }
+  const flyover = a.fromPath && a.over && zoneOf(seg, player.x) === 'road';
+  stats.jump(flyover);
+  popup(flyover ? 'FLYOVER!' : 'JUMP!', W / 2, H - 260, flyover ? '#80deea' : '#ffd21f', 30);
+}
+
 // Lane surfing: overtaking same-way traffic with little room to spare is a close pass. Each one counts in the
 // race's stats; on tracks whose style has a slipstream it also raises your top speed for a moment, more for
 // each pass in a quick chain.
@@ -2008,7 +2072,7 @@ function updateClosePasses(dt) {
     const dz = wrapDelta(c.z - player.dist), was = c.passDz;
     c.passDz = dz; if (c.passCd > 0) c.passCd -= dt;
     // it was just ahead and now it isn't (a jump from far ahead is the lap wrapping round, not a pass)
-    if (!(was > 0 && was < 2000 && dz <= 0) || c.passCd > 0 || player.crash > 0 || player.speed <= c.speed || c.speed < PASS_MIN_SPEED) continue;
+    if (!(was > 0 && was < 2000 && dz <= 0) || c.passCd > 0 || player.crash > 0 || player.air || player.speed <= c.speed || c.speed < PASS_MIN_SPEED) continue;
     const gap = Math.abs(c.x - player.x) - (c.nw + playerW()) / 2;
     if (gap < 0 || gap > CLOSE_GAP) continue;
     c.passCd = PASS_AGAIN;
@@ -2375,16 +2439,19 @@ function updateCross(dt) {
 }
 
 function checkCollisions() {
-  if (player.crash > 0) return;
+  if (player.crash > 0 || player.air) return;
   // in 3D every vehicle is a solid body centred on its position, so contact happens when the bodies' ends
   // meet (half of each length apart); the flat 2D sprites only touch just ahead of the auto
   const pw = playerW(), half = use3D ? playerL() / 2 : 0, seg = findSegment(player.dist + half * 0.8);
   if (Math.abs(player.x) > seg.half) {
     for (const s of seg.solids) {
       if (Math.sign(s.offset) !== Math.sign(player.x)) continue;
+      // a cart ramp, met at its near end, lined up and fast enough: up and away (anything else about a cart is a wreck)
+      if (s.kind === 'cart' && seg.index - s.seg0 <= 1 && FP.takesOff(s.offset + Math.sign(s.offset) * s.nw / 2, player.x, player.speed / MAX_SPEED)) { takeOff(); return; }
       // buildings and temples: their front wall is at the offset; other things are centred half their width out
       const wall = s.kind === 'building' || s.kind === 'temple';
       const hit = wall ? Math.abs(player.x) + pw * 0.45 > Math.abs(s.offset)
+        : s.onPath ? overlap(player.x, pw, s.offset + Math.sign(s.offset) * s.nw / 2, s.nw) // a stall or a cart blocks the footpath at its full width
         : overlap(player.x, pw * 0.7, s.offset + Math.sign(s.offset) * s.nw / 2, s.nw * 0.55);
       if (hit) {
         crashPlayer('WRECKED!', 25, -Math.sign(s.offset)); player.speed = 0;
@@ -2501,7 +2568,7 @@ function buildResults() {
   const prize = PRIZES[rank - 1] || 0, bonus = player.kos * 100;
   stats.finish(player.finished ? player.time : null, rank);
   const skill = stats.bonuses(); // drift and lane-surf cash, at the style's rates
-  cash += prize + bonus + skill.drift + skill.passes;
+  cash += prize + bonus + skill.drift + skill.passes + skill.jumps;
   // beaten: which of the track's bests this race beat · best: the bests after it
   results = { order, rank, prize, bonus, skill, stats, qualified: rank <= 3, beaten: records.submit(def.id, stats.summary()), best: records.get(def.id) };
   trackEvent(`race-finish/${ordinal(rank)}`, `Finished ${ordinal(rank)}: ${def.name}`);
@@ -2547,9 +2614,12 @@ function drawSegment(seg, n) {
   const w1 = u1 * seg.hw1, w2 = u2 * seg.hw2; // this stretch's road half-width (4 or 6 lanes)
   if (seg.junction) { ctx.fillStyle = col.road; ctx.fillRect(0, y2, W, y1 - y2 + 1); return; } // the cross road
   ctx.fillStyle = col.grass; ctx.fillRect(0, y2, W, y1 - y2 + 1);
-  const r1 = u1 / 6, r2 = u2 / 6, s1 = u1 * 0.35, s2 = u2 * 0.35;
+  const fp = footpath(), sw = fp ? fp.width : 0.35; // the footpath (or, without one, the old narrow paved strip)
+  const r1 = u1 / 6, r2 = u2 / 6, s1 = u1 * sw, s2 = u2 * sw;
   poly(x1 - w1 - r1 - s1, y1, x1 - w1 - r1, y1, x2 - w2 - r2, y2, x2 - w2 - r2 - s2, y2, col.shoulder);
   poly(x1 + w1 + r1 + s1, y1, x1 + w1 + r1, y1, x2 + w2 + r2, y2, x2 + w2 + r2 + s2, y2, col.shoulder);
+  if (fp) for (const sd of [-1, 1]) { const k1 = u1 * 0.035, k2 = u2 * 0.035; // the kerb's shadowed face
+    poly(x1 + sd * (w1 + r1), y1, x1 + sd * (w1 + r1 + k1), y1, x2 + sd * (w2 + r2 + k2), y2, x2 + sd * (w2 + r2), y2, 'rgba(0,0,0,.3)'); }
   poly(x1 - w1 - r1, y1, x1 - w1, y1, x2 - w2, y2, x2 - w2 - r2, y2, col.rumble);
   poly(x1 + w1 + r1, y1, x1 + w1, y1, x2 + w2, y2, x2 + w2 + r2, y2, col.rumble);
   poly(x1 - w1, y1, x1 + w1, y1, x2 + w2, y2, x2 - w2, y2, col.road);
@@ -2854,8 +2924,10 @@ function drawPlayer(seg, pct) {
   const sp = player.speed / MAX_SPEED;
   const bumpy = Math.abs(player.x) > halfAt(player.dist) ? 4 : 1.2;
   const bounce = player.crash > 0 ? 0 : (Math.random() - 0.5) * bumpy * sp * 2;
-  const y = H / 2 - (scale * camY * H / 2) - destH + bounce;
+  const lift = scale * player.y * H / 2, ground = H / 2 - (scale * camY * H / 2); // in a jump the auto rises above its shadow
+  const y = ground - destH + bounce - lift;
   if (player.inv > 0 && Math.floor(player.inv * 10) % 2) return;
+  if (lift > 2) { ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.beginPath(); ctx.ellipse(W / 2, ground - 4, destW * 0.42, destW * 0.08, 0, 0, Math.PI * 2); ctx.fill(); }
   drawTuk(player.img, W / 2 - destW / 2, y, destW, destH, player.rot, player.atk, player.hurt, player);
 }
 
@@ -3052,8 +3124,8 @@ function drawResults() {
   const by = 140 + r.order.length * 28;
   const s = r.stats, star = on => (on ? ' \u2605' : '');
   const time = s.time === null ? '\u2014' : fmtTime(s.time) + (r.beaten.time ? ' \u2605 NEW BEST' : `  (best ${fmtTime(r.best.bestTime)})`);
-  text(`Time ${time}   \u00b7   Drift ${Math.round(s.driftScore)}${star(r.beaten.drift)}   \u00b7   Close passes ${s.passes}${star(r.beaten.passes)}`, W / 2, by + 4, 14, '#ffcc80', 'center', 'system-ui, sans-serif');
-  text(`Prize ${fmtCash(r.prize)}  +  KO ${fmtCash(r.bonus)}  +  Drift ${fmtCash(r.skill.drift)}  +  Lane surf ${fmtCash(r.skill.passes)}  =  ${fmtCash(r.prize + r.bonus + r.skill.drift + r.skill.passes)}`, W / 2, by + 28, 15, '#a5d6a7', 'center', 'system-ui, sans-serif');
+  text(`Time ${time}   \u00b7   Drift ${Math.round(s.driftScore)}${star(r.beaten.drift)}   \u00b7   Close passes ${s.passes}${star(r.beaten.passes)}   \u00b7   Jumps ${s.jumps}`, W / 2, by + 4, 14, '#ffcc80', 'center', 'system-ui, sans-serif');
+  text(`Prize ${fmtCash(r.prize)}  +  KO ${fmtCash(r.bonus)}  +  Drift ${fmtCash(r.skill.drift)}  +  Lane surf ${fmtCash(r.skill.passes)}  +  Jumps ${fmtCash(r.skill.jumps)}  =  ${fmtCash(r.prize + r.bonus + r.skill.drift + r.skill.passes + r.skill.jumps)}`, W / 2, by + 28, 14, '#a5d6a7', 'center', 'system-ui, sans-serif');
   text(`Wallet: ${fmtCash(cash)}`, W / 2, by + 54, 18, '#fff');
   const a = 0.5 + Math.sin(performance.now() / 250) * 0.5;
   ctx.globalAlpha = 0.4 + a * 0.6;
