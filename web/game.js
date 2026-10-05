@@ -2180,7 +2180,7 @@ function updateRivals(dt) {
     const kerb = FP.kerbCrossing(seg.half, footpath(), xWas, r.x, !!seg.junction);
     if (kerb) r.speed *= 1 - (kerb === 'climb' ? footpath().climbLoss : footpath().dropLoss);
     if (r.path) { // at a cart: line up and jump, straight along the footpath; too slow, and the cart wrecks it
-      const cart = seg.solids.find(q => q.kind === 'cart' && q.offset < 0 && q.seg0 === seg.index);
+      const cart = seg.solids.find(q => q.kind === 'cart' && q.offset < 0 && seg.index - q.seg0 <= 1); // its near end: two segments, as a fast auto can step over one
       if (cart && r.speed / MAX_SPEED >= FP.JUMP.minSpeed) { r.x = cart.offset - cart.nw / 2; r.air = { ...FP.jump(r.speed / MAX_SPEED), t: 0 }; }
       else if (cart) { r.ko = 3; r.koBy = 'traffic'; r.koDir = 1; r.speed *= 0.1; r.outCd = rand(4, 8); }
     }
@@ -2532,7 +2532,7 @@ function checkCollisions() {
   const reachR = use3D ? TUK_LEN / 2 + half : 200;
   for (const r of rivals) {
     const dz = r.dist - player.dist;
-    if (Math.abs(dz) > reachR || !overlap(player.x, pw, r.x, r.nw)) continue;
+    if (r.air || Math.abs(dz) > reachR || !overlap(player.x, pw, r.x, r.nw)) continue; // a rival in a jump is over your head
     if (r.ko > 0) {
       if (dz > 0 && player.speed / MAX_SPEED > 0.3) { crashPlayer(`TRIPPED OVER ${r.name}!`, 15); player.speed *= 0.3; player.dist -= reachR - dz; return; }
       continue;
@@ -2560,10 +2560,10 @@ function separateRivals() {
     const a = rivals[i];
     for (let j = i + 1; j < rivals.length; j++) {
       const b = rivals[j], dz = b.dist - a.dist;
-      if (Math.abs(dz) >= reachR) continue;
+      if (a.air || b.air || Math.abs(dz) >= reachR) continue; // in a jump an auto touches nothing
       if (dz >= 0) push(a, b, dz, reachR, TUK_NW, true); else push(b, a, -dz, reachR, TUK_NW, true);
     }
-    if (a.ko > 0) continue;
+    if (a.ko > 0 || a.air) continue;
     // alongside you: the rival gives way sideways (nose to tail is handled in checkCollisions)
     const pdz = player.dist - a.dist, pdx = a.x - player.x, pov = (TUK_NW + playerW()) / 2 - Math.abs(pdx);
     if (Math.abs(pdz) < (use3D ? (TUK_LEN + playerL()) / 2 : 200) - 260 && pov > 0) a.x += (pdx >= 0 ? 1 : -1) * pov;
