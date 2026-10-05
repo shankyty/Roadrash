@@ -24,6 +24,7 @@ window.World3D = (() => {
   let renderer, scene, camera, hemi, sun, ready = false, roadShade = null, post = null;
   let road, roadPos, roadCol, roadUV, roadDet, det = 1;
   let segments = [], trackLength = 1, theme = null, SP = null, TS = null, cfg = {};
+  const FP_H = 70;              // how high the footpath stands above the road
   const QUADS = 30; // per segment: verge and road (7), centre line (2), lane lines (4), or finish cells (12) / zebra + stop line
   const P = [], TH = [], Y = [];     // per-frame centreline points, headings, heights (camera space)
   let camAbs = 0, camFrac = 0, baseIdx = 0;
@@ -1600,6 +1601,19 @@ vec3 nightLight(vec3 p) {
     g.userData.glow = glow; g.userData.size = { w: 60, h: 1700, l: 60 };
     return g;
   }
+  // A hand cart parked on its pull handles: the plank bed slopes up the way the traffic goes (the ramp). The
+  // model's origin is the cart's near end, on the ground.
+  function cartModel(s) {
+    const g = new T.Group(), Wd = s.nw * ROAD_W * 0.9, L = s.len || 800, rise = 260, tilt = Math.atan2(rise, L);
+    const bed = new T.Group(); bed.position.set(0, rise / 2 + 26, -L / 2); bed.rotation.x = tilt; g.add(bed);
+    bed.add(box(Wd, 26, L, '#a1764a', 0, 0, 0));                                                         // planks
+    for (const x of [-1, 1]) bed.add(box(34, 70, L, '#6d4c2f', x * (Wd / 2 - 17), 22, 0));               // side rails
+    bed.add(box(Wd, 90, 30, '#6d4c2f', 0, 32, -L / 2 + 15));                                             // the board across the far end
+    for (const x of [-1, 1]) bed.add(box(44, 44, 420, '#7b3f1d', x * Wd * 0.3, -20, L / 2 + 190));       // the two shafts, down to the ground
+    bed.add(cylX(22, Wd * 0.75, '#7b3f1d', 0, -20, L / 2 + 380));                                        // pull bar
+    for (const x of [-1, 1]) g.add(wheel(150, 70, x * (Wd / 2 + 45), 150, -L * 0.55, '#6f6f6f'));        // two big tyres under the bed
+    g.userData.size = { w: Wd + 160, h: rise + 110, l: L + 420 }; return g;
+  }
   function milestoneModel() {
     const g = new T.Group();
     g.add(box(140, 180, 60, '#f5f5f5', 0, 90, 0)); g.add(box(140, 90, 62, '#ffcc00', 0, 225, 0));
@@ -1659,6 +1673,7 @@ vec3 nightLight(vec3 p) {
       case 'billboard': case 'chai': return boardModel(s.img, s.nw * ROAD_W, side);
       case 'lamp': return lampModel(side);
       case 'milestone': return milestoneModel();
+      case 'cart': return cartModel(s);
       case 'arch': return archModel(s.img, s);
       case 'sign': return signModel(s);
       case 'signal': return signalModel(s);
@@ -1733,7 +1748,7 @@ vec3 nightLight(vec3 p) {
     colors = {
       light: { road: c(theme.light.road), grass: c(theme.light.grass), rumble: c(theme.light.rumble), lane: c(theme.light.lane), shoulder: c(theme.light.shoulder) },
       dark: { road: c(theme.dark.road), grass: c(theme.dark.grass), rumble: c(theme.dark.rumble), shoulder: c(theme.dark.shoulder) },
-      white: c('#f5f5f5'), yellow: c('#f2c200'),
+      white: c('#f5f5f5'), yellow: c('#f2c200'), kerb: c('#6f6a63'),
     };
     scene.fog = new T.Fog(theme.fog, 20000, DRAW * SEG_LEN * 0.97);
     const night = !!theme.night;
@@ -1793,11 +1808,11 @@ vec3 nightLight(vec3 p) {
   }
   // a quad across the road between fractions f1..f2 of segment n (0 = its near end), from lateral a..b at the
   // near end to c..d at the far end (so a strip can widen along a taper)
-  function stripT(n, f1, f2, a1, b1, a2, b2, yOff, col) {
+  function stripT(n, f1, f2, a1, b1, a2, b2, yOff, col, yOff2 = yOff) { // yOff2: the height at the far end, when it differs
     const A = P[n], B = P[n + 1];
     const lerp = (u, v, f) => u + (v - u) * f;
     const px1 = lerp(A.x, B.x, f1), pz1 = lerp(A.z, B.z, f1), px2 = lerp(A.x, B.x, f2), pz2 = lerp(A.z, B.z, f2);
-    const t1 = lerp(TH[n], TH[n + 1], f1), t2 = lerp(TH[n], TH[n + 1], f2), y1 = lerp(Y[n], Y[n + 1], f1) + yOff, y2 = lerp(Y[n], Y[n + 1], f2) + yOff;
+    const t1 = lerp(TH[n], TH[n + 1], f1), t2 = lerp(TH[n], TH[n + 1], f2), y1 = lerp(Y[n], Y[n + 1], f1) + yOff, y2 = lerp(Y[n], Y[n + 1], f2) + yOff2;
     const c1 = Math.cos(t1), s1 = Math.sin(t1), c2 = Math.cos(t2), s2 = Math.sin(t2);
     const o1 = lerp(a1, a2, f1), o2 = lerp(b1, b2, f1), o3 = lerp(a1, a2, f2), o4 = lerp(b1, b2, f2);
     // texture coordinates: one asphalt tile per lane across and three lane-widths along (wrapped to keep floats exact)
@@ -1807,6 +1822,12 @@ vec3 nightLight(vec3 p) {
          [o1 / TILE, d1, o2 / TILE, d1, o4 / TILE, d2, o3 / TILE, d2]);
   }
   const strip = (n, o1, o2, yOff, col) => stripT(n, 0, 1, o1, o2, o1, o2, yOff, col);
+  // an upright face along segment n, at lateral a at its near end and b at its far end: from y0 up to y1 at the
+  // near end, y2 up to y3 at the far end (a kerb)
+  function wallT(n, a, b, y0, y1, y2, y3, col) {
+    const A = P[n], B = P[n + 1], ax = A.x + Math.cos(TH[n]) * a, az = A.z + Math.sin(TH[n]) * a, bx = B.x + Math.cos(TH[n + 1]) * b, bz = B.z + Math.sin(TH[n + 1]) * b;
+    quad(ax, Y[n] + y0, az, ax, Y[n] + y1, az, bx, Y[n + 1] + y3, bz, bx, Y[n + 1] + y2, bz, col, [0, 0, 0, 0, 0, 0, 0, 0]);
+  }
   function buildRoad() {
     vi = 0;
     const L = segments.length, U = ROAD_W, rw = U / 6, sw = U * 0.35, lw = U / 40, LW = (cfg.LANE_W || 0.6) * U;
@@ -1820,8 +1841,13 @@ vec3 nightLight(vec3 p) {
         if (k === j.s0 + (j.s1 - j.s0 + 1) / 2) { stripT(n, 0, 0.12, -26000, -h1 - 300, -26000, -h1 - 300, 3, colors.yellow); stripT(n, 0, 0.12, h1 + 300, 26000, h1 + 300, 26000, 3, colors.yellow); }
         if (k === j.s0 || k === j.s1) for (let x = -h1 + 60; x < h1 - 150; x += 300) stripT(n, 0.15, 0.85, x, x + 170, x, x + 170, 3, colors.white);
       } else {
-        det = 0; strip(n, -26000, -h1 - rw - sw, -6, col.grass); stripT(n, 0, 1, h1 + rw + sw, 26000, h2 + rw + sw, 26000, -6, col.grass);
-        det = 0.3; stripT(n, 0, 1, -h1 - rw - sw, -h1 - rw, -h2 - rw - sw, -h2 - rw, -3, col.shoulder); stripT(n, 0, 1, h1 + rw, h1 + rw + sw, h2 + rw, h2 + rw + sw, -3, col.shoulder);
+        // the footpath: raised, with a kerb face towards the road and a back face towards the grass; next to a
+        // junction it slopes down to road level (a dropped kerb). Without one, the old narrow paved strip.
+        const fp = cfg.footpath, fw = fp ? fp.width * U : sw;
+        const ya = !fp ? -3 : segments[(baseIdx + n - 1 + L) % L].junction ? 0 : FP_H, yb = !fp ? -3 : segments[(baseIdx + n + 1) % L].junction ? 0 : FP_H;
+        det = 0; strip(n, -26000, -h1 - rw - fw, -6, col.grass); stripT(n, 0, 1, h1 + rw + fw, 26000, h2 + rw + fw, 26000, -6, col.grass);
+        det = 0.3; stripT(n, 0, 1, -h1 - rw - fw, -h1 - rw, -h2 - rw - fw, -h2 - rw, ya, col.shoulder, yb); stripT(n, 0, 1, h1 + rw, h1 + rw + fw, h2 + rw, h2 + rw + fw, ya, col.shoulder, yb);
+        if (fp) { det = 0; for (const sd of [-1, 1]) { wallT(n, sd * (h1 + rw), sd * (h2 + rw), 0, ya, 0, yb, colors.kerb); wallT(n, sd * (h1 + rw + fw), sd * (h2 + rw + fw), -6, ya, -6, yb, colors.kerb); } }
         det = 0.45; stripT(n, 0, 1, -h1 - rw, -h1, -h2 - rw, -h2, 0, col.rumble); stripT(n, 0, 1, h1, h1 + rw, h2, h2 + rw, 0, col.rumble);
         det = 1; stripT(n, 0, 1, -h1, h1, -h2, h2, 0, col.road); det = 0.7;                       // (paint on top: worn)
         if (seg.finish) {
@@ -1875,7 +1901,7 @@ vec3 nightLight(vec3 p) {
     return t;
   }
   function roadMaterial() {
-    const m = nightify(new T.MeshBasicMaterial({ vertexColors: true, map: asphaltTexture() }), true), night = m.onBeforeCompile;
+    const m = nightify(new T.MeshBasicMaterial({ vertexColors: true, map: asphaltTexture(), side: T.DoubleSide }), true), night = m.onBeforeCompile;
     m.onBeforeCompile = sh => {
       night(sh);
       sh.vertexShader = 'attribute float detail; varying float vDetail;\n' + sh.vertexShader.replace('#include <uv_vertex>', '#include <uv_vertex>\nvDetail = detail;');
@@ -1992,8 +2018,19 @@ vec3 nightLight(vec3 p) {
     arm.visible = true; arm.rotation.y = side < 0 ? Math.PI - pose.y : pose.y;
     pivot.rotation.z = pose.z; pivot.position.x = m.userData.armX + pose.ext;
   }
+  // how high the ground an auto stands on is above the road: the footpath's height when it is on the footpath
+  function pathLift(d, x) {
+    const fp = cfg.footpath; if (!fp) return 0;
+    const seg = segments[(baseIdx + Math.max(0, Math.floor(d / SEG_LEN + camFrac))) % segments.length];
+    return window.RRR.footpath.zoneAt(seg.half, fp, x, !!seg.junction) === 'footpath' ? FP_H : 0;
+  }
   function placeAuto(obj, m, d, x, rot, atk, hurt, bounce) {
     const p = onGround(placeAt(d, x), d, x, m.userData.size.l);
+    // on the footpath it rides at the footpath's height (eased, so the kerb is a quick step and not a snap);
+    // in a jump it rises by its height and points along its flight: nose up on the way up, down on the way down
+    obj.lift3d = (obj.lift3d || 0) + (pathLift(d, x) - (obj.lift3d || 0)) * 0.3;
+    const a = obj.air, climb = a ? Math.atan2(4 * a.peak / a.airTime * (1 - 2 * a.t / a.airTime), Math.max(obj.speed, 1)) : 0;
+    bounce += obj.lift3d + (obj.y || 0); p.pitch += climb;
     // your auto faces its real heading (sharp pivots); rivals point the way they're moving
     const yaw = obj.crash > 0 || obj.ko > 0 ? 0 : obj.isPlayer ? (obj.heading || 0) + (obj.slip || 0) : steerYaw(obj, obj.dist || 0, x);
     m.position.set(p.x + (hurt > 0 ? Math.sin(hurt * 90) * 18 : 0), p.y + bounce, p.z);
@@ -2001,7 +2038,7 @@ vec3 nightLight(vec3 p) {
     // tipping over: roll about the wheel edge it falls onto (rolling about the middle sinks half the auto into
     // the road), and drop the contact shadow while it's up on its side
     const sh = m.userData.shadowMesh ??= m.children.find(ch => ch.userData.isShadow);
-    if (sh) sh.visible = Math.abs(rot) < 0.25;
+    if (sh) { sh.visible = Math.abs(rot) < 0.25; sh.userData.y0 ??= sh.position.y; sh.position.y = sh.userData.y0 - (obj.y || 0); } // (in a jump the shadow stays on the ground)
     if (rot) {
       const px = Math.sign(rot) * m.userData.size.w / 2, side = px * (1 - Math.cos(rot)), a = m.rotation.y;
       m.position.x += side * Math.cos(a); m.position.z -= side * Math.sin(a); m.position.y += Math.abs(px * Math.sin(rot));
@@ -2168,7 +2205,7 @@ vec3 nightLight(vec3 p) {
         else if (s.kind === 'lamp') p = placeAt(d, s.offset + side * 0.1);
         else if (s.kind === 'sign' || s.kind === 'signal' || s.kind === 'cop') p = placeAt(d, s.offset);
         else p = placeAt(d, s.offset + side * s.nw / 2);
-        m.position.set(p.x, p.y, p.z);
+        m.position.set(p.x, p.y + (s.onPath ? FP_H : 0), p.z); // (a stall or a cart stands on the footpath)
         m.rotation.y = -p.th + (s.kind === 'billboard' || s.kind === 'chai' ? -side * 0.45 : 0) + (s.facing === -1 ? Math.PI : 0);
         if (s.kind === 'signal' && lightOf) { const L = lightOf(s.junction); for (const k of ['R', 'A', 'G']) for (const lm of m.userData.lamps[k]) lm.material = sigMat[k][k === L ? 1 : 0]; }
         if (s.kind === 'cop') m.userData.wave.rotation.z = -1.2 - Math.sin(t * 5) * 0.5;
