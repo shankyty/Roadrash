@@ -1798,6 +1798,7 @@ function curse(who) {
     where: who.isPlayer ? null : () => ({ dz: who.dist - player.dist, x: who.x, vz: who.speed }) });
 }
 function startAttack(who, side) {
+  if (who.air) return; // nobody swings in a jump
   const w = who.weapon || LATHI, dur = who.isPlayer ? 0.34 * w.cooldown : 0.34;
   who.atk = { t: 0, side, dur, at: dur * moveOf(w).at, done: false, sleeve: who.driver ? who.driver.look.shirt : null };
 }
@@ -1911,6 +1912,7 @@ function update(dt) {
     guard('traffic', () => updateCross(dt));
     guard('rivals-combat', separateRivals);
     if (state === 'race') guard('player-physics', checkCollisions);
+    guard('player-physics', settleLanding);
     if (state === 'race') guard('player-physics', () => updateClosePasses(dt));
     guard('hawkers', () => updateHawkers(dt));
     guard('race-rules', () => {
@@ -1942,6 +1944,7 @@ function updatePlayer(dt, controlled) {
 
   if (player.atk) { player.atk.t += dt; if (!player.atk.done && player.atk.t > player.atk.at) { player.atk.done = true; resolveAttack(player, player.atk.side); } if (player.atk.t > player.atk.dur) player.atk = null; }
 
+  const flying = !!player.air; // true for the whole frame, the landing frame included
   if (player.air) {
     // in the air: no steering, throttle or grip. The auto flies the way it was pointing; the road bends on underneath
     const a = player.air; a.t += dt;
@@ -2008,7 +2011,7 @@ function updatePlayer(dt, controlled) {
   player.x = clamp(player.x, -seg.half - 1.8, seg.half + 1.8);
   // the kerb: climbing onto the footpath or dropping off it costs speed (not in the air, and not at a junction,
   // where the footpath is at road level)
-  if (!player.air && player.crash <= 0) { const k = FP.kerbCrossing(seg.half, footpath(), x0, player.x, !!seg.junction); if (k) hitKerb(k); }
+  if (!flying && player.crash <= 0) { const k = FP.kerbCrossing(seg.half, footpath(), x0, player.x, !!seg.junction); if (k) hitKerb(k); }
   // top speed is the style's, raised for a moment by a boost (a drift exit or a slipstream); above it, speed bleeds off
   player.boostT -= dt;
   const cap = MAX_SPEED * def.handling.topSpeed * (1 + (player.boostT > 0 ? player.boost : 0));
@@ -2047,8 +2050,8 @@ function takeOff() {
   player.lean = 0; player.tip = 0; player.rot = 0;
   Sfx.whoosh();
 }
-// Back down: on top of a vehicle or a cow it's a crash; otherwise the jump counts, and one that left the
-// footpath, passed over a vehicle and came down in the road is a flyover.
+// Back down: on top of a vehicle or a cow it's a crash; otherwise the landing is noted for settleLanding. A jump
+// that left the footpath, passed over a vehicle and came down in the road is a flyover.
 function landPlayer() {
   const a = player.air, seg = findSegment(player.dist);
   player.air = null; player.y = 0; player.speed *= 1 - FP.JUMP.landLoss; shake = Math.max(shake, 0.2); Sfx.bump();
@@ -2056,9 +2059,15 @@ function landPlayer() {
     if (c.type === 'dog' || Math.abs(wrapDelta(c.z - player.dist)) >= ((c.len || 0) + TUK_LEN) / 2 || !overlap(player.x, playerW(), c.x, c.nw)) continue;
     crashPlayer(`LANDED ON A ${c.label}!`, 25); player.speed = 0; return;
   }
-  const flyover = a.fromPath && a.over && zoneOf(seg, player.x) === 'road';
-  stats.jump(flyover);
-  popup(flyover ? 'FLYOVER!' : 'JUMP!', W / 2, H - 260, flyover ? '#80deea' : '#ffd21f', 30);
+  player.landed = { flyover: a.fromPath && a.over && zoneOf(seg, player.x) === 'road' };
+}
+// The jump counts once the landing has held: coming down on something at the roadside is a wreck in this same
+// frame's collision check, and a jump that ends in a crash doesn't count.
+function settleLanding() {
+  const l = player.landed; if (!l) return;
+  player.landed = null; if (player.crash > 0) return;
+  stats.jump(l.flyover);
+  popup(l.flyover ? 'FLYOVER!' : 'JUMP!', W / 2, H - 260, l.flyover ? '#80deea' : '#ffd21f', 30);
 }
 
 // Lane surfing: overtaking same-way traffic with little room to spare is a close pass. Each one counts in the
@@ -2415,7 +2424,7 @@ function updateCross(dt) {
     if (Math.abs(c.x) - c.lenX / 2 < c.j.half + 0.2) c.j.busy = true;
     // hits: you get T-boned; a rival is knocked out
     for (const b of bodies) {
-      if (b.who === player ? player.crash > 0 || player.inv > 0 : b.who.ko > 0) continue;
+      if (b.who === player ? player.crash > 0 || player.inv > 0 || player.air : b.who.ko > 0) continue;
       if (!inLane(b) || Math.abs(b.x - c.x) > (c.lenX + b.w) / 2) continue;
       if (b.who === player) { crashPlayer(`T-BONED BY A ${c.label}!`, 25 + c.speed * 6); player.speed = 0; }
       else if (b.who.isRival) { b.who.ko = 2.5; b.who.koDir = c.dirX; b.who.speed *= 0.2; }
@@ -2922,8 +2931,8 @@ function drawPlayer(seg, pct) {
   const destW = TUK_NW * ROAD_W * scale * W / 2, destH = destW * player.img.height / player.img.width;
   const camY = lerp(seg.p1.camera.y, seg.p2.camera.y, pct);
   const sp = player.speed / MAX_SPEED;
-  const bumpy = Math.abs(player.x) > halfAt(player.dist) ? 4 : 1.2;
-  const bounce = player.crash > 0 ? 0 : (Math.random() - 0.5) * bumpy * sp * 2;
+  const bumpy = zoneOf(seg, player.x) === 'grass' ? 4 : 1.2; // the footpath rides as smoothly as the road
+  const bounce = player.crash > 0 || player.y > 0 ? 0 : (Math.random() - 0.5) * bumpy * sp * 2;
   const lift = scale * player.y * H / 2, ground = H / 2 - (scale * camY * H / 2); // in a jump the auto rises above its shadow
   const y = ground - destH + bounce - lift;
   if (player.inv > 0 && Math.floor(player.inv * 10) % 2) return;
