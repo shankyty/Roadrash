@@ -50,7 +50,7 @@ Every track gets a raised footpath on both sides that the auto can drive on. Cro
 - A driver with `daring` above 0 who is held up by traffic chooses between pulling out onto the oncoming side (today's behaviour) and mounting the footpath. The footpath is chosen with probability `0.5 × daring`.
 - On the footpath a rival pays the same kerb costs, lines up with each cart, jumps straight, and lands on the footpath.
 - A rival approaching a cart below the take-off speed drops back to the road before it. One that reaches a cart too slowly anyway is knocked out by it.
-- A rival only mounts the footpath when no cart is within 25 segments, so it has room to line up.
+- A rival only mounts the footpath when nothing stands on it (a cart or a stall) for as far as getting across to it takes, plus 25 segments to line up. It does not leave it by choice within 30 segments of a cart or a stall. What stands on the footpath is solid for a rival wherever it is: lined up at a cart's near end and fast enough it jumps, otherwise it is knocked out.
 - A rival leaves the footpath when there is room in the outer lane and it has been on the footpath at least 1.5 s, or after 8 s. The cooldown before the next attempt is the one used for pulling out.
 - A rival in the air cannot hit or be hit.
 - Drivers with `daring` 0 never leave the road.
@@ -96,7 +96,7 @@ Starting values, tuned by play.
 - **Air time:** `T = 0.35 + 0.75 × (speed ÷ 80 km/h)` seconds. That is about 0.6 s at 30 km/h, 1.1 s at 80 km/h and 1.3 s at 100 km/h.
 - **Height:** a parabola over `T` with a peak of `450 × T²` track units.
 - **Forward:** speed is held for the flight. Throttle and brake do nothing.
-- **Sideways:** the auto moves sideways at the rate its take-off heading gives on the ground (`speed × sin(heading) ÷ road width`). A bend does not push the auto in the air: its sideways position is measured along the road, so a jump taken straight comes down on the footpath on a bend as well as on a straight. (Changed in the final review: with the push, most straight jumps on the bendy tracks came down off the footpath.)
+- **Sideways:** the auto keeps the sideways speed it left the ground with: what its heading gives (`speed × sin(heading) ÷ road width`) less the bend's push at the cart, as on its last moment of driving. An auto holding the footpath round a bend has none, so it comes down on the footpath; one steering at the road flies out over the lanes. On a straight this is the take-off heading alone. (Changed in the final review: with the push applied through the flight, or with the heading alone, most jumps on the bendy tracks came down off the footpath.)
 - **Landing:** speed × 0.95. The drift, if any, has ended at take-off. No kerb cost is charged for where the auto comes down.
 - **Shortest jump:** at 30 km/h the auto travels about 2,800 track units in the air. The cart's end to the stall's far side is about 1,000, so every valid jump clears the stall.
 

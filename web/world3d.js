@@ -2270,8 +2270,9 @@ vec3 nightLight(vec3 p) {
     }
     // the player's auto
     const pm = modelFor(player);
-    // the ride: rough on the grass, smooth on the road and the footpath, still in a jump
-    const bump = player.crash > 0 || player.y > 0 ? 0 : (Math.random() - 0.5) * (zoneOf(cam.back, player.x) === 'grass' ? 18 : 5) * (player.speed / cfg.MAX_SPEED);
+    // the ride: rough on the grass, smooth on the road and the footpath, still in a jump (a track without a
+    // footpath keeps the shake it always had)
+    const bump = player.crash > 0 || player.y > 0 ? 0 : (Math.random() - 0.5) * ((cfg.footpath ? zoneOf(cam.back, player.x) === 'grass' : Math.abs(player.x) > 1) ? 18 : 5) * (player.speed / cfg.MAX_SPEED);
     const pp = placeAuto(player, pm, cam.back, player.x, player.rot || 0, player.atk, player.hurt, bump);
     pm.visible = !(player.inv > 0 && Math.floor(player.inv * 10) % 2); visible.add(pm);
     for (const m of lastVisible) if (!visible.has(m)) m.visible = false;

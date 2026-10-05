@@ -1946,10 +1946,10 @@ function updatePlayer(dt, controlled) {
 
   const flying = !!player.air, wrecked = player.crash > 0; // as the frame began: no kerb is charged on the frame a jump lands or a wreck is put back on the road
   if (player.air) {
-    // in the air: no steering, throttle or grip. The auto flies the way it was pointing, measured along the road:
-    // a bend doesn't push it, so a jump taken straight off a cart comes down on the footpath on any stretch
+    // in the air: no steering, throttle or grip. The auto keeps the sideways speed it left the ground with
+    // (see takeOff), so it flies on along the line it was driving
     const a = player.air; a.t += dt;
-    player.x += player.speed * Math.sin(player.heading) * dt / ROAD_W;
+    player.x += a.vx * dt;
     player.y = FP.heightAt(a, a.t);
     if (!a.over) a.over = traffic.some(c => c.type !== 'cow' && c.type !== 'dog' && Math.abs(wrapDelta(c.z - player.dist)) < ((c.len || 0) + TUK_LEN) / 2 && overlap(player.x, TUK_NW, c.x, c.nw));
     if (a.t >= a.airTime) landPlayer();
@@ -2044,10 +2044,16 @@ function hitKerb(way) {
   player.speed *= 1 - (way === 'climb' ? fp.climbLoss : fp.dropLoss);
   shake = Math.max(shake, 0.12); Sfx.bump();
 }
-// Off the end of a cart: the flight is set by the speed, and its direction by where the auto is pointing.
+// Off the end of a cart: the flight is set by the speed, and its direction by the way the auto was going.
 function takeOff() {
+  // the sideways speed it leaves the ground with, as on its last moment of driving: where it is pointing, less
+  // the bend's push. Holding the footpath round a bend that is nothing, so the jump comes down on the footpath;
+  // steering at the road it is the heading's, so the jump goes out over the lanes
+  const seg = findSegment(player.dist), sp = player.speed / MAX_SPEED;
+  const grip = player.drift && player.drift === Math.sign(seg.curve) ? def.handling.driftGrip : 1;
+  const vx = player.speed * Math.sin(player.heading) / ROAD_W - 2 * sp * sp * seg.curve * CENTRIFUGAL * grip;
   if (player.drift) endDrift();
-  player.air = { ...FP.jump(player.speed / MAX_SPEED), t: 0, over: false, fromPath: zoneOf(findSegment(player.dist), player.x) === 'footpath' };
+  player.air = { ...FP.jump(sp), t: 0, vx, over: false, fromPath: zoneOf(seg, player.x) === 'footpath' };
   player.lean = 0; player.tip = 0; player.rot = 0;
   Sfx.whoosh();
 }
