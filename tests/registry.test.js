@@ -194,6 +194,10 @@ test('a track overrides its style\'s footpath per key, or switches it off', () =
   RRR.manifest.tracks.push('narrow', 'none');
   assert.deepStrictEqual(RRR.validate(), []);
 });
+test('a track whose road is null is reported, not thrown on', () => {
+  const problems = withTrack(fresh(), t => { t.road = null; });
+  assert.ok(problems.length > 0 && problems.every(p => p.includes('.road')), problems.join('; '));
+});
 test('validate reports footpath settings that are missing, out of range or mistyped', () => {
   assert.deepStrictEqual(withTrack(fresh(), t => { t.road = { footpath: { width: 0, climbLoss: 1, dropLoss: -0.1, stallEvery: [300, 150], widht: 1 } }; }), [
     'track "changed".road.footpath.width: must be a number above 0',

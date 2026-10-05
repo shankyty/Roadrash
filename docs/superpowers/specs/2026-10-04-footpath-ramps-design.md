@@ -96,7 +96,7 @@ Starting values, tuned by play.
 - **Air time:** `T = 0.35 + 0.75 × (speed ÷ 80 km/h)` seconds. That is about 0.6 s at 30 km/h, 1.1 s at 80 km/h and 1.3 s at 100 km/h.
 - **Height:** a parabola over `T` with a peak of `450 × T²` track units.
 - **Forward:** speed is held for the flight. Throttle and brake do nothing.
-- **Sideways:** the auto moves sideways at the rate its take-off heading gives on the ground (`speed × sin(heading) ÷ road width`). The bend push still applies, because the road keeps curving underneath.
+- **Sideways:** the auto moves sideways at the rate its take-off heading gives on the ground (`speed × sin(heading) ÷ road width`). A bend does not push the auto in the air: its sideways position is measured along the road, so a jump taken straight comes down on the footpath on a bend as well as on a straight. (Changed in the final review: with the push, most straight jumps on the bendy tracks came down off the footpath.)
 - **Landing:** speed × 0.95. The drift, if any, has ended at take-off. No kerb cost is charged for where the auto comes down.
 - **Shortest jump:** at 30 km/h the auto travels about 2,800 track units in the air. The cart's end to the stall's far side is about 1,000, so every valid jump clears the stall.
 

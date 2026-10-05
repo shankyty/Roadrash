@@ -85,7 +85,6 @@ function checkMerged(road, traffic, where, problems) {
     if (!(Number.isInteger(share) && share > 0)) problems.push(`${where}.traffic.mix.${type}: must be a positive whole number`);
   }
 }
-// the roadside kinds a track's look.scenery weights
 // a track's footpath: false for none, or how wide it is, what the kerb costs and how far apart the stalls stand
 function checkFootpath(fp, where, problems) {
   if (fp === false) return;
@@ -97,6 +96,7 @@ function checkFootpath(fp, where, problems) {
     problems.push(`${where}.stallEvery: must be two numbers above 0, low then high`);
   for (const key of Object.keys(fp)) if (!['width', 'climbLoss', 'dropLoss', 'stallEvery'].includes(key)) problems.push(`${where}.${key}: unknown key`);
 }
+// the roadside kinds a track's look.scenery weights
 function checkScenery(scenery, where, problems) {
   if (typeOf(scenery) !== 'object') return;
   if (!Object.keys(scenery).length) problems.push(`${where}.look.scenery: must be a non-empty object`);
@@ -155,7 +155,8 @@ RRR.validate = () => {
 };
 
 // a style's road with a track's overrides, per key; the footpath's own keys merge too, and false switches it off
-function mergeRoad(base, over = {}) {
+function mergeRoad(base, over) {
+  over = over || {}; // no road of its own, or a null one that validate() reports
   const road = { ...base, ...over }, fp = over.footpath;
   if (typeOf(fp) === 'object' && typeOf(base.footpath) === 'object') road.footpath = { ...base.footpath, ...fp };
   return road;

@@ -114,12 +114,12 @@ const COMPONENTS = [
   ['audio', new RegExp(`^(?:Sfx|Music|Ambience|Object)?\\.?(?:${AUDIO_METHODS})$|^(?:Sfx|Music|Ambience|TwoStroke)`)],
   ['traffic', /^(updateDog|startChase|updateTraffic|honk)$/],
   ['rivals-combat', /^(updateRivals|resolveAttack|startAttack|curse)$/],
-  ['player-physics', /^(updatePlayer|crashPlayer|checkCollisions|endDrift|updateClosePasses|hitKerb|takeOff|landPlayer)$/],
+  ['player-physics', /^(updatePlayer|crashPlayer|checkCollisions|endDrift|updateClosePasses|hitKerb|takeOff|landPlayer|settleLanding)$/],
   ['hawkers', /^(updateHawkers)$/],
   ['race-rules', /^(?:RaceStats\.|Records\.)?(checkFinish|buildResults|advanceAfterResults|setupRace|currentRank|resetPlayer|updateAttract|closePass|breakChain|advance|bonuses|summary|submit)$/],
   ['config', /^(?:Registry\.|RRR\.)?(register|check|checkMerged|deepFreeze|validate|resolve|resolveDef)$/],
   ['traffic', /^(?:TrafficSpawner\.)?(spawn|deck|busLook|roadSpot|addVehicle|addCow|addDog|spawnTraffic)$/],
-  ['track', /^(?:TrackBuilder\.)?(build|loadTrack|addRoad|addSegment|lastY|layPieces|layoutLanes|layoutJunctions|placeScenery|placeSigns|settleRoadside|findSegment|attractSetup)$/],
+  ['track', /^(?:TrackBuilder\.)?(build|loadTrack|addRoad|addSegment|lastY|layPieces|layoutLanes|layoutJunctions|placeScenery|placeSigns|placeFootpath|settleRoadside|findSegment|attractSetup)$/],
   ['sprites', /^(?:Object\.)?(make[A-Z]\w*|buildSharedSprites|flipped|litWindows|fillerBlocks|trees|waterBand|cutOut|archPath|onion|far|near)$/],
   ['ui', /^(draw(?:HUD|Title|Results|Paused|Mixer|Controls|Countdown|Champion|Bubbles|Popups|Messages|SoundHint)|text|panel|bar|keycap)$/],
   ['renderer', /^(render|drawSegment|drawBackground|drawSprite|drawTuk|drawAttack|drawNeon|drawNeonStrips|drawPlayer|project|poly)$/],
@@ -1927,7 +1927,7 @@ function updateEngine() {
   const racing = state === 'race' || state === 'countdown';
   const throttle = racing && player.crash <= 0 ? (I.up() ? 1 : 0) : (state === 'finished' ? 0.3 : 0.15);
   Sfx.setEngine(player.speed / MAX_SPEED, state !== 'title' && state !== 'champion', throttle);
-  const sliding = state === 'race' && player.crash <= 0 && player.speed > DRIFT_END * 0.8;
+  const sliding = state === 'race' && player.crash <= 0 && !player.air && player.speed > DRIFT_END * 0.8;
   Sfx.squeal(sliding ? clamp(Math.abs(player.slip || 0) / DRIFT_SLIP, 0, 1) : 0);
   DriftMusic.update(state === 'race' && player.crash <= 0 && !!player.drift);
 }
@@ -1944,12 +1944,12 @@ function updatePlayer(dt, controlled) {
 
   if (player.atk) { player.atk.t += dt; if (!player.atk.done && player.atk.t > player.atk.at) { player.atk.done = true; resolveAttack(player, player.atk.side); } if (player.atk.t > player.atk.dur) player.atk = null; }
 
-  const flying = !!player.air; // true for the whole frame, the landing frame included
+  const flying = !!player.air, wrecked = player.crash > 0; // as the frame began: no kerb is charged on the frame a jump lands or a wreck is put back on the road
   if (player.air) {
-    // in the air: no steering, throttle or grip. The auto flies the way it was pointing; the road bends on underneath
+    // in the air: no steering, throttle or grip. The auto flies the way it was pointing, measured along the road:
+    // a bend doesn't push it, so a jump taken straight off a cart comes down on the footpath on any stretch
     const a = player.air; a.t += dt;
     player.x += player.speed * Math.sin(player.heading) * dt / ROAD_W;
-    player.x -= dx * sp * seg.curve * CENTRIFUGAL;
     player.y = FP.heightAt(a, a.t);
     if (!a.over) a.over = traffic.some(c => c.type !== 'cow' && c.type !== 'dog' && Math.abs(wrapDelta(c.z - player.dist)) < ((c.len || 0) + TUK_LEN) / 2 && overlap(player.x, TUK_NW, c.x, c.nw));
     if (a.t >= a.airTime) landPlayer();
@@ -2008,10 +2008,11 @@ function updatePlayer(dt, controlled) {
     const wobble = player.tip > 0 ? Math.sin(performance.now() / 40) * 0.05 : 0;
     player.rot = player.lean * 0.2 + wobble + (player.atk ? player.atk.side * 0.04 : 0);
   }
-  player.x = clamp(player.x, -seg.half - 1.8, seg.half + 1.8);
+  const edge = seg.half + 1.8 + FP.furnitureShift(footpath()); // the building line, as far out as you can go: a footpath moves it out
+  player.x = clamp(player.x, -edge, edge);
   // the kerb: climbing onto the footpath or dropping off it costs speed (not in the air, and not at a junction,
   // where the footpath is at road level)
-  if (!flying && player.crash <= 0) { const k = FP.kerbCrossing(seg.half, footpath(), x0, player.x, !!seg.junction); if (k) hitKerb(k); }
+  if (!flying && !wrecked && player.crash <= 0) { const k = FP.kerbCrossing(seg.half, footpath(), x0, player.x, !!seg.junction); if (k) hitKerb(k); }
   // top speed is the style's, raised for a moment by a boost (a drift exit or a slipstream); above it, speed bleeds off
   player.boostT -= dt;
   const cap = MAX_SPEED * def.handling.topSpeed * (1 + (player.boostT > 0 ? player.boost : 0));
@@ -2093,8 +2094,8 @@ function updateClosePasses(dt) {
 }
 
 const WRONG_SIDE_X = laneX(-1, 0), PASS_TIME = 2.2; // the oncoming lane by the centre line; seconds a pass takes
-// is there a cart ramp on our side's footpath within n segments ahead of segment i?
-const cartAhead = (i, n) => { for (let k = 0; k <= n; k++) if (segments[(i + k) % segments.length].solids.some(q => q.kind === 'cart' && q.offset < 0)) return true; return false; };
+// is anything standing on our side's footpath (a cart ramp or a stall) within n segments ahead of segment i?
+const pathBlocked = (i, n) => { for (let k = 0; k <= n; k++) if (segments[(i + k) % segments.length].solids.some(q => q.onPath && q.offset < 0)) return true; return false; };
 function updateRivals(dt) {
   for (const r of rivals) {
     const seg = findSegment(r.dist);
@@ -2157,11 +2158,14 @@ function updateRivals(dt) {
       // up on the footpath: back to the road once there's room in the outer lane, or when it has gone on long
       // enough; a cart coming up that it is too slow to jump from sends it back down early
       r.pathT += dt;
-      const tooSlow = r.speed / MAX_SPEED < FP.JUMP.minSpeed + 0.05 && cartAhead(seg.index, 14);
-      if (roomOuter && r.pathT > 1.5 || r.pathT > 8 || tooSlow || r.finished) { r.path = false; r.outCd = rand(1.5, 4); r.laneX = laneX(1, seg.lanes - 1); }
+      const tooSlow = r.speed / MAX_SPEED < FP.JUMP.minSpeed + 0.05 && pathBlocked(seg.index, 14);
+      const clear = !pathBlocked(seg.index, 30); // not just before a cart: it could not get off the footpath in time
+      if ((roomOuter && r.pathT > 1.5 || r.pathT > 8 || r.finished) && clear || tooSlow) { r.path = false; r.outCd = rand(1.5, 4); r.laneX = laneX(1, seg.lanes - 1); }
     } else if (daring > 0 && nearest && nd < 800 && r.outCd <= 0 && !r.finished && r.speed > MAX_SPEED * 0.25) {
-      // the footpath, if the track has one and no cart is too close to line up for (the more daring, the more often); else the oncoming side
-      if (footpath() && Math.random() < 0.5 * daring && !cartAhead(seg.index, 25)) { r.path = true; r.pathT = 0; }
+      // the footpath, if the track has one and it is clear for as far as getting across to it (1.3 a second) and
+      // lined up takes (the more daring, the more often); else the oncoming side
+      const reachPath = () => 25 + Math.ceil(Math.abs(r.x + FP.centre(seg.half, footpath())) / 1.3 * r.speed / SEG_LEN);
+      if (footpath() && Math.random() < 0.5 * daring && !pathBlocked(seg.index, reachPath())) { r.path = true; r.pathT = 0; }
       else if (meet > PASS_TIME * lerp(1.5, 0.6, daring)) { r.out = true; r.outT = 0; } else r.outCd = 0.5; // not now: look again in a moment
     }
     if (r.path) { tx = -FP.centre(seg.half, footpath()); rMin = tx; }
@@ -2179,10 +2183,15 @@ function updateRivals(dt) {
     r.dist += r.speed * dt;
     const kerb = FP.kerbCrossing(seg.half, footpath(), xWas, r.x, !!seg.junction);
     if (kerb) r.speed *= 1 - (kerb === 'climb' ? footpath().climbLoss : footpath().dropLoss);
-    if (r.path) { // at a cart: line up and jump, straight along the footpath; too slow, and the cart wrecks it
-      const cart = seg.solids.find(q => q.kind === 'cart' && q.offset < 0 && seg.index - q.seg0 <= 1); // its near end: two segments, as a fast auto can step over one
-      if (cart && r.speed / MAX_SPEED >= FP.JUMP.minSpeed) { r.x = cart.offset - cart.nw / 2; r.air = { ...FP.jump(r.speed / MAX_SPEED), t: 0 }; }
-      else if (cart) { r.ko = 3; r.koBy = 'traffic'; r.koDir = 1; r.speed *= 0.1; r.outCd = rand(4, 8); }
+    // what stands on the footpath is as solid for a rival as for you, and judged by where the rival is: a cart met
+    // at its near end (two segments, as a fast auto can step over one), lined up and fast enough, is a jump
+    // straight along the footpath; anything else it runs into wrecks it
+    for (const q of seg.solids) {
+      const qx = q.offset - q.nw / 2;
+      if (!q.onPath || q.offset > 0 || !overlap(r.x, r.nw, qx, q.nw)) continue;
+      if (q.kind === 'cart' && seg.index - q.seg0 <= 1 && FP.takesOff(qx, r.x, r.speed / MAX_SPEED)) { r.x = qx; r.air = { ...FP.jump(r.speed / MAX_SPEED), t: 0 }; }
+      else { r.ko = 3; r.koBy = 'traffic'; r.koDir = 1; r.speed *= 0.1; r.outCd = rand(4, 8); }
+      break;
     }
     if (r.x > -0.1) { // on or over the centre line, oncoming traffic is solid: a head-on knocks them out
       for (const c of traffic) {
@@ -2393,12 +2402,14 @@ const CROSS_TYPES = [
   { type: 'bike', nw: 0.17, len: 860, label: 'BIKE' }, { type: 'bike', nw: 0.17, len: 860, label: 'BIKE' },
   { type: 'auto', nw: TUK_NW, len: TUK_LEN, label: 'AUTO' }, { type: 'bus', nw: 0.56, len: 3200, label: 'BUS' },
 ];
+// where a cross road's queue waits: back from the road's edge, and behind the footpath where there is one
+const stopLine = j => j.half + 0.35 + (footpath() ? FP.KERB_W + footpath().width : 0);
 function spawnCross(j, dirX, queued) {
   let d = pick(CROSS_TYPES);
   if (d.type === 'car') { const i = Math.floor(Math.random() * CAR_LOOKS.length); d = { ...d, ...CAR_LOOKS[i], look: CAR_LOOKS[i], img: SP.carLooks[i] }; }
   if (d.type === 'bus') d = { ...d, look: RRR.busLook(def.city.busLooks, Math.random) };
   const lenX = d.len / ROAD_W;
-  const stopX = -dirX * (j.half + 0.35);
+  const stopX = -dirX * stopLine(j);
   const lineUp = crossTraffic.filter(c => c.j === j && c.dirX === dirX && c.x * dirX < stopX * dirX + 0.1);
   if (lineUp.length >= 4) return;
   const back = lineUp.reduce((m, c) => Math.min(m, c.x * dirX - c.lenX / 2), stopX * dirX) - 0.3 - lenX / 2;
@@ -2442,7 +2453,7 @@ function updateCross(dt) {
     let gap = Infinity;
     for (const b of bodies) if (inLane(b)) { const g = (b.x - c.x) * c.dirX - c.lenX / 2 - b.w / 2; if (g > -0.1 && g < gap) gap = g; }
     for (const o of crossTraffic) if (o !== c && o.j === c.j && o.dirX === c.dirX) { const g = (o.x - c.x) * c.dirX - (c.lenX + o.lenX) / 2; if (g > -0.2 && g < gap) gap = g; }
-    const stop = (-c.dirX * (c.j.half + 0.35) - c.x) * c.dirX - c.lenX / 2;
+    const stop = (-c.dirX * stopLine(c.j) - c.x) * c.dirX - c.lenX / 2;
     if (!crossGo(c.j) && stop > -0.05 && stop < gap) gap = stop;
     const target = gap === Infinity ? c.cruise : Math.min(c.cruise, Math.sqrt(2 * 3 * Math.max(0, gap - 0.12)));
     c.speed += clamp(target - c.speed, -3 * dt, 1.2 * dt);  // brakes hard, but not instantly
@@ -2451,7 +2462,7 @@ function updateCross(dt) {
     if (Math.abs(c.x) - c.lenX / 2 < c.j.half + 0.2) c.j.busy = true;
     // hits: you get T-boned; a rival is knocked out
     for (const b of bodies) {
-      if (b.who === player ? player.crash > 0 || player.inv > 0 || player.air : b.who.ko > 0) continue;
+      if (b.who === player ? player.crash > 0 || player.inv > 0 || player.air : b.who.ko > 0 || b.who.air) continue;
       if (!inLane(b) || Math.abs(b.x - c.x) > (c.lenX + b.w) / 2) continue;
       if (b.who === player) { crashPlayer(`T-BONED BY A ${c.label}!`, 25 + c.speed * 6); player.speed = 0; }
       else if (b.who.isRival) { b.who.ko = 2.5; b.who.koDir = c.dirX; b.who.speed *= 0.2; }

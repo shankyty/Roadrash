@@ -25,7 +25,7 @@ window.World3D = (() => {
   let road, roadPos, roadCol, roadUV, roadDet, det = 1;
   let segments = [], trackLength = 1, theme = null, SP = null, TS = null, cfg = {};
   const FP_H = 70;              // how high the footpath stands above the road
-  const QUADS = 30; // per segment: verge and road (7), centre line (2), lane lines (4), or finish cells (12) / zebra + stop line
+  const QUADS = 30; // per segment: footpath, kerb and road (7), kerb faces (4), centre line (2), lane lines (4), or finish cells (12) / zebra + stop line
   const P = [], TH = [], Y = [];     // per-frame centreline points, headings, heights (camera space)
   let camAbs = 0, camFrac = 0, baseIdx = 0;
 
@@ -1609,7 +1609,7 @@ vec3 nightLight(vec3 p) {
     bed.add(box(Wd, 26, L, '#a1764a', 0, 0, 0));                                                         // planks
     for (const x of [-1, 1]) bed.add(box(34, 70, L, '#6d4c2f', x * (Wd / 2 - 17), 22, 0));               // side rails
     bed.add(box(Wd, 90, 30, '#6d4c2f', 0, 32, -L / 2 + 15));                                             // the board across the far end
-    for (const x of [-1, 1]) bed.add(box(44, 44, 420, '#7b3f1d', x * Wd * 0.3, -20, L / 2 + 190));       // the two shafts, down to the ground
+    for (const x of [-1, 1]) bed.add(box(44, 44, 420, '#7b3f1d', x * Wd * 0.3, -20, L / 2 + 190));       // the two shafts it rests on (their ends are under the footpath's surface)
     bed.add(cylX(22, Wd * 0.75, '#7b3f1d', 0, -20, L / 2 + 380));                                        // pull bar
     for (const x of [-1, 1]) g.add(wheel(150, 70, x * (Wd / 2 + 45), 150, -L * 0.55, '#6f6f6f'));        // two big tyres under the bed
     g.userData.size = { w: Wd + 160, h: rise + 110, l: L + 420 }; return g;
@@ -2018,12 +2018,13 @@ vec3 nightLight(vec3 p) {
     arm.visible = true; arm.rotation.y = side < 0 ? Math.PI - pose.y : pose.y;
     pivot.rotation.z = pose.z; pivot.position.x = m.userData.armX + pose.ext;
   }
-  // how high the ground an auto stands on is above the road: the footpath's height when it is on the footpath
-  function pathLift(d, x) {
-    const fp = cfg.footpath; if (!fp) return 0;
+  // which band something d ahead of the camera is in: 'road', 'footpath' or 'grass'
+  function zoneOf(d, x) {
     const seg = segments[(baseIdx + Math.max(0, Math.floor(d / SEG_LEN + camFrac))) % segments.length];
-    return window.RRR.footpath.zoneAt(seg.half, fp, x, !!seg.junction) === 'footpath' ? FP_H : 0;
+    return window.RRR.footpath.zoneAt(seg.half, cfg.footpath, x, !!seg.junction);
   }
+  // how high the ground it stands on is above the road: the footpath's height when it is on the footpath
+  function pathLift(d, x) { return cfg.footpath && zoneOf(d, x) === 'footpath' ? FP_H : 0; }
   function placeAuto(obj, m, d, x, rot, atk, hurt, bounce) {
     const p = onGround(placeAt(d, x), d, x, m.userData.size.l);
     // on the footpath it rides at the footpath's height (eased, so the kerb is a quick step and not a snap);
@@ -2249,7 +2250,7 @@ vec3 nightLight(vec3 p) {
       const lean = c.type === 'bike' ? (back ? 1 : -1) * sy * (c.rash ? 2.4 : 1.4) : 0;   // bikes lean into lane changes
       // rash bikers pop the odd wheelie (front up about the rear wheel)
       const wp = c.rash && c.speed > 0 ? (t * 0.22 + (c.z % 997) / 997) % 1 : 1, wh = wp < 0.14 ? Math.sin(wp / 0.14 * Math.PI) * 0.32 : 0;
-      m.position.set(p.x, p.y + Math.sin(wh) * 268, p.z); m.rotation.set((animal ? 0 : back ? -p.pitch : p.pitch) + wh, yaw, lean, 'YXZ');
+      m.position.set(p.x, p.y + Math.sin(wh) * 268 + (animal ? pathLift(dd, c.x) : 0), p.z); m.rotation.set((animal ? 0 : back ? -p.pitch : p.pitch) + wh, yaw, lean, 'YXZ');
       if (c.type === 'cow' || c.type === 'dog') walk(m, t * (c.type === 'dog' ? 14 : 6), c.type === 'dog' ? (c.mode === 'chase' || c.mode === 'cross' ? 1 : 0) : (c.pause > 0 ? 0 : Math.abs(c.vx || 0)));
       else {
         spinWheels(m, c.z);
@@ -2269,7 +2270,8 @@ vec3 nightLight(vec3 p) {
     }
     // the player's auto
     const pm = modelFor(player);
-    const bump = player.crash > 0 ? 0 : (Math.random() - 0.5) * (Math.abs(player.x) > 1 ? 18 : 5) * (player.speed / cfg.MAX_SPEED);
+    // the ride: rough on the grass, smooth on the road and the footpath, still in a jump
+    const bump = player.crash > 0 || player.y > 0 ? 0 : (Math.random() - 0.5) * (zoneOf(cam.back, player.x) === 'grass' ? 18 : 5) * (player.speed / cfg.MAX_SPEED);
     const pp = placeAuto(player, pm, cam.back, player.x, player.rot || 0, player.atk, player.hurt, bump);
     pm.visible = !(player.inv > 0 && Math.floor(player.inv * 10) % 2); visible.add(pm);
     for (const m of lastVisible) if (!visible.has(m)) m.visible = false;

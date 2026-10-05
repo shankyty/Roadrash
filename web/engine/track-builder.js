@@ -180,8 +180,10 @@ class TrackBuilder {
     const plain = k => { const q = segments[k]; return !q.clear && !q.junction && !q.finish && q.hw1 === q.hw2; };
     // the inner edge of something w wide standing in the middle of the footpath (for a road edge at 1)
     const inner = (side, w) => side * (1 + F.KERB_W + (fp.width - w) / 2);
+    // however close the style asks, stalls stand no closer than a cart, its stall and the landing beyond need
+    const least = F.CART.runout + F.CART.lead + F.CART.length;
     for (const side of [-1, 1]) {
-      for (let n = fs + 150 + gap(); n < N - 60; n += gap()) {
+      for (let n = fs + 150 + gap(); n < N - 60; n += Math.max(gap(), least)) {
         const k0 = n - F.CART.lead; // the cart's first segment
         let ok = k0 + F.CART.runout < N; for (let k = k0 - 4; ok && k <= k0 + F.CART.runout; k++) ok = plain(k);
         if (!ok) continue;

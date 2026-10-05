@@ -134,6 +134,15 @@ test('without a footpath there are no stalls or carts and furniture stands where
   const lamp = road.segments.flatMap(s => s.sprites.filter(q => q.kind === 'lamp').map(q => Math.abs(q.offset) - s.half))[0];
   assert.ok(Math.abs(lamp - 0.12) < 1e-9);
 });
+test('however close the style asks, carts on one side are a cart, its stall and the landing apart', () => {
+  const least = F.CART.runout + F.CART.lead + F.CART.length;
+  const road = buildRoad(testDef({ road: { footpath: { ...FP, stallEvery: [20, 40] } } }));
+  for (const side of [-1, 1]) {
+    const at = onPath(road, 'cart').filter(({ q }) => Math.sign(q.offset) === side).map(({ n }) => n);
+    assert.ok(at.length > 1, `${at.length} carts`);
+    for (let i = 1; i < at.length; i++) assert.ok(at[i] - at[i - 1] >= least, `${at[i - 1]} then ${at[i]}`);
+  }
+});
 test('closer stall spacing puts more stalls on the road', () => {
   const count = every => onPath(buildRoad(testDef({ road: { footpath: { ...FP, stallEvery: every } } })), 'chai').length;
   assert.ok(count([100, 200]) > count([250, 450]));

@@ -46,7 +46,7 @@ function jump(speedShare) {
 // height above the road t seconds into a flight (a parabola; 0 before take-off and after landing)
 const heightAt = (j, t) => (t <= 0 || t >= j.airTime ? 0 : 4 * j.peak * (t / j.airTime) * (1 - t / j.airTime));
 // how far roadside furniture stands out from where it stood without a footpath, so the footpath is clear
-const furnitureShift = fp => (fp ? KERB_W + fp.width - 0.07 : 0);
+const furnitureShift = fp => (fp ? KERB_W + fp.width - 0.07 : 0); // 0.07 less: the nearest furniture stood 0.1 out from the road's edge, and now stands just behind the footpath
 
 RRR.footpath = { KERB_W, CART, STALL_W, JUMP, kerbLine, backEdge, centre, zoneAt, kerbCrossing, takesOff, jump, heightAt, furnitureShift };
 })();
