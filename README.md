@@ -105,7 +105,7 @@ The cast is one data file, `web/drivers.js`: 13 drivers, one per city. Each entr
 | --- | --- |
 | `look` | Body, trim and hood colours, number plate, rear slogan, `rear: "grille"` for a back with an engine hatch (the slogan is painted above it), an optional `visor` strip and `seat` colour, the driver's shirt and headgear, and a neon colour (shown on night tracks) |
 | `voice`, `curses` | How the voice is described to the speech model, and five curses: the bubble text and what is spoken, in native script |
-| `weapon` | A swing (bat, hockey stick, umbrella, cane, cloth, shoe, bag, dandiya, lathi, bare hand) or a kick, with its power, reach, cooldown, sound and hit words |
+| `weapon` | A swing (bat, hockey stick, umbrella, cane, cloth, shoe, bag, dandiya, lathi, bare hand) or a kick, with its `move` (the path it follows: chop, pull, lowsweep, jab, uppercut, whip, smack, roundhouse, double, slap, sidekick, highkick, volley), its `contact` (where it lands: head, body or low), power, reach, cooldown, sound, hit words, and `wet` for a spray of water |
 | `style` | Pace, speed through bends, aggression, how far they chase you, lane changes, nerve in traffic, start reaction, grudge, and `daring`: whether (and how recklessly) they overtake on the oncoming side |
 
 You drive as the driver you picked on the title screen (or, until you pick, the track city's own). Your seven rivals always include the track city's driver, unless that's you; the rest are a random draw. `node tools/drivers/check.mjs --clips` checks the file and that every curse has a voice clip. The file is strict JSON after `window.RRR_DRIVERS =`, so the voice tools read it too.

@@ -10,6 +10,8 @@ const TRACK_CITIES = ['mumbai', 'hyderabad', 'delhi', 'chennai'];
 const HEADGEAR = ['none', 'turban', 'safa', 'cap', 'pallu'];
 const SHAPES = ['lathi', 'bat', 'hockey', 'umbrella', 'cane', 'cloth', 'shoe', 'bag', 'dandiya', 'hand'];
 const SOUNDS = ['wood', 'slap', 'thud'];
+const MOVES = ['chop', 'pull', 'lowsweep', 'jab', 'uppercut', 'whip', 'smack', 'roundhouse', 'double', 'slap', 'sidekick', 'highkick', 'volley'];
+const CONTACTS = ['head', 'body', 'low'];
 const fails = [];
 const fail = (who, what) => fails.push(`${who}: ${what}`);
 
@@ -44,6 +46,9 @@ for (const d of drivers) {
   must(['swing', 'kick'].includes(w.kind), 'weapon.kind must be swing or kick');
   if (w.kind === 'swing') must(SHAPES.includes(w.shape), `weapon.shape must be one of ${SHAPES}`);
   must(hex(w.color), 'weapon.color must be #rrggbb');
+  must(MOVES.includes(w.move), `weapon.move must be one of ${MOVES}`);
+  must(CONTACTS.includes(w.contact), `weapon.contact must be one of ${CONTACTS}`);
+  must(w.wet === undefined || typeof w.wet === 'boolean', 'weapon.wet must be true or false');
   must(within(w.power, 0.7, 1.4), 'weapon.power must be 0.7 to 1.4');
   must(within(w.reach, 0.8, 1.2), 'weapon.reach must be 0.8 to 1.2');
   must(within(w.cooldown, 0.7, 1.3), 'weapon.cooldown must be 0.7 to 1.3');
@@ -62,6 +67,7 @@ for (const d of drivers) {
 
 const dup = key => drivers.map(d => d[key]).filter((v, i, a) => a.indexOf(v) !== i);
 for (const k of ['id', 'city', 'name']) for (const v of dup(k)) fail('cast', `two drivers share ${k} "${v}"`);
+for (const v of drivers.map(d => d.weapon?.move).filter((v, i, a) => a.indexOf(v) !== i)) fail('cast', `two drivers share the move "${v}"`);
 for (const c of TRACK_CITIES) if (!drivers.some(d => d.city === c)) fail('cast', `no driver from track city ${c}`);
 if (drivers.length < 7) fail('cast', `needs at least seven drivers, has ${drivers.length}`);
 const mean = f => drivers.reduce((a, d) => a + f(d), 0) / (drivers.length || 1);

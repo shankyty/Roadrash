@@ -78,7 +78,7 @@ function deviceSummary() {
 //   error/<kind>/<problem>/<OS-browser>
 // with the details needed to reproduce them in the title (version, game state, OS/browser versions,
 // screen, audio state, stack). Nothing personal is sent. Also logged to the console.
-const GAME_VERSION = '3.7.0';
+const GAME_VERSION = '3.8.0';
 // 3D quality tier: mobile browsers < laptop/desktop browsers < the Mac app. 'smooth' (phones and tablets,
 // when 3D is forced there with ?3d) keeps the frame rate up with fewer polygons and a lower resolution; 'high' for computer browsers; 'ultra'
 // in the Mac app (loaded from file://): finest models, detail kept farther away, full Retina resolution.
@@ -183,10 +183,40 @@ const store = {
 // a weapon and a driving style. You drive as the driver of the city you're racing in, against the others.
 // A broken entry is reported and left out; PLAIN_DRIVER fills the grid if fewer than eight are left (the
 // biggest grid and you), so a race always starts.
+// How each attack moves. Keyframes [k, z, y, ext] over the attack (k from 0 to 1): z is the arm's (or leg's) angle
+// up (+) or down (-) from level, y its sweep forward (+) or back (-), both in radians, and ext how far it thrusts
+// out (model units: an auto is about 1000 long). `at` is the moment it lands. A weapon names its `move`, and its
+// `contact` says where on the other auto it lands.
+const MOVES = {
+  chop: { at: 0.5, keys: [[0, 1.9, 0, 0], [0.5, -0.2, 0, 0], [1, -0.35, 0, 0]] },                              // overhead, straight down
+  pull: { at: 0.5, keys: [[0, 0.5, -1.3, 0], [0.5, 0, 0.2, 0], [1, 0.25, 1.0, 0]] },                           // a cricket pull shot, level, back to front
+  lowsweep: { at: 0.5, keys: [[0, -0.5, -1.2, 0], [0.5, -0.85, 0.1, 0], [1, -0.4, 1.1, 0]] },                  // stick down by the wheels, swept through
+  jab: { at: 0.45, keys: [[0, 0.05, 0, -230], [0.45, 0, 0, 150], [0.6, 0, 0, 150], [1, 0.05, 0, -120]] },      // a straight poke
+  uppercut: { at: 0.5, keys: [[0, -1.3, 0, 0], [0.5, 0.15, 0, 0], [1, 0.9, 0, 0]] },                           // flicked up from below
+  whip: { at: 0.55, keys: [[0, 0.6, -0.4, 0], [0.3, 2.2, -0.2, 0], [0.55, -0.05, 0.1, 60], [1, -0.4, 0.1, 0]] }, // wound up, then cracked
+  smack: { at: 0.5, keys: [[0, 2.3, 0, -60], [0.5, 0.35, 0, 0], [1, 0.6, 0, -40]] },                           // brought down on the head
+  roundhouse: { at: 0.5, keys: [[0, 0.3, -1.6, 0], [0.5, -0.1, 0.1, 0], [1, 0.1, 1.3, 0]] },                   // swung right round
+  double: { at: 0.3, keys: [[0, 1.3, 0, 0], [0.3, 0, 0, 0], [0.5, 0.9, 0.2, 0], [0.72, -0.05, 0.2, 0], [1, 0.3, 0, 0]] }, // tap, tap
+  slap: { at: 0.5, keys: [[0, 0.35, -1.1, 0], [0.5, 0.3, 0.1, 40], [1, 0.25, 0.9, 0]] },                       // open hand, across the face
+  sidekick: { at: 0.5, keys: [[0, -1.3, 0, 0], [0.5, 0.1, 0, 0], [1, -0.4, 0, 0]] },                           // straight out of the side
+  highkick: { at: 0.5, keys: [[0, -1.3, 0.2, 0], [0.5, 0.55, 0, 0], [1, -0.3, 0, 0]] },                        // film-hero high
+  volley: { at: 0.5, keys: [[0, -0.9, -1.1, 0], [0.5, -0.35, 0.1, 0], [1, -0.5, 0.9, 0]] },                    // a footballer's swing through
+};
+const moveOf = w => MOVES[w.move] || (w.kind === 'kick' ? MOVES.sidekick : MOVES.chop);
+// the pose k of the way through a move: { z, y, ext }
+function attackPoseAt(w, k) {
+  const keys = moveOf(w).keys; k = clamp(k, 0, 1);
+  let i = 1; while (i < keys.length - 1 && k > keys[i][0]) i++;
+  const a = keys[i - 1], b = keys[i], u = (k - a[0]) / (b[0] - a[0] || 1), e = u * u * (3 - 2 * u);
+  return { z: lerp(a[1], b[1], e), y: lerp(a[2], b[2], e), ext: lerp(a[3], b[3], e) };
+}
+const attackPose = (atk, w) => attackPoseAt(w, atk.t / atk.dur);
+// where a blow lands on the other auto: how far up it (0 road, 1 roof), the sideways shove and the speed it keeps
+const CONTACTS = { head: { up: 0.95, shove: 0.08, keep: 0.9 }, body: { up: 0.55, shove: 0.16, keep: 0.88 }, low: { up: 0.14, shove: 0.06, keep: 0.78 } };
 const PLAIN_DRIVER = { id: 'plain', name: 'RAJU', city: '', cityName: '', tag: '',
   look: { body: '#d7263d', trim: '#ffd166', canopy: '#141414', plate: 'UP 32 BT', slogan: 'HORN OK PLEASE', shirt: '#3949ab', headgear: 'none', headgearColor: '#000000', neon: null },
   voice: { lang: 'hi', describe: '', rate: 1 }, curses: [],
-  weapon: { kind: 'swing', shape: 'lathi', color: '#c8a165', power: 1, reach: 1, cooldown: 1, sound: 'wood', hitWords: HIT_WORDS },
+  weapon: { kind: 'swing', move: 'chop', contact: 'head', shape: 'lathi', color: '#c8a165', power: 1, reach: 1, cooldown: 1, sound: 'wood', hitWords: HIT_WORDS },
   style: { pace: -0.02, bends: 0.22, aggression: 0.9, chase: 900, weave: [3, 8], nerve: 0.5, launch: [0.05, 0.5], grudge: 1, daring: 0 } };
 const LATHI = PLAIN_DRIVER.weapon; // what you swing in a city that has no driver of its own
 function driverProblem(d) {
@@ -195,7 +225,7 @@ function driverProblem(d) {
   if (!d || typeof d.id !== 'string' || !d.name || !d.city) return 'no id, name or city';
   const l = d.look, w = d.weapon, st = d.style;
   if (!l || !['body', 'trim', 'canopy', 'shirt'].every(k => hex(l[k])) || typeof l.plate !== 'string' || (l.neon && !hex(l.neon)) || (l.visor && !hex(l.visor)) || (l.seat && !hex(l.seat))) return 'bad look';
-  if (!w || !['swing', 'kick'].includes(w.kind) || !hex(w.color) || !num(w.power, 0.5, 2) || !num(w.reach, 0.5, 1.5) || !num(w.cooldown, 0.5, 2) || !Array.isArray(w.hitWords) || !w.hitWords.length) return 'bad weapon';
+  if (!w || !['swing', 'kick'].includes(w.kind) || !hex(w.color) || !num(w.power, 0.5, 2) || !num(w.reach, 0.5, 1.5) || !num(w.cooldown, 0.5, 2) || !Array.isArray(w.hitWords) || !w.hitWords.length || (w.move && !MOVES[w.move]) || (w.contact && !CONTACTS[w.contact])) return 'bad weapon';
   if (!st || !num(st.pace, -0.1, 0.05) || !num(st.bends, 0, 0.5) || !num(st.aggression, 0, 2) || !num(st.chase, 100, 3000) || !span(st.weave, 0.5, 30) || !num(st.nerve, 0, 1) || !span(st.launch, 0, 2) || !num(st.grudge, 1, 5) || (st.daring !== undefined && !num(st.daring, 0, 1))) return 'bad style';
   if (!Array.isArray(d.curses) || !d.curses.every(c => c && typeof c.text === 'string') || !d.voice || typeof d.voice.rate !== 'number') return 'bad curses or voice';
   return null;
@@ -1532,7 +1562,7 @@ function loadTrack(idx) {
   bgLayers = { far: def.skyline.far(PAINT, theme, def.seed), near: def.skyline.near(PAINT, theme, def.seed + 5) };
   ({ segments, trackLength, startZ, junctions } = RRR.buildTrack({ def, round, sprites: SP, themeSprites,
     constants: { SEG_LEN, RUMBLE_LEN, PLAYER_Z, GRID_GAP: gridGap() } }));
-  if (use3D) World3D.setTrack({ segments, trackLength, theme, city: def.city.id, SP, themeSprites, CAR_COLORS, CAR_LOOKS, TRACTOR_LOOKS, BUS_LOOKS, BIKE_LOOKS, DOG_COATS, DRIVERS, MAX_SPEED, LANE_W });
+  if (use3D) World3D.setTrack({ segments, trackLength, theme, city: def.city.id, SP, themeSprites, CAR_COLORS, CAR_LOOKS, TRACTOR_LOOKS, BUS_LOOKS, BIKE_LOOKS, DOG_COATS, DRIVERS, attackPose, attackPoseAt, moveOf, MAX_SPEED, LANE_W });
 }
 
 function findSegment(z) { return segments[Math.floor(((z % trackLength) + trackLength) % trackLength / SEG_LEN) % segments.length]; }
@@ -1744,7 +1774,8 @@ function curse(who) {
     where: who.isPlayer ? null : () => ({ dz: who.dist - player.dist, x: who.x, vz: who.speed }) });
 }
 function startAttack(who, side) {
-  who.atk = { t: 0, side, dur: who.isPlayer ? 0.34 * (who.weapon || LATHI).cooldown : 0.34, done: false, sleeve: who.driver ? who.driver.look.shirt : null };
+  const w = who.weapon || LATHI, dur = who.isPlayer ? 0.34 * w.cooldown : 0.34;
+  who.atk = { t: 0, side, dur, at: dur * moveOf(w).at, done: false, sleeve: who.driver ? who.driver.look.shirt : null };
 }
 
 function honk() {
@@ -1760,6 +1791,11 @@ function honk() {
   }
 }
 
+// What flies off where a blow lands: a burst of sparks, and from a wet weapon (Bhola's gamchha) a spray of water
+function impact(x, y, w, side) {
+  for (let i = 0; i < 7; i++) particles.push({ x, y, vx: rand(-160, 160) + side * 90, vy: rand(-190, 40), g: 420, t: rand(0.2, 0.4), size: rand(2, 4), color: pick(['#fff3b0', '#ffd54f', '#ffffff']) });
+  if (w.wet) for (let i = 0; i < 30; i++) particles.push({ x: x + rand(-14, 14), y: y + rand(-12, 12), vx: rand(-260, 260) + side * 170, vy: rand(-380, -20), g: 760, t: rand(0.5, 1), size: rand(2.4, 5.4), color: pick(['#bfe6ff', '#8fd0ff', '#e3f4ff']) });
+}
 function resolveAttack(att, side) {
   const attIsPlayer = !!att.isPlayer, w = att.weapon || LATHI;
   const targets = attIsPlayer ? rivals.filter(r => !r.ko) : [player];
@@ -1773,14 +1809,20 @@ function resolveAttack(att, side) {
   if (!best) { if (attIsPlayer) Sfx.whoosh(); return; }
   Sfx.hit(w.sound);
   const dmg = attIsPlayer ? rand(14, 22) * w.power : rand(7, 12) * w.power * (1 + round * 0.1) * (0.8 + def.rivals.skill * 0.3);
-  best.health -= dmg; best.hurt = 0.3; best.x += side * 0.12; best.speed *= 0.86;
+  const c = CONTACTS[w.contact] || CONTACTS.body; // a blow to the head, the body or down by the wheels
+  best.health -= dmg; best.hurt = 0.3; best.x += side * c.shove; best.speed *= c.keep;
   if (attIsPlayer) best.grudgeT = 10; // some of them don't forget it
   const word = pick(w.hitWords);
   if (best.health <= 0 || Math.random() < 0.75) curse(best);
-  if (best.isPlayer) { popup(word, W / 2 + side * 80, H - 300, '#ff5252', 38); shake = Math.max(shake, 0.25);
+  // the spot on screen where it landed: on the side facing the attacker, at the height the weapon strikes
+  const s = best.isPlayer ? (playerScr ? { x: playerScr.x, top: playerScr.top ?? playerScr.y - 190, bottom: playerScr.y, w: 170 } : { x: W / 2, top: H - 250, bottom: H - 40, w: 240 })
+    : best.scr ? { x: best.scr.x, top: best.scr.y, bottom: best.scr.y + best.scr.w * (use3D ? 1.5 : 1.05), w: best.scr.w } : null;
+  const hitX = s ? s.x - side * s.w * 0.42 : W / 2 + side * 200, hitY = s ? lerp(s.bottom, s.top, c.up) : H - 300;
+  impact(hitX, hitY, w, side);
+  if (best.isPlayer) { popup(word, hitX + side * 40, hitY - 26, '#ff5252', 38); shake = Math.max(shake, 0.25);
     if (best.health <= 0) crashPlayer('KNOCKED OUT!', 0, side); }
   else {
-    const s = best.scr; popup(word, s ? s.x : W / 2 + side * 200, s ? s.y : H - 300, '#ffeb3b', 40);
+    popup(word, hitX, hitY - 26, '#ffeb3b', 40);
     if (best.health <= 0) {
       best.ko = 4.5; best.koBy = 'player'; best.koDir = side; player.kos++;
       Sfx.ko(); msg(`${best.name} KNOCKED OUT!  +${fmtCash(100)}`, '#ffeb3b');
@@ -1872,7 +1914,7 @@ function updatePlayer(dt, controlled) {
   player.steer = lerp(player.steer, steer, Math.min(1, dt * 10));
   player.hornCd -= dt; player.inv -= dt; player.hurt -= dt;
 
-  if (player.atk) { player.atk.t += dt; if (!player.atk.done && player.atk.t > 0.15) { player.atk.done = true; resolveAttack(player, player.atk.side); } if (player.atk.t > player.atk.dur) player.atk = null; }
+  if (player.atk) { player.atk.t += dt; if (!player.atk.done && player.atk.t > player.atk.at) { player.atk.done = true; resolveAttack(player, player.atk.side); } if (player.atk.t > player.atk.dur) player.atk = null; }
 
   if (player.crash > 0) {
     player.crash -= dt;
@@ -1984,7 +2026,7 @@ function updateRivals(dt) {
     const st = r.style, wp = r.weapon;
     r.hurt -= dt; r.grudgeT -= dt;
     if (state === 'race' || state === 'finished' || state === 'results') { if (r.delay > 0) { r.delay -= dt; continue; } }
-    if (r.atk) { r.atk.t += dt; if (!r.atk.done && r.atk.t > 0.17) { r.atk.done = true; resolveAttack(r, r.atk.side); } if (r.atk.t > r.atk.dur) r.atk = null; }
+    if (r.atk) { r.atk.t += dt; if (!r.atk.done && r.atk.t > r.atk.at) { r.atk.done = true; resolveAttack(r, r.atk.side); } if (r.atk.t > r.atk.dur) r.atk = null; }
     if (r.ko > 0) {
       r.ko -= dt; r.speed = Math.max(0, r.speed - r.speed * 3 * dt - 2000 * dt);
       r.rot = lerp(r.rot, (r.koDir || 1) * 1.45, Math.min(1, dt * 7));
@@ -2593,30 +2635,34 @@ function drawSprite(img, destX, destY, destW, destH, clipY) {
 // An attack drawn on top of a tuk-tuk sprite rect: the arm swings whatever the driver fights with (weapon.shape),
 // or a leg shoots out of the side of the auto (weapon.kind 'kick').
 function drawAttack(x, y, w, h, atk, weapon) {
-  const side = atk.side, p = clamp(atk.t / atk.dur, 0, 1), ease = 1 - (1 - p) * (1 - p);
+  const side = atk.side, p = clamp(atk.t / atk.dur, 0, 1), kick = weapon.kind === 'kick';
   const line = (x0, y0, x1, y1, color, width) => { ctx.strokeStyle = color; ctx.lineWidth = width; ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke(); };
-  const swoosh = (cx, cy, R, a0, a1) => {
-    if (p <= 0.25 || p >= 0.75) return;
+  // The move seen from behind: z is the angle on screen, a sweep forward or back (y) foreshortens the limb and
+  // lifts or drops it a little, and a thrust (ext) slides the hand out along it.
+  const px = x + w * (0.5 + side * (kick ? 0.36 : 0.34)), py = y + h * (kick ? 0.6 : 0.3), limb = kick ? 0.42 : 0.28;
+  const frame = k => {
+    const q = attackPoseAt(weapon, k), f = Math.max(0.35, Math.cos(q.y)), a = -q.z;
+    const dx = Math.cos(a) * side, dy = Math.sin(a), oy = py - Math.sin(q.y) * h * 0.05, r = limb * f + q.ext / 2000;
+    return { f, dx, dy, ox: px, oy, hx: px + dx * w * r, hy: oy + dy * w * r };
+  };
+  // the path the end of it has just travelled
+  const trail = reach => {
+    if (p <= 0.12 || p >= 0.9) return;
     ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = w * 0.02; ctx.beginPath();
-    if (side > 0) ctx.arc(cx, cy, R, a0, a1); else ctx.arc(cx, cy, R, Math.PI - a1, Math.PI - a0);
+    for (let i = 0; i <= 6; i++) { const q = frame(p - 0.3 * (1 - i / 6)), tx = q.hx + q.dx * w * reach * q.f, ty = q.hy + q.dy * w * reach * q.f; if (i) ctx.lineTo(tx, ty); else ctx.moveTo(tx, ty); }
     ctx.stroke();
   };
   ctx.lineCap = 'round';
-  if (weapon.kind === 'kick') { // from hanging down by the footboard to straight out sideways
-    const hx = x + w * (0.5 + side * 0.36), hy = y + h * 0.6, a = lerp(1.25, -0.12, ease);
-    const dx = Math.cos(a) * side, dy = Math.sin(a), fx = hx + dx * w * 0.42, fy = hy + dy * w * 0.42;
-    line(hx, hy, fx, fy, weapon.color, w * 0.09);
-    line(fx, fy, fx - dy * side * w * 0.07, fy - Math.abs(dx) * w * 0.07, '#1a1a1a', w * 0.075); // the shoe, toes up
-    swoosh(hx, hy, w * 0.46, a, 1.2);
+  const { f, dx, dy, ox: sx, oy: sy, hx, hy } = frame(p), nx = -dy, ny = dx; // along the limb, and across it
+  if (kick) { // a leg out of the side of the auto
+    line(sx, sy, hx, hy, weapon.color, w * 0.09);
+    line(hx, hy, hx - dy * side * w * 0.07, hy - Math.abs(dx) * w * 0.07, '#1a1a1a', w * 0.075); // the shoe, toes up
+    trail(0.04);
     return;
   }
-  const sx = x + w * (0.5 + side * 0.34), sy = y + h * 0.3;
-  const a = lerp(-1.9, 0.35, ease);
-  const dx = Math.cos(a) * side, dy = Math.sin(a), nx = -dy, ny = dx; // along the arm, and across it
-  const hx = sx + dx * w * 0.28, hy = sy + dy * w * 0.28;
-  const at = t => [hx + dx * w * t, hy + dy * w * t];
-  line(sx, sy, sx + dx * w * 0.12, sy + dy * w * 0.12, atk.sleeve || '#3949ab', w * 0.07);
-  line(sx + dx * w * 0.1, sy + dy * w * 0.1, hx, hy, '#8d5524', w * 0.05);
+  const at = t => [hx + dx * w * t * f, hy + dy * w * t * f];
+  line(sx, sy, sx + (hx - sx) * 0.43, sy + (hy - sy) * 0.43, atk.sleeve || '#3949ab', w * 0.07);
+  line(sx + (hx - sx) * 0.36, sy + (hy - sy) * 0.36, hx, hy, '#8d5524', w * 0.05);
   const c = weapon.color, shape = weapon.shape;
   let len = 0.5; // how far the weapon reaches past the hand, in sprite widths (for the swoosh)
   if (shape === 'bat') {
@@ -2633,9 +2679,10 @@ function drawAttack(x, y, w, h, atk, weapon) {
     line(...at(-0.04), ...at(0.42), c, w * 0.024); len = 0.42;
     ctx.fillStyle = '#d4af37'; ctx.beginPath(); ctx.arc(...at(-0.04), w * 0.022, 0, Math.PI * 2); ctx.fill();
   } else if (shape === 'cloth') { // a wet gamchha: it trails behind the hand, then cracks out straight
-    const wob = (1 - ease) * w * 0.16 * side, [mx, my] = at(0.28), [ex, ey] = at(0.56);
-    ctx.strokeStyle = c; ctx.lineWidth = w * 0.045; ctx.beginPath(); ctx.moveTo(hx, hy); ctx.quadraticCurveTo(mx - nx * wob, my - ny * wob, ex, ey); ctx.stroke();
-    ctx.strokeStyle = '#fff'; ctx.lineWidth = w * 0.012; ctx.setLineDash([w * 0.03, w * 0.05]); ctx.beginPath(); ctx.moveTo(hx, hy); ctx.quadraticCurveTo(mx - nx * wob, my - ny * wob, ex, ey); ctx.stroke(); ctx.setLineDash([]);
+    const wob = (1 - Math.min(1, p / moveOf(weapon).at)) * w * 0.16 * side, [mx, my] = at(0.28), [ex, ey] = at(0.56);
+    ctx.lineCap = 'butt'; ctx.strokeStyle = c; ctx.lineWidth = w * 0.085; ctx.beginPath(); ctx.moveTo(hx, hy); ctx.quadraticCurveTo(mx - nx * wob, my - ny * wob, ex, ey); ctx.stroke();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = w * 0.085; ctx.setLineDash([w * 0.018, w * 0.11]); ctx.lineDashOffset = -w * 0.08; ctx.beginPath(); ctx.moveTo(hx, hy); ctx.quadraticCurveTo(mx - nx * wob, my - ny * wob, ex, ey); ctx.stroke(); ctx.setLineDash([]);
+    ctx.lineDashOffset = 0; ctx.lineCap = 'round';
     len = 0.56;
   } else if (shape === 'shoe') {
     line(...at(0.0), ...at(0.15), c, w * 0.07);
@@ -2659,7 +2706,7 @@ function drawAttack(x, y, w, h, atk, weapon) {
     for (const t of [0.3, 0.6, 0.9]) { const bx = lerp(hx, ex, t), by = lerp(hy, ey, t); line(bx - dx * 2, by - dy * 2, bx + dx * 2, by + dy * 2, '#6d4c41', w * 0.037); }
   }
   if (shape !== 'hand') { ctx.fillStyle = '#8d5524'; ctx.beginPath(); ctx.arc(hx, hy, w * 0.035, 0, Math.PI * 2); ctx.fill(); }
-  swoosh(sx, sy, w * (0.28 + len * 0.94), -1.6, a);
+  trail(len);
 }
 // Neon strip lights on a decked-out auto, at night: a glow on the road under it and bright lines along the foot
 // of the tub and the edge of the hood.

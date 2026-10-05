@@ -1,5 +1,19 @@
 # Changelog
 
+## v3.8.0: Thirteen ways to hit
+
+- **Every weapon has its own move.** No two drivers attack alike:
+  - Lallan's lathi chops straight down, Ganpat plays a cricket pull shot, Jassi sweeps his hockey stick along the road, Bablu-da pokes with the umbrella, and Nawab flicks his cane up from below.
+  - Bhola winds up and cracks the gamchha, Banwari brings his jooti down, Manju swings the laptop bag right round, Kokila-ben taps twice with the dandiya, and Saleem slaps across the face.
+  - The three kicks differ too: Bunty's goes straight out of the side, Murugan's is film-hero high, and Jintu's is a footballer's swing through.
+- **Blows land in different places:** on the roof, on the body or down by the wheels. The hit word and a burst of sparks appear at that spot. A blow to the body shoves you furthest sideways; one by the wheels costs the most speed.
+- **The gamchha is wet:** water sprays off it when it lands.
+- A weapon's `move`, `contact` and `wet` are set per driver in `web/drivers.js`.
+
+## v3.7.1: A gamchha you can see
+
+- **Bhola's gamchha is now clearly a cloth:** a broad red strip with white bands and a fringe that droops from his hand. In 3D it used to hang edge-on to the camera, so from behind it was a thin line that looked like nothing at all.
+
 ## v3.7.0: Pick your driver
 
 - **Race as any of the 13 drivers.** On the title screen, **↑** and **↓** (or W and S, GAS and BRAKE on a phone, or a tap on the driver row) step through the cast. You get that driver's auto, weapon, voice and curses in every race.

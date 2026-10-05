@@ -312,7 +312,15 @@ vec3 nightLight(vec3 p) {
     else if (shape === 'hockey') { s.add(cylX(15, 640, c, 500)); s.add(rbox(44, 150, 40, c, 815, -58, 0, 16)); }
     else if (shape === 'umbrella') { s.add(cylX(8, 640, '#8d6e63', 480)); s.add(cylX(30, 430, c, 540)); s.add(rbox(26, 70, 26, '#8d6e63', 170, -30, 0, 10)); }
     else if (shape === 'cane') { s.add(cylX(11, 540, c, 450)); s.add(sph('#d4af37', 50, 50, 50, 185, 0, 0)); }
-    else if (shape === 'cloth') { s.add(rbox(620, 14, 84, c, 520, 0, 0, 6)); s.add(rbox(40, 16, 88, '#f5f5f5', 800, 0, 0, 6)); }
+    else if (shape === 'cloth') {
+      // a gamchha: a broad strip of cloth, hung face-on to the camera behind (edge-on it was a thin line), drooping
+      // towards its end, with the white bands of its check and a fringe
+      for (const [x, y, len, h, rz] of [[345, 0, 240, 100, 0], [565, -16, 240, 112, -0.13], [770, -52, 210, 122, -0.27]]) {
+        const seg = rbox(len, h, 12, c, x, y, 0, 6); seg.rotation.z = rz; s.add(seg);
+        const band = box(18, h + 2, 14, '#f5f5f5', x + len * 0.22, y - Math.sin(-rz) * len * 0.22, 0); band.rotation.z = rz; s.add(band);
+      }
+      const fringe = box(26, 128, 14, '#f5f5f5', 872, -80, 0); fringe.rotation.z = -0.27; s.add(fringe);
+    }
     else if (shape === 'shoe') { s.add(rbox(220, 64, 96, c, 320, 0, 0, 28)); s.add(sph(c, 70, 70, 60, 430, 26, 0)); }
     else if (shape === 'bag') { s.add(cylX(6, 200, '#555555', 320)); s.add(rbox(250, 180, 74, c, 530, 0, 0, 18)); }
     else if (shape === 'dandiya') for (const k of [-1, 1]) { const d = cylX(12, 360, c, 400, k * 26, 0); d.rotation.z += k * 0.07; s.add(d); s.add(cylX(13, 40, '#ffd21f', 330, k * 21, 0)); }
@@ -437,7 +445,7 @@ vec3 nightLight(vec3 p) {
       armPivot.add(weaponMesh(weapon));
     }
     arm.add(armPivot); arm.visible = false;
-    g.userData.arm = arm; g.userData.armPivot = armPivot; g.userData.kick = kick; g.add(arm);
+    g.userData.arm = arm; g.userData.armPivot = armPivot; g.userData.armX = armPivot.position.x; g.userData.weapon = weapon; g.add(arm);
     // neon strip lights (a decked-out auto, on a night track): along the foot of the tub, round the edge of the
     // hood, and their glow on the road
     if (look && look.neon && theme && theme.night) {
@@ -1955,7 +1963,7 @@ vec3 nightLight(vec3 p) {
   function rivalPreview(arg) {
     const [id, hit] = (arg || '').split('/'), d = (cfg.DRIVERS || []).find(o => o.id === id);
     const m = d ? autoModel(d.look, SP.rivalOf[d.id], d) : autoModel({ body: '#1a1a1a', trim: '#f5c400', canopy: '#f5c400' }, SP.rivals[0]);
-    if (hit) { m.userData.arm.visible = true; m.userData.armPivot.rotation.z = m.userData.kick ? 0.05 : -0.2; }
+    if (hit) poseArm(m, cfg.attackPoseAt(d ? d.weapon : {}, cfg.moveOf(d ? d.weapon : {}).at), 1); // held at the moment it lands
     return m;
   }
   // heading relative to the road from how the object actually moved since the last frame: sideways
@@ -1978,6 +1986,12 @@ vec3 nightLight(vec3 p) {
     p.pitch = Math.atan2(a - b, len); p.y += Math.max(0, (a + b) / 2 - p.y) + 4;
     return p;
   }
+  // put the attacking arm (or leg) in a pose of its move: up or down (z), swept forward or back (y), thrust out (ext)
+  function poseArm(m, pose, side) {
+    const arm = m.userData.arm, pivot = m.userData.armPivot;
+    arm.visible = true; arm.rotation.y = side < 0 ? Math.PI - pose.y : pose.y;
+    pivot.rotation.z = pose.z; pivot.position.x = m.userData.armX + pose.ext;
+  }
   function placeAuto(obj, m, d, x, rot, atk, hurt, bounce) {
     const p = onGround(placeAt(d, x), d, x, m.userData.size.l);
     // your auto faces its real heading (sharp pivots); rivals point the way they're moving
@@ -1995,10 +2009,7 @@ vec3 nightLight(vec3 p) {
     if (m.userData.frontWheel) m.userData.frontWheel.rotation.y = obj.isPlayer ? -(obj.steer || 0) * 0.7 : -yaw * 1.6;
     const arm = m.userData.arm;
     if (atk) {
-      const k = Math.min(1, atk.t / atk.dur), e = 1 - (1 - k) * (1 - k);
-      arm.visible = true; arm.rotation.y = atk.side < 0 ? Math.PI : 0;
-      // a swing comes down from overhead to level; a kick comes up from the footboard to level
-      m.userData.armPivot.rotation.z = m.userData.kick ? -1.3 + 1.42 * e : 1.9 - 2.25 * e;
+      poseArm(m, cfg.attackPose(atk, obj.weapon || m.userData.weapon || {}), atk.side);
     } else arm.visible = false;
     spinWheels(m, obj.dist || 0);
     return p;
