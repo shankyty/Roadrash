@@ -684,7 +684,7 @@ g = rep(g, "const halfAt = z => findSegment(z).half;\n",
   "const FP = RRR.footpath;\n"
   "const footpath = () => def.road.footpath; // this track's footpath settings, or false\n"
   "const zoneOf = (seg, x) => FP.zoneAt(seg.half, footpath(), x, !!seg.junction);\n")
-g = rep(g, "DOG_COATS, DRIVERS, MAX_SPEED, LANE_W });", "DOG_COATS, DRIVERS, MAX_SPEED, LANE_W, footpath: def.road.footpath });")
+g = rep(g, "MAX_SPEED, LANE_W });", "MAX_SPEED, LANE_W, footpath: def.road.footpath });")
 
 # --- a crash ends a jump
 g = rep(g, "  player.drift = 0; player.driftT = 0; player.driftPts = 0; player.boostT = 0; if (stats) stats.breakChain();\n",
