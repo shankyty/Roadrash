@@ -22,10 +22,11 @@ function fresh() {
   return RRR;
 }
 const style = () => ({ id: 'plain', label: 'PLAIN',
-  road: { lengths: [25], pieces: [{ kind: 'straight', weight: 1 }], lanes: 'alternate', junctions: true },
+  road: { lengths: [25], pieces: [{ kind: 'straight', weight: 1 }], lanes: 'alternate', junctions: true,
+    footpath: { width: 0.6, climbLoss: 0.25, dropLoss: 0.12, stallEvery: [150, 300] } },
   traffic: { countScale: 1, oncoming: 0.8, mix: { car: 1 } },
   handling: { topSpeed: 1, driftScrub: 0.22, driftGrip: 1, driftExitBoost: 0, slipstream: 0 },
-  scoring: { driftCashPer100: 0, passCash: 0 } });
+  scoring: { driftCashPer100: 0, passCash: 0, jumpCash: 0, flyoverCash: 0 } });
 const city = () => ({ id: 'pune', hawkerCalls: ['MISAL!'], curses: ['ARE!'], song: { bpm: 100 }, ads: [['A', 'B']], busLooks: [{ op: 'PMT' }] });
 const track = () => ({ id: 'fc-road', name: 'PUNE · FC ROAD', city: 'pune', style: 'plain', seed: 5, length: 400, laps: 1,
   rivals: { count: 3, skill: 0.9 }, traffic: { count: 10, cows: 1, dogs: 2 },
@@ -181,4 +182,31 @@ test('load writes the pack script tags only while the page is still being parsed
     RRR.load(manifest);
     assert.strictEqual(written.length, 1);
   } finally { delete globalThis.document; }
+});
+test('a track overrides its style\'s footpath per key, or switches it off', () => {
+  const RRR = fresh();
+  const narrow = track(); narrow.id = 'narrow'; narrow.road = { footpath: { stallEvery: [50, 60] } };
+  const none = track(); none.id = 'none'; none.road = { footpath: false };
+  RRR.tracks.register(narrow); RRR.tracks.register(none);
+  assert.deepStrictEqual(RRR.resolve('narrow').road.footpath, { width: 0.6, climbLoss: 0.25, dropLoss: 0.12, stallEvery: [50, 60] });
+  assert.strictEqual(RRR.resolve('none').road.footpath, false);
+  assert.deepStrictEqual(RRR.resolve('fc-road').road.footpath, { width: 0.6, climbLoss: 0.25, dropLoss: 0.12, stallEvery: [150, 300] });
+  RRR.manifest.tracks.push('narrow', 'none');
+  assert.deepStrictEqual(RRR.validate(), []);
+});
+test('validate reports footpath settings that are missing, out of range or mistyped', () => {
+  assert.deepStrictEqual(withTrack(fresh(), t => { t.road = { footpath: { width: 0, climbLoss: 1, dropLoss: -0.1, stallEvery: [300, 150], widht: 1 } }; }), [
+    'track "changed".road.footpath.width: must be a number above 0',
+    'track "changed".road.footpath.climbLoss: must be a share from 0 up to 1',
+    'track "changed".road.footpath.dropLoss: must be a share from 0 up to 1',
+    'track "changed".road.footpath.stallEvery: must be two numbers above 0, low then high',
+    'track "changed".road.footpath.widht: unknown key',
+  ]);
+  assert.deepStrictEqual(withTrack(fresh(), t => { t.road = { footpath: 'wide' }; }), ['track "changed".road.footpath: must be false or footpath settings']);
+});
+test('validate reports a style without a footpath setting or jump cash rates', () => {
+  const RRR = fresh();
+  const bare = style(); bare.id = 'bare'; delete bare.road.footpath; delete bare.scoring.jumpCash; delete bare.scoring.flyoverCash;
+  RRR.styles.register(bare); RRR.manifest.styles.push('bare');
+  assert.deepStrictEqual(RRR.validate(), ['style "bare".road.footpath: missing', 'style "bare".scoring.jumpCash: missing', 'style "bare".scoring.flyoverCash: missing']);
 });

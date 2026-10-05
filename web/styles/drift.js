@@ -14,6 +14,7 @@ RRR.styles.register({
     ],
     lanes: 'alternate',
     junctions: true,
+    footpath: { width: 0.6, climbLoss: 0.25, dropLoss: 0.12, stallEvery: [150, 300] },
   },
   traffic: {
     countScale: 0.6,
@@ -21,5 +22,5 @@ RRR.styles.register({
     mix: { car: 4, bike: 4, bus: 2, truck: 1, tractor: 1 },
   },
   handling: { topSpeed: 1, driftScrub: 0.08, driftGrip: 0.25, driftExitBoost: 0.08, slipstream: 0 },
-  scoring: { driftCashPer100: 40, passCash: 10 },
+  scoring: { driftCashPer100: 40, passCash: 10, jumpCash: 15, flyoverCash: 40 },
 });

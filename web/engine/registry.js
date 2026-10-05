@@ -19,10 +19,10 @@ class Registry {
 
 // Pack shapes: 'string' | 'number' | 'boolean' | 'array' | 'object' | 'function', or a nested shape.
 // A key ending in ? is optional. Keys that aren't listed are reported, which catches typos.
-const ROAD = { lengths: 'array', pieces: 'array', lanes: 'string', junctions: 'boolean' };
+const ROAD = { lengths: 'array', pieces: 'array', lanes: 'string', junctions: 'boolean', footpath: 'any' }; // footpath: settings or false, see checkFootpath
 const TRAFFIC = { countScale: 'number', oncoming: 'number', mix: 'object' };
 const HANDLING = { topSpeed: 'number', driftScrub: 'number', driftGrip: 'number', driftExitBoost: 'number', slipstream: 'number' };
-const SCORING = { driftCashPer100: 'number', passCash: 'number' };
+const SCORING = { driftCashPer100: 'number', passCash: 'number', jumpCash: 'number', flyoverCash: 'number' };
 const optional = shape => Object.fromEntries(Object.entries(shape).map(([k, v]) => [k.endsWith('?') ? k : k + '?', v]));
 const SHAPES = {
   style: { id: 'string', label: 'string', road: ROAD, traffic: TRAFFIC, handling: HANDLING, scoring: SCORING },
@@ -44,6 +44,7 @@ const SHAPES = {
 };
 const typeOf = v => (Array.isArray(v) ? 'array' : v === null ? 'null' : typeof v);
 function check(value, shape, where, problems) {
+  if (shape === 'any') return;
   if (typeof shape === 'string') { if (typeOf(value) !== shape) problems.push(`${where}: expected ${shape}, got ${typeOf(value)}`); return; }
   if (typeOf(value) !== 'object') { problems.push(`${where}: expected object, got ${typeOf(value)}`); return; }
   const known = new Set();
@@ -60,6 +61,7 @@ const nums = v => Array.isArray(v) && v.length > 0 && v.every(Number.isFinite);
 // Which parameters a piece takes and which scenery kinds exist is the builder's to say (RRR.PIECE_PARAMS, RRR.SCENERY_KINDS).
 function checkMerged(road, traffic, where, problems) {
   if (!['alternate', 'wide'].includes(road.lanes)) problems.push(`${where}.road.lanes: must be 'alternate' or 'wide'`);
+  checkFootpath(road.footpath, `${where}.road.footpath`, problems);
   // a wrong type is already reported by the shape; here only what a hang or a throw at build time would come from
   if (Array.isArray(road.lengths) && !(road.lengths.length && road.lengths.every(n => Number.isFinite(n) && n > 0)))
     problems.push(`${where}.road.lengths: must be a non-empty array of numbers above 0`);
@@ -84,6 +86,17 @@ function checkMerged(road, traffic, where, problems) {
   }
 }
 // the roadside kinds a track's look.scenery weights
+// a track's footpath: false for none, or how wide it is, what the kerb costs and how far apart the stalls stand
+function checkFootpath(fp, where, problems) {
+  if (fp === false) return;
+  if (typeOf(fp) !== 'object') { problems.push(`${where}: must be false or footpath settings`); return; }
+  const share = v => Number.isFinite(v) && v >= 0 && v < 1, gap = fp.stallEvery;
+  if (!(Number.isFinite(fp.width) && fp.width > 0)) problems.push(`${where}.width: must be a number above 0`);
+  for (const k of ['climbLoss', 'dropLoss']) if (!share(fp[k])) problems.push(`${where}.${k}: must be a share from 0 up to 1`);
+  if (!(Array.isArray(gap) && gap.length === 2 && gap.every(n => Number.isFinite(n) && n > 0) && gap[0] <= gap[1]))
+    problems.push(`${where}.stallEvery: must be two numbers above 0, low then high`);
+  for (const key of Object.keys(fp)) if (!['width', 'climbLoss', 'dropLoss', 'stallEvery'].includes(key)) problems.push(`${where}.${key}: unknown key`);
+}
 function checkScenery(scenery, where, problems) {
   if (typeOf(scenery) !== 'object') return;
   if (!Object.keys(scenery).length) problems.push(`${where}.look.scenery: must be a non-empty object`);
@@ -136,11 +149,17 @@ RRR.validate = () => {
     const style = RRR.styles.get(t.style);
     if (typeof t.style === 'string' && !style) problems.push(`${where}.style: unknown style "${t.style}"`);
     if (style && typeOf(style.road) === 'object' && typeOf(style.traffic) === 'object')
-      checkMerged({ ...style.road, ...t.road }, { ...style.traffic, ...t.traffic }, where, problems);
+      checkMerged(mergeRoad(style.road, t.road), { ...style.traffic, ...t.traffic }, where, problems);
   }
   return problems;
 };
 
+// a style's road with a track's overrides, per key; the footpath's own keys merge too, and false switches it off
+function mergeRoad(base, over = {}) {
+  const road = { ...base, ...over }, fp = over.footpath;
+  if (typeOf(fp) === 'object' && typeOf(base.footpath) === 'object') road.footpath = { ...base.footpath, ...fp };
+  return road;
+}
 function deepFreeze(o) {
   if (o && typeof o === 'object' && !Object.isFrozen(o)) { Object.freeze(o); for (const v of Object.values(o)) deepFreeze(v); }
   return o;
@@ -154,7 +173,7 @@ RRR.resolveDef = track => {
   return deepFreeze({
     ...track, ambience: track.ambience !== false,
     city, skyline: RRR.skylines.get(track.city), styleLabel: style.label,
-    road: { ...style.road, ...track.road }, traffic: { ...style.traffic, ...track.traffic },
+    road: mergeRoad(style.road, track.road), traffic: { ...style.traffic, ...track.traffic },
     handling: { ...style.handling, ...track.handling }, scoring: { ...style.scoring, ...track.scoring },
   });
 };
