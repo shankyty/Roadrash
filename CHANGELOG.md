@@ -1,5 +1,15 @@
 # Changelog
 
+## v3.9.0: Footpaths and cart ramps
+
+- **You can drive on the footpath:** every track has a raised footpath on both sides, at full speed. Climbing the kerb costs a quarter of your speed, dropping off it about an eighth.
+- **Hand carts are ramps:** chai stalls block the footpath, and a hand cart parked before each one launches you at 30 km/h or more. The jump carries on the way the auto was going: hold the footpath to clear the stall, or steer at the road to fly over the traffic and land in a lane. There is no steering in the air.
+- **Jumps pay:** every jump pays cash on the results screen, and a flyover (off the footpath, over a vehicle, into the road) pays more.
+- **Mind the landing:** come down on a vehicle, a cow or something at the roadside and you crash, and that jump pays nothing; hit a cart slowly or off-centre and you are wrecked.
+- **Daring rivals use it too:** held up by traffic, they mount the footpath and take the carts.
+- At junctions the footpath drops to road level, and the cross road's queue waits behind it.
+- A style sets its footpath in `road.footpath` (width, kerb cost, stall spacing); a track can switch it off with `road: { footpath: false }`.
+
 ## v3.8.0: Thirteen ways to hit
 
 - **Every weapon has its own move.** No two drivers attack alike:
