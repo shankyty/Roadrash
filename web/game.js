@@ -1617,7 +1617,7 @@ function setupRace() {
     rivals.push({ name: d.name, driver: d, style: st, weapon: d.weapon, color: d.look.body, palette: d.look, img: SP.rivalOf[d.id], nw: TUK_NW,
       x: slots[i].x, dist: rowZ(slots[i].row) + shiftZ, speed: 0,
       top: MAX_SPEED * def.handling.topSpeed * clamp(def.rivals.skill * diff + st.pace + rand(-0.01, 0.01), 0.7, 1.02),
-      health: 100, ko: 0, koBy: null, rot: 0, atk: null, cd: rand(1, 3), grudgeT: 0, out: false, outT: 0, outCd: rand(2, 5), laneX: laneX(1, Math.floor(Math.random() * 2)),
+      health: 100, ko: 0, koBy: null, rot: 0, atk: null, cd: rand(1, 3), grudgeT: 0, out: false, outT: 0, outCd: rand(2, 5), path: false, pathT: 0, air: null, y: 0, laneX: laneX(1, Math.floor(Math.random() * 2)),
       laneT: rand(st.weave[0], st.weave[1]), delay: rand(st.launch[0], st.launch[1]), finished: false, time: 0, hurt: 0, scr: null, isRival: true });
     ri++;
   }
@@ -2093,6 +2093,8 @@ function updateClosePasses(dt) {
 }
 
 const WRONG_SIDE_X = laneX(-1, 0), PASS_TIME = 2.2; // the oncoming lane by the centre line; seconds a pass takes
+// is there a cart ramp on our side's footpath within n segments ahead of segment i?
+const cartAhead = (i, n) => { for (let k = 0; k <= n; k++) if (segments[(i + k) % segments.length].solids.some(q => q.kind === 'cart' && q.offset < 0)) return true; return false; };
 function updateRivals(dt) {
   for (const r of rivals) {
     const seg = findSegment(r.dist);
@@ -2101,28 +2103,34 @@ function updateRivals(dt) {
     if (state === 'race' || state === 'finished' || state === 'results') { if (r.delay > 0) { r.delay -= dt; continue; } }
     if (r.atk) { r.atk.t += dt; if (!r.atk.done && r.atk.t > r.atk.at) { r.atk.done = true; resolveAttack(r, r.atk.side); } if (r.atk.t > r.atk.dur) r.atk = null; }
     if (r.ko > 0) {
-      r.ko -= dt; r.speed = Math.max(0, r.speed - r.speed * 3 * dt - 2000 * dt);
+      r.path = false; r.ko -= dt; r.speed = Math.max(0, r.speed - r.speed * 3 * dt - 2000 * dt);
       r.rot = lerp(r.rot, (r.koDir || 1) * 1.45, Math.min(1, dt * 7));
       if (r.x > -0.2) r.x = lerp(r.x, -0.2, Math.min(1, dt * 2)); // a wreck on the wrong side skids back towards its own
       if (r.ko <= 0) { r.health = 55; r.rot = 0; r.x = clamp(r.x, -halfAt(r.dist) + 0.3, -0.3); }
       r.dist += r.speed * dt; continue;
     }
     r.rot = lerp(r.rot, 0, Math.min(1, dt * 8));
+    if (r.air) { // off a cart: straight along the footpath until it comes down
+      r.air.t += dt; r.y = FP.heightAt(r.air, r.air.t); r.dist += r.speed * dt;
+      if (r.air.t >= r.air.airTime) { r.air = null; r.y = 0; r.speed *= 1 - FP.JUMP.landLoss; }
+      continue;
+    }
     const dz = r.dist - player.dist;
     let target = r.top * (1 - st.bends * Math.abs(seg.curve) / 6);
     if (dz < -2500) target *= 1.1; else if (dz > 6000) target *= 0.92;
     const engaged = !r.finished && !player.finished && player.crash <= 0 && Math.abs(dz) < st.chase;
     if (engaged) target = clamp(player.speed + (dz < 0 ? 700 : -250), MAX_SPEED * 0.3, r.top * 1.03);
     if (r.out) target = Math.max(target, r.top * 1.03); // out on the wrong side: flat out, to get it over with
+    if (r.path) target = Math.max(target, r.top);       // up on the footpath: nothing in the way
     if (r.finished) target = MAX_SPEED * 0.35;
     r.speed += clamp(target - r.speed, -MAX_SPEED * 0.6 * dt, MAX_SPEED / 5 * dt);
 
     // steering: avoid traffic, otherwise chase player or keep lane
     let tx = r.laneX;
     r.laneT -= dt; if (r.laneT <= 0) { r.laneT = rand(st.weave[0], st.weave[1]); r.laneX = laneX(1, Math.floor(Math.random() * seg.lanes)); }
-    const rMin = -seg.half + 0.2; let rMax = -0.15; // rivals keep to our side of the centre line (the daring: see below)
+    let rMin = -seg.half + 0.2, rMax = -0.15; // rivals keep to our side of the centre line (the daring: see below)
     if (engaged) tx = player.x + (r.x >= player.x ? 1 : -1) * 0.4;
-    let nearest = null, nd = 1800, meet = 1e9, roomBack = true;
+    let nearest = null, nd = 1800, meet = 1e9, roomBack = true, roomOuter = true;
     for (const c of traffic) {
       const reach = use3D ? (c.len || 0) / 2 + TUK_LEN / 2 : 0, gapZ = wrapDelta(c.z - r.dist) - reach; // bumper-to-bumper gap
       if (c.dir === -1) { // oncoming: seconds until the nearest one in the lane by the centre line reaches us
@@ -2132,6 +2140,8 @@ function updateRivals(dt) {
       if (gapZ > -2 * reach && gapZ < nd && Math.abs(c.x - r.x) < (r.nw + c.nw) / 2 + 0.1) { nearest = c; nd = gapZ; }
       // anything alongside or just ahead in our inner lane: no room to pull back in yet
       if (gapZ > -2 * reach - 300 && gapZ < 500 && c.x + (r.nw + c.nw) / 2 + 0.05 > laneX(1, 0)) roomBack = false;
+      // ... or in the outer lane: no room to come down off the footpath yet
+      if (gapZ > -2 * reach - 300 && gapZ < 500 && Math.abs(c.x - laneX(1, seg.lanes - 1)) < (r.nw + c.nw) / 2 + 0.05) roomOuter = false;
     }
     // A daring driver held up by traffic pulls out onto the oncoming side to get past, if the gap in what's coming
     // looks big enough to them (the more daring, the smaller the gap they'll take). They dive back once there's
@@ -2143,10 +2153,19 @@ function updateRivals(dt) {
       const coming = meet < lerp(1.0, 0.4, daring); // the more daring leave it later
       if (roomBack && (r.outT > 0.6 || coming) || r.outT > 7 || r.finished) { r.out = false; r.outCd = rand(1.5, 4); r.laneX = laneX(1, 0); }
       else if (coming) r.speed = Math.max(0, r.speed - MAX_SPEED * 0.9 * dt); // boxed in with something coming: stand on the brakes and hope
+    } else if (r.path) {
+      // up on the footpath: back to the road once there's room in the outer lane, or when it has gone on long
+      // enough; a cart coming up that it is too slow to jump from sends it back down early
+      r.pathT += dt;
+      const tooSlow = r.speed / MAX_SPEED < FP.JUMP.minSpeed + 0.05 && cartAhead(seg.index, 14);
+      if (roomOuter && r.pathT > 1.5 || r.pathT > 8 || tooSlow || r.finished) { r.path = false; r.outCd = rand(1.5, 4); r.laneX = laneX(1, seg.lanes - 1); }
     } else if (daring > 0 && nearest && nd < 800 && r.outCd <= 0 && !r.finished && r.speed > MAX_SPEED * 0.25) {
-      if (meet > PASS_TIME * lerp(1.5, 0.6, daring)) { r.out = true; r.outT = 0; } else r.outCd = 0.5; // not now: look again in a moment
+      // the footpath, if the track has one and no cart is too close to line up for (the more daring, the more often); else the oncoming side
+      if (footpath() && Math.random() < 0.5 * daring && !cartAhead(seg.index, 25)) { r.path = true; r.pathT = 0; }
+      else if (meet > PASS_TIME * lerp(1.5, 0.6, daring)) { r.out = true; r.outT = 0; } else r.outCd = 0.5; // not now: look again in a moment
     }
-    if (r.out) { tx = WRONG_SIDE_X; rMax = WRONG_SIDE_X; }
+    if (r.path) { tx = -FP.centre(seg.half, footpath()); rMin = tx; }
+    else if (r.out) { tx = WRONG_SIDE_X; rMax = WRONG_SIDE_X; }
     else if (nearest) {
       const gap = (r.nw + nearest.nw) / 2 + lerp(0.22, 0.1, st.nerve); // the nervier, the closer they shave it
       let side = r.x >= nearest.x ? 1 : -1;
@@ -2155,8 +2174,16 @@ function updateRivals(dt) {
       if (nd < lerp(450, 200, st.nerve) && nd > -150) r.speed = Math.min(r.speed, nearest.speed + 400);
     }
     tx = clamp(tx, rMin, rMax);
+    const xWas = r.x;
     r.x += clamp(tx - r.x, -1.3 * dt, 1.3 * dt);
     r.dist += r.speed * dt;
+    const kerb = FP.kerbCrossing(seg.half, footpath(), xWas, r.x, !!seg.junction);
+    if (kerb) r.speed *= 1 - (kerb === 'climb' ? footpath().climbLoss : footpath().dropLoss);
+    if (r.path) { // at a cart: line up and jump, straight along the footpath; too slow, and the cart wrecks it
+      const cart = seg.solids.find(q => q.kind === 'cart' && q.offset < 0 && q.seg0 === seg.index);
+      if (cart && r.speed / MAX_SPEED >= FP.JUMP.minSpeed) { r.x = cart.offset - cart.nw / 2; r.air = { ...FP.jump(r.speed / MAX_SPEED), t: 0 }; }
+      else if (cart) { r.ko = 3; r.koBy = 'traffic'; r.koDir = 1; r.speed *= 0.1; r.outCd = rand(4, 8); }
+    }
     if (r.x > -0.1) { // on or over the centre line, oncoming traffic is solid: a head-on knocks them out
       for (const c of traffic) {
         if (c.dir !== -1) continue;
@@ -2916,7 +2943,7 @@ function renderWorld2D() {
       if (destW < 1 || !(scale > 0)) continue;
       if (car.isRival) {
         const bounce = car.speed > 0 ? Math.sin(performance.now() / 45 + car.dist) * destH * 0.006 : 0;
-        const y = cy - destH + bounce;
+        const y = cy - destH + bounce - scale * (car.y || 0) * H / 2; // (up in a jump)
         if (y + destH <= seg.clip + destH * 0.5) drawTuk(car.img, cx - destW / 2, y, destW, destH, car.rot, car.atk, car.hurt, car);
         car.scr = { x: cx, y: cy - destH * 1.1, w: destW, frame: frameNo };
       } else { drawSprite(car.img, cx - destW / 2, cy - destH, destW, destH, seg.clip); car.scr = { x: cx, y: cy - destH * 1.2, w: destW, frame: frameNo }; }
