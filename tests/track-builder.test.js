@@ -73,3 +73,104 @@ test('the tables the validator reads match the builder: every piece and scenery 
     assert.ok(road.segments.some(s => s.sprites.some(q => q.kind === kind)), kind);
   }
 });
+
+// ---- the footpath: stalls, cart ramps and where the street furniture goes
+const FP = { width: 0.6, climbLoss: 0.25, dropLoss: 0.12, stallEvery: [150, 300] };
+const F = RRR.footpath;
+const onPath = (road, kind) => road.segments.flatMap((s, n) => s.sprites.filter(q => q.onPath && q.kind === kind).map(q => ({ n, q })));
+const stallCarts = road => onPath(road, 'cart').filter(c => !c.q.junction), signalCarts = road => onPath(road, 'cart').filter(c => c.q.junction);
+
+test('with a footpath, every stall has a cart ramp a fixed way before it, on the same side', () => {
+  const road = buildRoad(testDef({ road: { footpath: FP } })), stalls = onPath(road, 'chai'), carts = stallCarts(road);
+  assert.ok(stalls.length >= 6, `only ${stalls.length} stalls`);
+  assert.strictEqual(carts.length, stalls.length);
+  for (const { n, q } of stalls) {
+    const cart = carts.find(c => c.n === n - F.CART.lead && Math.sign(c.q.offset) === Math.sign(q.offset));
+    assert.ok(cart, `no cart before the stall at ${n}`);
+    assert.strictEqual(cart.q.seg0, cart.n);
+    assert.ok(q.solid && cart.q.solid);
+  }
+  assert.ok(stalls.some(s => s.q.offset < 0) && stalls.some(s => s.q.offset > 0)); // both sides
+});
+test('stalls and carts stand in the middle of the footpath and block the segments they cover', () => {
+  const road = buildRoad(testDef({ road: { footpath: FP } }));
+  for (const { n, q } of [...onPath(road, 'chai'), ...onPath(road, 'cart')]) {
+    const half = road.segments[n].half, mid = Math.abs(q.offset) + q.nw / 2;
+    assert.ok(Math.abs(mid - F.centre(half, FP)) < 1e-9, `${q.kind} at ${n} is off centre`);
+    const span = q.kind === 'cart' ? F.CART.length : 1;
+    for (let k = 0; k < span; k++) assert.ok(road.segments[n + k].solids.includes(q));
+  }
+});
+test('from just before a cart to well past its stall the road is plain: no junction, no lane taper, no start line', () => {
+  const road = buildRoad(testDef({ road: { footpath: FP } }));
+  for (const { n } of stallCarts(road))
+    for (let k = n - 4; k <= n + F.CART.runout; k++) { const s = road.segments[k]; assert.ok(!s.junction && !s.clear && !s.finish && s.hw1 === s.hw2); }
+});
+test('the longest straight jump lands inside that plain stretch', () => {
+  // 100 km/h is 15000 track units a second; the run-out is counted in segments of 200
+  const flown = 15000 * F.jump(1.25).airTime;
+  assert.ok(flown < F.CART.runout * 200, `${Math.round(flown)} flown`);
+});
+test('nothing but stalls and carts stands on the footpath', () => {
+  const road = buildRoad(testDef({ road: { footpath: FP } }));
+  road.segments.forEach((s, n) => {
+    for (const q of s.sprites) {
+      if (q.center || q.onPath || !q.solid) continue;
+      // buildings and temples have their front wall at the offset; everything else has its inner edge there
+      assert.ok(Math.abs(q.offset) >= F.backEdge(s.half, FP), `${q.kind} at ${n} stands on the footpath`);
+    }
+  });
+});
+test('the footpath has its own seed: the same tour builds the same one, a later tour another, and the road itself never moves', () => {
+  const spots = road => onPath(road, 'chai').map(s => `${s.n}${s.q.offset < 0 ? 'L' : 'R'}`).join();
+  const def = testDef({ road: { footpath: FP } });
+  assert.strictEqual(spots(buildRoad(def)), spots(buildRoad(def)));
+  assert.notStrictEqual(spots(buildRoad(def)), spots(buildRoad(def, { round: 1 })));
+  const shape = road => road.segments.map(s => `${s.curve}/${s.lanes}/${s.sprites.filter(q => !q.onPath).map(q => q.kind).join('+')}`).join();
+  assert.strictEqual(shape(buildRoad(def)), shape(buildRoad(testDef())));
+});
+test('without a footpath there are no stalls or carts and furniture stands where it always did', () => {
+  const road = buildRoad(testDef());
+  assert.strictEqual(onPath(road, 'chai').length + onPath(road, 'cart').length, 0);
+  const lamp = road.segments.flatMap(s => s.sprites.filter(q => q.kind === 'lamp').map(q => Math.abs(q.offset) - s.half))[0];
+  assert.ok(Math.abs(lamp - 0.12) < 1e-9);
+});
+test('however close the style asks, carts on one side are a cart, its stall and the landing apart', () => {
+  const least = F.CART.runout + F.CART.lead + F.CART.length;
+  const road = buildRoad(testDef({ road: { footpath: { ...FP, stallEvery: [20, 40] } } }));
+  for (const side of [-1, 1]) {
+    const at = stallCarts(road).filter(({ q }) => Math.sign(q.offset) === side).map(({ n }) => n);
+    assert.ok(at.length > 1, `${at.length} carts`);
+    for (let i = 1; i < at.length; i++) assert.ok(at[i] - at[i - 1] >= least, `${at[i - 1]} then ${at[i]}`);
+  }
+});
+test('a cart stands on both footpaths before every traffic signal, ending two segments short of the junction', () => {
+  const road = buildRoad(testDef({ road: { footpath: FP } })), carts = signalCarts(road);
+  assert.ok(road.junctions.length > 0);
+  assert.strictEqual(carts.length, 2 * road.junctions.length);
+  for (const j of road.junctions) for (const side of [-1, 1]) {
+    const k0 = j.s0 - F.CART.length - 2;
+    const cart = carts.find(c => c.n === k0 && Math.sign(c.q.offset) === side);
+    assert.ok(cart, `no cart on side ${side} before the signal at ${j.s0}`);
+    assert.strictEqual(cart.q.seg0, k0); assert.strictEqual(cart.q.junction, j); assert.ok(cart.q.solid);
+    for (let k = 0; k < F.CART.length; k++) assert.ok(!road.segments[k0 + k].junction && road.segments[k0 + k].solids.includes(cart.q));
+  }
+});
+test('no stall or stall cart stands where a signal jump is taken, flown or landed', () => {
+  const road = buildRoad(testDef({ road: { footpath: { ...FP, stallEvery: [20, 40] } } }));
+  for (const { n: ks, q } of signalCarts(road)) {
+    const j = q.junction, side = Math.sign(q.offset);
+    for (const { n } of stallCarts(road).filter(c => Math.sign(c.q.offset) === side))
+      assert.ok(n + F.CART.runout < ks - 4 || n - 4 > j.s1 + F.CART.runout, `stall cart at ${n} meets the signal cart at ${ks}`);
+    for (const { n } of onPath(road, 'chai').filter(c => Math.sign(c.q.offset) === side))
+      assert.ok(n < ks - 4 || n > j.s1 + F.CART.runout, `stall at ${n} stands in the signal jump from ${ks}`);
+  }
+});
+test('no signal carts without junctions, or without a footpath', () => {
+  assert.strictEqual(signalCarts(buildRoad(testDef({ road: { footpath: FP, junctions: false } }))).length, 0);
+  assert.strictEqual(signalCarts(buildRoad(testDef())).length, 0);
+});
+test('closer stall spacing puts more stalls on the road', () => {
+  const count = every => onPath(buildRoad(testDef({ road: { footpath: { ...FP, stallEvery: every } } })), 'chai').length;
+  assert.ok(count([100, 200]) > count([250, 450]));
+});

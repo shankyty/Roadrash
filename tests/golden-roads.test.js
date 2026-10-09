@@ -12,7 +12,8 @@ for (const id of RRR.order()) for (const mode of ['3d', '2d']) for (const round 
   test(`${id} (${mode}, tour ${round}) is unchanged under the classic style`, () => {
     // forced to classic with no overrides, so this keeps guarding the classic recipe after tracks change style
     const { road, handling, scoring, ...base } = RRR.tracks.get(id), { count, cows, dogs } = base.traffic;
-    const def = RRR.resolveDef({ ...base, style: 'classic', traffic: { count, cows, dogs } });
+    // (and without the footpath, whose stalls and carts came later: the road, scenery and signs must not have moved)
+    const def = RRR.resolveDef({ ...base, style: 'classic', road: { footpath: false }, traffic: { count, cows, dogs } });
     const world = buildWorld(def, { in3D: mode === '3d', round });
     assert.deepStrictEqual(fingerprint(world.road, world.traffic), golden[`${id}/${mode}` + (round ? `/tour${round}` : '')]);
   });

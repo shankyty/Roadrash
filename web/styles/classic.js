@@ -16,6 +16,12 @@ RRR.styles.register({
     ],
     lanes: 'alternate',                  // 'alternate': 3 and 2 lanes each way in turn · 'wide': always 3
     junctions: true,
+    footpath: {                          // a raised, driveable footpath on both sides (false for none)
+      width: 0.6,                        // road units (one lane)
+      climbLoss: 0.25,                   // share of speed lost climbing the kerb
+      dropLoss: 0.12,                    // share lost dropping off it
+      stallEvery: [150, 300],            // segments between stalls on each side (a cart ramp stands before each)
+    },
   },
   traffic: {
     countScale: 1,                       // same-way vehicles = the track's count × this
@@ -29,5 +35,5 @@ RRR.styles.register({
     driftExitBoost: 0,                   // top speed raised by this share for a moment after a held drift
     slipstream: 0,                       // top speed raised by this share per close pass in a chain
   },
-  scoring: { driftCashPer100: 20, passCash: 10 },   // rupees per 100 drift points, and per close pass
+  scoring: { driftCashPer100: 20, passCash: 10, jumpCash: 15, flyoverCash: 40 },   // rupees per 100 drift points, per close pass, per jump and per flyover
 });

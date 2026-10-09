@@ -68,6 +68,12 @@ The world is rendered in real 3D with [Three.js](https://threejs.org) (r149, bun
 - The first across the line wins on every style. Each track also keeps your best time, best drift score, most close passes and wins, and the results screen marks a new best with a star.
 - Drifting and close passes pay a cash bonus on the results screen.
 - To drift: above about 25 km/h, hold a steer and pull the handbrake (**Space**), or tap the brake. On a phone, hold a steer button and tap the brake button. Keep steering to hold the slide; let go to straighten up. Only a slide into a bend scores and earns the exit boost.
+- Every track has a raised footpath on both sides, and you can drive on it at full speed. Climbing the kerb costs a quarter of your speed and dropping off it about an eighth.
+- Chai stalls block the footpath. A hand cart is parked before each one, resting on its handles: drive onto it at 30 km/h or more and you jump. The jump carries on the way the auto was going. Holding the footpath, you clear the stall and land on the footpath; steering at the road, you fly over the traffic and land in a lane. There is no steering in the air.
+- A cart also stands on both footpaths before every traffic signal. Take it at 40 km/h or more and you jump the whole junction; pass over the cross traffic and it counts as a flyover.
+- Land on a vehicle or a cow and you crash. Hit a cart too slowly or off-centre, or a stall without jumping, and you are wrecked.
+- Jumps pay cash on the results screen. A flyover (off the footpath, over a vehicle, into the road) pays more.
+- The daring drivers use the footpath and the carts too when traffic holds them up.
 - There are 13 drivers, one per city (see **The drivers**). You race as any one of them: pick with **↑** / **↓** on the title screen (remembered); until you pick, you are the driver of the city you're in. A driver who takes a hit shouts back in their own language and their own voice, **spoken aloud** from where they are on the road: panned to their side, louder when close, with Doppler as you pass.
 - Hawkers at chai stalls and shops call out as you pass, out loud and street-style: *"Vada paaav!"*, *"Bhel puri lelo!"*, *"Chai bole, chaaai!"*, *"Irani chaaai!"*, *"Golgappe, golgappe!"*, *"Sundal, sundaaal!"*.
 - Each city has its own background music, all original and generated live in the browser: filmi dholak (Mumbai), qawwali (Hyderabad), bhangra (Delhi) and kuthu with a nadaswaram-style reed (Chennai). Press **N** to turn it on or off.
@@ -89,11 +95,11 @@ Every race is a pack of plain data. Nothing about a particular track lives in th
 | --- | --- | --- |
 | Track | `web/tracks/<id>/track.js` | Name, city, style, road seed and length, rivals, traffic counts and the look (sky, fog, road colours, scenery) |
 | City | `web/cities/<id>/city.js`, `skyline.js`, `ambience.js` | Street calls, curses, song, billboard ads, bus liveries, the skyline painters and the street recording |
-| Style | `web/styles/<id>.js` | How the road is put together, the traffic mix, the handling numbers (top speed, drift, slipstream) and the cash rates |
+| Style | `web/styles/<id>.js` | How the road is put together, the footpath (width, kerb cost, how far apart the stalls stand), the traffic mix, the handling numbers (top speed, drift, slipstream) and the cash rates |
 
 `web/packs.js` lists the packs, with tracks in race order. The files in `web/engine/` check them at startup and build the road and its traffic from them. A mistake in a pack shows a message naming the track and field in place of the title screen.
 
-To add a track, copy a folder under `web/tracks/`, change its `id` and values, and add the id to `web/packs.js`. A track can override any of its style's values, for example `traffic: { count: 40, cows: 0, dogs: 0, oncoming: 0.3 }`.
+To add a track, copy a folder under `web/tracks/`, change its `id` and values, and add the id to `web/packs.js`. A track can override any of its style's values, for example `traffic: { count: 40, cows: 0, dogs: 0, oncoming: 0.3 }`. `road: { footpath: false }` gives a track no footpath.
 
 Run the tests with `node --test tests/*.test.js` (Node 20 or later, nothing to install).
 
