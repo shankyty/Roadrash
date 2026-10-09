@@ -403,8 +403,10 @@ vec3 nightLight(vec3 p) {
     }
     // driver and passengers
     const drvZ = M ? -R + 300 : -R + 400;
-    const drv = new T.Mesh(capsule(62, 60), lambert(shirt)); drv.position.set(0, 470 - lowY, drvZ); g.add(drv);
-    const head = new T.Mesh(unitSphere, lambert('#8d5524')); head.scale.set(100, 115, 100); head.position.set(0, 620 - lowY, drvZ); g.add(head);
+    const driverParts = g.userData.driver = []; // the driver, to duck a blow to the roof
+    const addD = o => { o.userData.y0 = o.position.y; driverParts.push(o); g.add(o); return o; };
+    const drv = new T.Mesh(capsule(62, 60), lambert(shirt)); drv.position.set(0, 470 - lowY, drvZ); addD(drv);
+    const head = new T.Mesh(unitSphere, lambert('#8d5524')); head.scale.set(100, 115, 100); head.position.set(0, 620 - lowY, drvZ); addD(head);
     // a canvas visor strip across the front of the hood, with a tricolour stripe down the middle of it
     if (look && look.visor) {
       const vy = 812 - lowY, vz = -R + (M ? 215 : 150);
@@ -414,13 +416,13 @@ vec3 nightLight(vec3 p) {
     // what the driver wears on their head
     const hg = look && look.headgear, hc = look && look.headgearColor, hy = 620 - lowY;
     if (hg === 'turban' || hg === 'safa') {
-      g.add(sph(hc, 128, 86, 128, 0, hy + 44, drvZ + 4));                            // the wrap
-      g.add(sph(hc, 70, 50, 60, 0, hy + 78, drvZ - 22));                             // its peak at the front
-      if (hg === 'safa') g.add(rbox(34, 170, 16, hc, 30, hy - 40, drvZ + 62, 7));    // the tail down the back
-    } else if (hg === 'cap') g.add(rbox(96, 40, 122, hc, 0, hy + 56, drvZ, 14));
+      addD(sph(hc, 128, 86, 128, 0, hy + 44, drvZ + 4));                             // the wrap
+      addD(sph(hc, 70, 50, 60, 0, hy + 78, drvZ - 22));                              // its peak at the front
+      if (hg === 'safa') addD(rbox(34, 170, 16, hc, 30, hy - 40, drvZ + 62, 7));     // the tail down the back
+    } else if (hg === 'cap') addD(rbox(96, 40, 122, hc, 0, hy + 56, drvZ, 14));
     else if (hg === 'pallu') {
-      g.add(sph(hc, 124, 128, 124, 0, hy + 10, drvZ + 16));                          // over the head
-      g.add(rbox(150, 60, 70, hc, -40, hy - 110, drvZ + 20, 24));                    // and across the shoulder
+      addD(sph(hc, 124, 128, 124, 0, hy + 10, drvZ + 16));                           // over the head
+      addD(rbox(150, 60, 70, hc, -40, hy - 110, drvZ + 20, 24));                     // and across the shoulder
     }
     const bar = cyl(16, 220, '#222', 0, 560 - lowY * 1.6, drvZ - 110); bar.rotation.z = Math.PI / 2; g.add(bar);   // handlebar
     for (const px of [-120, 120]) { const h = new T.Mesh(unitSphere, lambert('#2b2b2b')); h.scale.set(90, 100, 90); h.position.set(px, 600 - lowY, R - 380); g.add(h); }
@@ -2006,7 +2008,9 @@ vec3 nightLight(vec3 p) {
       const px = Math.sign(rot) * m.userData.size.w / 2, side = px * (1 - Math.cos(rot)), a = m.rotation.y;
       m.position.x += side * Math.cos(a); m.position.z -= side * Math.sin(a); m.position.y += Math.abs(px * Math.sin(rot));
     }
-    if (m.userData.frontWheel) m.userData.frontWheel.rotation.y = obj.isPlayer ? -(obj.steer || 0) * 0.7 : -yaw * 1.6;
+    if (m.userData.frontWheel) m.userData.frontWheel.rotation.y = (obj.isPlayer ? -(obj.steer || 0) * 0.7 : -yaw * 1.6) - (obj.wheelJerk || 0);
+    const duck = obj.hitFx && obj.hitFx.kind === 'head' ? Math.sin(Math.PI * (1 - obj.hitFx.t / obj.hitFx.dur)) * 85 : 0;
+    for (const part of m.userData.driver || []) part.position.y = part.userData.y0 - duck;
     const arm = m.userData.arm;
     if (atk) {
       poseArm(m, cfg.attackPose(atk, obj.weapon || m.userData.weapon || {}), atk.side);
@@ -2191,7 +2195,7 @@ vec3 nightLight(vec3 p) {
     for (const r of rivals) {
       const dd = wrapD(r.dist - (camAbs));
       const m = place(r, dd, r.x); if (!m) continue;
-      const bounce = r.speed > 0 ? Math.sin(t * 22 + r.dist) * 6 : 0;
+      const bounce = (r.speed > 0 ? Math.sin(t * 22 + r.dist) * 6 : 0) + cfg.hitRock(r) * 900;
       const p = placeAuto(r, m, dd, r.x, r.rot || 0, r.atk, r.hurt, bounce);
       screenOf(r, p, 900, 560, frameNo);
     }
@@ -2233,7 +2237,7 @@ vec3 nightLight(vec3 p) {
     // the player's auto
     const pm = modelFor(player);
     const bump = player.crash > 0 ? 0 : (Math.random() - 0.5) * (Math.abs(player.x) > 1 ? 18 : 5) * (player.speed / cfg.MAX_SPEED);
-    const pp = placeAuto(player, pm, cam.back, player.x, player.rot || 0, player.atk, player.hurt, bump);
+    const pp = placeAuto(player, pm, cam.back, player.x, player.rot || 0, player.atk, player.hurt, bump + cfg.hitRock(player) * 900);
     pm.visible = !(player.inv > 0 && Math.floor(player.inv * 10) % 2); visible.add(pm);
     for (const m of lastVisible) if (!visible.has(m)) m.visible = false;
     lastVisible = visible;

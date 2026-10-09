@@ -1562,7 +1562,7 @@ function loadTrack(idx) {
   bgLayers = { far: def.skyline.far(PAINT, theme, def.seed), near: def.skyline.near(PAINT, theme, def.seed + 5) };
   ({ segments, trackLength, startZ, junctions } = RRR.buildTrack({ def, round, sprites: SP, themeSprites,
     constants: { SEG_LEN, RUMBLE_LEN, PLAYER_Z, GRID_GAP: gridGap() } }));
-  if (use3D) World3D.setTrack({ segments, trackLength, theme, city: def.city.id, SP, themeSprites, CAR_COLORS, CAR_LOOKS, TRACTOR_LOOKS, BUS_LOOKS, BIKE_LOOKS, DOG_COATS, DRIVERS, attackPose, attackPoseAt, moveOf, MAX_SPEED, LANE_W });
+  if (use3D) World3D.setTrack({ segments, trackLength, theme, city: def.city.id, SP, themeSprites, CAR_COLORS, CAR_LOOKS, TRACTOR_LOOKS, BUS_LOOKS, BIKE_LOOKS, DOG_COATS, DRIVERS, attackPose, attackPoseAt, moveOf, hitRock, MAX_SPEED, LANE_W });
 }
 
 function findSegment(z) { return segments[Math.floor(((z % trackLength) + trackLength) % trackLength / SEG_LEN) % segments.length]; }
@@ -1791,6 +1791,32 @@ function honk() {
   }
 }
 
+// where an auto is on screen: its centre, roof and wheels, and its width
+function screenBoxOf(who) {
+  if (who.isPlayer) return playerScr ? { x: playerScr.x, top: playerScr.top ?? playerScr.y - 190, bottom: playerScr.y, w: 170 } : { x: W / 2, top: H - 250, bottom: H - 40, w: 240 };
+  return who.scr ? { x: who.scr.x, top: who.scr.y, bottom: who.scr.y + who.scr.w * (use3D ? 1.5 : 1.05), w: who.scr.w } : null;
+}
+// How an auto takes a blow, by where it landed: on the roof it rocks on its springs and the driver ducks; on the
+// body it's knocked sideways and leans away; by the wheels the front wheel jerks and it swerves and skids, with
+// smoke off the tyre. `side` is the way the blow was travelling.
+function takeHit(who, kind, side) {
+  who.hitFx = { kind, side, t: 0.55, dur: 0.55 };
+  if (kind === 'body') who.kx = side * 1.1;
+  if (kind === 'low') { who.wheelJerk = side * 0.9; who.kx = side * 0.4; }
+}
+function hitReact(who, dt) {
+  const f = who.hitFx; if (!f) return;
+  f.t -= dt; if (f.t <= 0) { who.hitFx = null; who.wheelJerk = 0; who.kx = 0; return; }
+  if (who.kx) { who.x += who.kx * dt; who.kx -= who.kx * Math.min(1, dt * 7); }
+  if (who.wheelJerk) who.wheelJerk *= Math.max(0, 1 - dt * 5);
+  if (f.kind === 'low' && f.t > f.dur - 0.3 && Math.random() < 0.7) { // tyre smoke off the skidding wheel
+    const s = screenBoxOf(who);
+    if (s) particles.push({ x: s.x - f.side * s.w * 0.35 + rand(-6, 6), y: s.bottom - 2, vx: rand(-40, 40) - f.side * 30, vy: rand(-70, -20), t: rand(0.4, 0.7), size: rand(5, 9), grow: 12, color: 'rgba(205,205,210,.55)' });
+  }
+}
+// the lean away from a blow to the body, the rocking after one to the roof (radians, and a fraction of the auto's height)
+const hitLean = who => who.hitFx && who.hitFx.kind === 'body' ? who.hitFx.side * 0.3 * (who.hitFx.t / who.hitFx.dur) : 0;
+const hitRock = who => who.hitFx && who.hitFx.kind === 'head' ? Math.sin(performance.now() / 18) * 0.035 * (who.hitFx.t / who.hitFx.dur) : 0;
 // What flies off where a blow lands: a burst of sparks, and from a wet weapon (Bhola's gamchha) a spray of water
 function impact(x, y, w, side) {
   for (let i = 0; i < 7; i++) particles.push({ x, y, vx: rand(-160, 160) + side * 90, vy: rand(-190, 40), g: 420, t: rand(0.2, 0.4), size: rand(2, 4), color: pick(['#fff3b0', '#ffd54f', '#ffffff']) });
@@ -1814,9 +1840,9 @@ function resolveAttack(att, side) {
   if (attIsPlayer) best.grudgeT = 10; // some of them don't forget it
   const word = pick(w.hitWords);
   if (best.health <= 0 || Math.random() < 0.75) curse(best);
+  takeHit(best, w.contact || 'body', side);
   // the spot on screen where it landed: on the side facing the attacker, at the height the weapon strikes
-  const s = best.isPlayer ? (playerScr ? { x: playerScr.x, top: playerScr.top ?? playerScr.y - 190, bottom: playerScr.y, w: 170 } : { x: W / 2, top: H - 250, bottom: H - 40, w: 240 })
-    : best.scr ? { x: best.scr.x, top: best.scr.y, bottom: best.scr.y + best.scr.w * (use3D ? 1.5 : 1.05), w: best.scr.w } : null;
+  const s = screenBoxOf(best);
   const hitX = s ? s.x - side * s.w * 0.42 : W / 2 + side * 200, hitY = s ? lerp(s.bottom, s.top, c.up) : H - 300;
   impact(hitX, hitY, w, side);
   if (best.isPlayer) { popup(word, hitX + side * 40, hitY - 26, '#ff5252', 38); shake = Math.max(shake, 0.25);
@@ -1969,8 +1995,9 @@ function updatePlayer(dt, controlled) {
       if (player.tip > 0.7) crashPlayer('TIPPED OVER!', 15, Math.sign(player.lean));
     } else player.tip = Math.max(0, player.tip - dt * 1.5);
     const wobble = player.tip > 0 ? Math.sin(performance.now() / 40) * 0.05 : 0;
-    player.rot = player.lean * 0.2 + wobble + (player.atk ? player.atk.side * 0.04 : 0);
+    player.rot = player.lean * 0.2 + wobble + (player.atk ? player.atk.side * 0.04 : 0) + hitLean(player);
   }
+  hitReact(player, dt);
   player.x = clamp(player.x, -seg.half - 1.8, seg.half + 1.8);
   // top speed is the style's, raised for a moment by a boost (a drift exit or a slipstream); above it, speed bleeds off
   player.boostT -= dt;
@@ -2034,7 +2061,8 @@ function updateRivals(dt) {
       if (r.ko <= 0) { r.health = 55; r.rot = 0; r.x = clamp(r.x, -halfAt(r.dist) + 0.3, -0.3); }
       r.dist += r.speed * dt; continue;
     }
-    r.rot = lerp(r.rot, 0, Math.min(1, dt * 8));
+    hitReact(r, dt);
+    r.rot = lerp(r.rot, hitLean(r), Math.min(1, dt * 8));
     const dz = r.dist - player.dist;
     let target = r.top * (1 - st.bends * Math.abs(seg.curve) / 6);
     if (dz < -2500) target *= 1.1; else if (dz > 6000) target *= 0.92;
@@ -2837,7 +2865,7 @@ function renderWorld2D() {
       if (destW < 1 || !(scale > 0)) continue;
       if (car.isRival) {
         const bounce = car.speed > 0 ? Math.sin(performance.now() / 45 + car.dist) * destH * 0.006 : 0;
-        const y = cy - destH + bounce;
+        const y = cy - destH + bounce + hitRock(car) * destH;
         if (y + destH <= seg.clip + destH * 0.5) drawTuk(car.img, cx - destW / 2, y, destW, destH, car.rot, car.atk, car.hurt, car);
         car.scr = { x: cx, y: cy - destH * 1.1, w: destW, frame: frameNo };
       } else { drawSprite(car.img, cx - destW / 2, cy - destH, destW, destH, seg.clip); car.scr = { x: cx, y: cy - destH * 1.2, w: destW, frame: frameNo }; }
@@ -2854,7 +2882,7 @@ function drawPlayer(seg, pct) {
   const sp = player.speed / MAX_SPEED;
   const bumpy = Math.abs(player.x) > halfAt(player.dist) ? 4 : 1.2;
   const bounce = player.crash > 0 ? 0 : (Math.random() - 0.5) * bumpy * sp * 2;
-  const y = H / 2 - (scale * camY * H / 2) - destH + bounce;
+  const y = H / 2 - (scale * camY * H / 2) - destH + bounce + hitRock(player) * destH;
   if (player.inv > 0 && Math.floor(player.inv * 10) % 2) return;
   drawTuk(player.img, W / 2 - destW / 2, y, destW, destH, player.rot, player.atk, player.hurt, player);
 }
