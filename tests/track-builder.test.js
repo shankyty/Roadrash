@@ -78,9 +78,10 @@ test('the tables the validator reads match the builder: every piece and scenery 
 const FP = { width: 0.6, climbLoss: 0.25, dropLoss: 0.12, stallEvery: [150, 300] };
 const F = RRR.footpath;
 const onPath = (road, kind) => road.segments.flatMap((s, n) => s.sprites.filter(q => q.onPath && q.kind === kind).map(q => ({ n, q })));
+const stallCarts = road => onPath(road, 'cart').filter(c => !c.q.junction), signalCarts = road => onPath(road, 'cart').filter(c => c.q.junction);
 
 test('with a footpath, every stall has a cart ramp a fixed way before it, on the same side', () => {
-  const road = buildRoad(testDef({ road: { footpath: FP } })), stalls = onPath(road, 'chai'), carts = onPath(road, 'cart');
+  const road = buildRoad(testDef({ road: { footpath: FP } })), stalls = onPath(road, 'chai'), carts = stallCarts(road);
   assert.ok(stalls.length >= 6, `only ${stalls.length} stalls`);
   assert.strictEqual(carts.length, stalls.length);
   for (const { n, q } of stalls) {
@@ -102,7 +103,7 @@ test('stalls and carts stand in the middle of the footpath and block the segment
 });
 test('from just before a cart to well past its stall the road is plain: no junction, no lane taper, no start line', () => {
   const road = buildRoad(testDef({ road: { footpath: FP } }));
-  for (const { n } of onPath(road, 'cart'))
+  for (const { n } of stallCarts(road))
     for (let k = n - 4; k <= n + F.CART.runout; k++) { const s = road.segments[k]; assert.ok(!s.junction && !s.clear && !s.finish && s.hw1 === s.hw2); }
 });
 test('the longest straight jump lands inside that plain stretch', () => {
@@ -138,10 +139,36 @@ test('however close the style asks, carts on one side are a cart, its stall and 
   const least = F.CART.runout + F.CART.lead + F.CART.length;
   const road = buildRoad(testDef({ road: { footpath: { ...FP, stallEvery: [20, 40] } } }));
   for (const side of [-1, 1]) {
-    const at = onPath(road, 'cart').filter(({ q }) => Math.sign(q.offset) === side).map(({ n }) => n);
+    const at = stallCarts(road).filter(({ q }) => Math.sign(q.offset) === side).map(({ n }) => n);
     assert.ok(at.length > 1, `${at.length} carts`);
     for (let i = 1; i < at.length; i++) assert.ok(at[i] - at[i - 1] >= least, `${at[i - 1]} then ${at[i]}`);
   }
+});
+test('a cart stands on both footpaths before every traffic signal, ending two segments short of the junction', () => {
+  const road = buildRoad(testDef({ road: { footpath: FP } })), carts = signalCarts(road);
+  assert.ok(road.junctions.length > 0);
+  assert.strictEqual(carts.length, 2 * road.junctions.length);
+  for (const j of road.junctions) for (const side of [-1, 1]) {
+    const k0 = j.s0 - F.CART.length - 2;
+    const cart = carts.find(c => c.n === k0 && Math.sign(c.q.offset) === side);
+    assert.ok(cart, `no cart on side ${side} before the signal at ${j.s0}`);
+    assert.strictEqual(cart.q.seg0, k0); assert.strictEqual(cart.q.junction, j); assert.ok(cart.q.solid);
+    for (let k = 0; k < F.CART.length; k++) assert.ok(!road.segments[k0 + k].junction && road.segments[k0 + k].solids.includes(cart.q));
+  }
+});
+test('no stall or stall cart stands where a signal jump is taken, flown or landed', () => {
+  const road = buildRoad(testDef({ road: { footpath: { ...FP, stallEvery: [20, 40] } } }));
+  for (const { n: ks, q } of signalCarts(road)) {
+    const j = q.junction, side = Math.sign(q.offset);
+    for (const { n } of stallCarts(road).filter(c => Math.sign(c.q.offset) === side))
+      assert.ok(n + F.CART.runout < ks - 4 || n - 4 > j.s1 + F.CART.runout, `stall cart at ${n} meets the signal cart at ${ks}`);
+    for (const { n } of onPath(road, 'chai').filter(c => Math.sign(c.q.offset) === side))
+      assert.ok(n < ks - 4 || n > j.s1 + F.CART.runout, `stall at ${n} stands in the signal jump from ${ks}`);
+  }
+});
+test('no signal carts without junctions, or without a footpath', () => {
+  assert.strictEqual(signalCarts(buildRoad(testDef({ road: { footpath: FP, junctions: false } }))).length, 0);
+  assert.strictEqual(signalCarts(buildRoad(testDef())).length, 0);
 });
 test('closer stall spacing puts more stalls on the road', () => {
   const count = every => onPath(buildRoad(testDef({ road: { footpath: { ...FP, stallEvery: every } } })), 'chai').length;

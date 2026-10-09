@@ -67,8 +67,10 @@ for (const id of RRR.order()) {
       for (let i = 1; i < at.length; i++) assert.ok(at[i] - at[i - 1] >= fp.stallEvery[0]); // (a skipped spot makes a gap longer, never shorter)
     }
     const stalls = road.segments.reduce((n, s) => n + s.sprites.filter(q => q.onPath && q.kind === 'chai').length, 0);
-    const carts = road.segments.reduce((n, s) => n + s.sprites.filter(q => q.kind === 'cart').length, 0);
+    const carts = road.segments.reduce((n, s) => n + s.sprites.filter(q => q.kind === 'cart' && !q.junction).length, 0);
+    const signalCarts = road.segments.reduce((n, s) => n + s.sprites.filter(q => q.kind === 'cart' && q.junction).length, 0);
     assert.strictEqual(carts, stalls);
+    assert.strictEqual(signalCarts, 2 * road.junctions.length); // one on each footpath before every traffic signal
   });
 }
 test('stalls are closest together on traffic tracks and furthest apart on speed tracks', () => {

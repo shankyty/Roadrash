@@ -78,7 +78,7 @@ function deviceSummary() {
 //   error/<kind>/<problem>/<OS-browser>
 // with the details needed to reproduce them in the title (version, game state, OS/browser versions,
 // screen, audio state, stack). Nothing personal is sent. Also logged to the console.
-const GAME_VERSION = '3.9.0';
+const GAME_VERSION = '3.10.0';
 // 3D quality tier: mobile browsers < laptop/desktop browsers < the Mac app. 'smooth' (phones and tablets,
 // when 3D is forced there with ?3d) keeps the frame rate up with fewer polygons and a lower resolution; 'high' for computer browsers; 'ultra'
 // in the Mac app (loaded from file://): finest models, detail kept farther away, full Retina resolution.
@@ -1952,6 +1952,8 @@ function updatePlayer(dt, controlled) {
     player.x += a.vx * dt;
     player.y = FP.heightAt(a, a.t);
     if (!a.over) a.over = traffic.some(c => c.type !== 'cow' && c.type !== 'dog' && Math.abs(wrapDelta(c.z - player.dist)) < ((c.len || 0) + TUK_LEN) / 2 && overlap(player.x, TUK_NW, c.x, c.nw));
+    // over a cross-road vehicle at a junction: a flyover wherever the auto comes down
+    if (!a.overCross) a.overCross = crossTraffic.some(c => Math.abs(wrapDelta(c.z - player.dist)) < (c.nw * ROAD_W + TUK_LEN) / 2 && Math.abs(player.x - c.x) < (c.lenX + TUK_NW) / 2);
     if (a.t >= a.airTime) landPlayer();
   } else if (player.crash > 0) {
     player.crash -= dt;
@@ -2058,7 +2060,7 @@ function takeOff() {
   Sfx.whoosh();
 }
 // Back down: on top of a vehicle or a cow it's a crash; otherwise the landing is noted for settleLanding. A jump
-// that left the footpath, passed over a vehicle and came down in the road is a flyover.
+// that left the footpath, passed over a vehicle and came down in the road is a flyover, as is one over a junction's cross traffic.
 function landPlayer() {
   const a = player.air, seg = findSegment(player.dist);
   player.air = null; player.y = 0; player.speed *= 1 - FP.JUMP.landLoss; shake = Math.max(shake, 0.2); Sfx.bump();
@@ -2066,7 +2068,7 @@ function landPlayer() {
     if (c.type === 'dog' || Math.abs(wrapDelta(c.z - player.dist)) >= ((c.len || 0) + TUK_LEN) / 2 || !overlap(player.x, playerW(), c.x, c.nw)) continue;
     crashPlayer(`LANDED ON A ${c.label}!`, 25); player.speed = 0; return;
   }
-  player.landed = { flyover: a.fromPath && a.over && zoneOf(seg, player.x) === 'road' };
+  player.landed = { flyover: a.fromPath && (a.overCross || a.over && zoneOf(seg, player.x) === 'road') };
 }
 // The jump counts once the landing has held: coming down on something at the roadside is a wreck in this same
 // frame's collision check, and a jump that ends in a crash doesn't count.

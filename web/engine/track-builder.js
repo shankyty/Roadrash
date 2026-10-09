@@ -170,16 +170,28 @@ class TrackBuilder {
       sign(n, pick(['limit40', 'limit50', 'limit60', 'limit50', 'keepleft', 'nohorn'], R), R() < 0.75 ? -1 : 1);
     }
   }
-  // Stalls block the footpath at intervals, each with a cart ramp a little before it. They come from their own
-  // seeded generator, so adding or moving them never changes the road, its scenery or its signs.
+  // A cart ramp stands on both footpaths before every traffic signal, for jumping the junction. Stalls block the
+  // footpath at intervals, each with a cart ramp a little before it; they come from their own seeded generator,
+  // so adding or moving them never changes the road, its scenery or its signs.
   placeFootpath(fs) {
     const { SP, segments } = this, { SEG_LEN } = this.constants, fp = this.def.road.footpath, F = RRR.footpath, N = segments.length;
     const G = mulberry32(this.def.seed * 7 + this.round);
     const gap = () => fp.stallEvery[0] + Math.floor(G() * (fp.stallEvery[1] - fp.stallEvery[0] + 1));
-    // a cart, its stall and the landing beyond need a plain stretch: no junction, no lanes tapering, not the start line
-    const plain = k => { const q = segments[k]; return !q.clear && !q.junction && !q.finish && q.hw1 === q.hw2; };
     // the inner edge of something w wide standing in the middle of the footpath (for a road edge at 1)
     const inner = (side, w) => side * (1 + F.KERB_W + (fp.width - w) / 2);
+    const cart = (k0, side, more) => segments[k0].sprites.push({ img: SP.cart, offset: inner(side, F.CART.width), nw: F.CART.width, solid: true, kind: 'cart', onPath: true,
+      len: F.CART.length * SEG_LEN, seg0: k0, ...more });
+    // the signal carts first: each ends two segments short of its junction (inside the stretch the junction keeps
+    // clear and straight), and the stretch from its approach to the landing beyond the junction is kept for it
+    const taken = new Set();
+    for (const j of this.junctions) {
+      const k0 = j.s0 - F.CART.length - 2;
+      for (const side of [-1, 1]) cart(k0, side, { junction: j });
+      for (let k = k0 - 4; k <= j.s1 + F.CART.runout; k++) taken.add(k);
+    }
+    // a stall's cart, the stall and the landing beyond need a plain stretch: no junction, no lanes tapering, not the
+    // start line, and nothing a signal jump needs
+    const plain = k => { const q = segments[k]; return !q.clear && !q.junction && !q.finish && q.hw1 === q.hw2 && !taken.has(k); };
     // however close the style asks, stalls stand no closer than a cart, its stall and the landing beyond need
     const least = F.CART.runout + F.CART.lead + F.CART.length;
     for (const side of [-1, 1]) {
@@ -188,8 +200,7 @@ class TrackBuilder {
         let ok = k0 + F.CART.runout < N; for (let k = k0 - 4; ok && k <= k0 + F.CART.runout; k++) ok = plain(k);
         if (!ok) continue;
         segments[n].sprites.push({ img: SP.chai, offset: inner(side, F.STALL_W), nw: F.STALL_W, solid: true, kind: 'chai', onPath: true });
-        segments[k0].sprites.push({ img: SP.cart, offset: inner(side, F.CART.width), nw: F.CART.width, solid: true, kind: 'cart', onPath: true,
-          len: F.CART.length * SEG_LEN, seg0: k0 });
+        cart(k0, side);
       }
     }
   }

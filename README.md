@@ -70,6 +70,7 @@ The world is rendered in real 3D with [Three.js](https://threejs.org) (r149, bun
 - To drift: above about 25 km/h, hold a steer and pull the handbrake (**Space**), or tap the brake. On a phone, hold a steer button and tap the brake button. Keep steering to hold the slide; let go to straighten up. Only a slide into a bend scores and earns the exit boost.
 - Every track has a raised footpath on both sides, and you can drive on it at full speed. Climbing the kerb costs a quarter of your speed and dropping off it about an eighth.
 - Chai stalls block the footpath. A hand cart is parked before each one, resting on its handles: drive onto it at 30 km/h or more and you jump. The jump carries on the way the auto was going. Holding the footpath, you clear the stall and land on the footpath; steering at the road, you fly over the traffic and land in a lane. There is no steering in the air.
+- A cart also stands on both footpaths before every traffic signal. Take it at 40 km/h or more and you jump the whole junction; pass over the cross traffic and it counts as a flyover.
 - Land on a vehicle or a cow and you crash. Hit a cart too slowly or off-centre, or a stall without jumping, and you are wrecked.
 - Jumps pay cash on the results screen. A flyover (off the footpath, over a vehicle, into the road) pays more.
 - The daring drivers use the footpath and the carts too when traffic holds them up.

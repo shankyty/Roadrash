@@ -44,6 +44,7 @@ Every track gets a raised footpath on both sides that the auto can drive on. Cro
 - In the air the auto touches nothing: not traffic, cows, the stall or the kerb.
 - Landing on clear ground keeps most of the speed. Landing on a vehicle is a crash. Landing on a roadside object is a wreck.
 - Hitting the cart below 30 km/h, hitting it from the side, or hitting a stall without jumping is a wreck, like any roadside object today.
+- A cart also stands on both footpaths before every traffic signal, for jumping the junction. From about 40 km/h the auto clears the 12-segment junction; slower, it comes down inside the crossing at road level. (Added in v3.10.0.)
 
 ### Daring rivals
 
@@ -58,7 +59,7 @@ Every track gets a raised footpath on both sides that the auto can drive on. Cro
 ### Cash
 
 - Every jump pays `jumpCash`.
-- A flyover pays `flyoverCash` in place of `jumpCash`. A flyover is a jump that takes off from the footpath, passes over at least one vehicle, and lands on the road.
+- A flyover pays `flyoverCash` in place of `jumpCash`. A flyover is a jump that takes off from the footpath and either passes over at least one vehicle and lands on the road, or passes over a cross-road vehicle at a junction (wherever it lands).
 - Drift cash and close-pass cash are unchanged. The results screen cash line becomes Prize + KO + Drift + Lane surf + Jumps.
 
 ## Geometry
@@ -87,6 +88,7 @@ Placed per side by the footpath pass, with a generator seeded from the track see
 - The stall stands at the footpath's centre and covers its width.
 - The cart starts 8 segments before the stall and is 4 segments long (800 track units). It stands at the footpath's centre and is 0.4 wide.
 - Both are solid roadside objects. A stall is a `chai` sprite flagged as standing on the footpath, so its hawker calls out like any other stall's. A cart has the new kind `cart`.
+- Signal carts: before every junction, on both sides, a cart whose 4 segments end 2 segments short of the junction (inside the stretch the junction keeps clear and straight). It carries `junction`. The stretch from 4 segments before it to 100 segments past the junction is kept clear of stalls and stall carts.
 
 ## Jump rules
 

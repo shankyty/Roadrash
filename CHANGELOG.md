@@ -1,5 +1,11 @@
 # Changelog
 
+## v3.10.0: Jump the signals
+
+- **A cart before every traffic signal:** on both footpaths, just before each junction. Take it at 40 km/h or more and you jump the whole junction; slower, you come down inside the crossing.
+- **Flyovers at junctions:** pass over the cross traffic in the air and the jump pays as a flyover, wherever you land.
+- Stalls keep clear of the signal jumps, so the junction tracks have a few fewer chai stalls.
+
 ## v3.9.0: Footpaths and cart ramps
 
 - **You can drive on the footpath:** every track has a raised footpath on both sides, at full speed. Climbing the kerb costs a quarter of your speed, dropping off it about an eighth.
