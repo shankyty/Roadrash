@@ -1,5 +1,12 @@
 # Changelog
 
+## v3.11.0: Autos react to where they're hit
+
+- **A blow to the roof** (lathi, gamchha, jooti, dandiya, slap, Murugan's high kick): the auto rocks on its springs and the driver ducks.
+- **A blow to the body** (cricket bat, umbrella, cane, laptop bag, Bunty's kick): the auto is knocked sideways and leans away from it, then straightens.
+- **A blow by the wheels** (hockey stick, Jintu's kick): the front wheel jerks, the auto swerves and skids for a moment, with smoke off the tyre.
+- You react the same way when a rival lands one on you.
+
 ## v3.10.0: Jump the signals
 
 - **A cart before every traffic signal:** on both footpaths, just before each junction. Take it at 40 km/h or more and you jump the whole junction; slower, you come down inside the crossing.
