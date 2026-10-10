@@ -1,0 +1,11 @@
+{
+  "name": "roadrash",
+  "private": true,
+  "scripts": {
+    "test": "node --test tests/",
+    "build": "node tools/build-web.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  }
+}

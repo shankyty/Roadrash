@@ -1,5 +1,10 @@
 # Changelog
 
+## v3.13.1: Faster loading, tidier code
+
+- **The web game and the Mac app load two minified script bundles** instead of 60-odd separate files (`npm run build`).
+- Behind the scenes: the game code is split into one file per job (`web/game/`, `web/world3d/`), and the traffic driving rules, traffic lights and race standings are plain modules in `web/engine/` with their own tests. Nothing changes in how the game plays.
+
 ## v3.13.0: Tail lamps and thirteen neons
 
 - **Every auto's tail lamps glow,** like the cars', buses' and trucks' always have, and brighter at night. They were painted on before.

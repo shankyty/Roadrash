@@ -24,10 +24,12 @@ This works on Apple Silicon and Intel Macs running macOS 13 or later. You can al
 open "build/Road Rash.app"
 ```
 
-`build.sh` compiles a small native Cocoa/WKWebView shell (`macos/main.swift`) and bundles the game (`web/`) into `build/Road Rash.app`, then ad-hoc signs it.
+`build.sh` compiles a small native Cocoa/WKWebView shell (`macos/main.swift`), builds the game (`npm run build`, see below) into `build/Road Rash.app`, then ad-hoc signs it. It needs Node.js; the first run installs the build's one dependency (esbuild).
 If Xcode's license hasn't been accepted, the script falls back to the Command Line Tools toolchain.
 
-To iterate on the game in a browser: `python3 -m http.server 8765 --directory web` and open http://localhost:8765.
+To iterate on the game in a browser: `python3 -m http.server 8765 --directory web` and open http://localhost:8765. The source runs as is, one file per script tag, with no build step.
+
+`npm run build` (`tools/build-web.mjs`) makes the deployable copy in `dist/web`: the scripts `index.html` loads are merged, in order, into two minified bundles with content-hashed names. `npm test` runs the tests.
 
 ## Controls
 
@@ -50,7 +52,7 @@ The world is rendered in real 3D with [Three.js](https://threejs.org) (r149, bun
 
 - **Cameras:** a high **helicopter** view (default) and a low **chase** view. Press **C** to switch; your choice is saved.
 - **Classic renderer:** if a device has no WebGL, the original pseudo-3D renderer is used automatically. Add `?2d` to the URL to force it.
-- **Code layout:** `web/game.js` runs the race (physics, rivals, audio, HUD) for both renderers and `web/world3d.js` draws it in 3D. Each frame it rebuilds the road around the camera from the track's curves and hills and places the models. Tracks themselves are data: see **Tracks, cities and styles**.
+- **Code layout:** `web/game/` runs the race for both renderers, one file per concern (`player.js`, `rivals.js`, `traffic.js`, `audio.js`, `hud.js`, …, started by `main.js`). `web/engine/` holds the rules that use no DOM or renderer (track building, traffic driving, junction lights, standings), tested under Node. `web/world3d/` draws it in 3D, one file per model family or stage (`cars.js`, `bus.js`, `scenery.js`, `road.js`, `frame.js`, …; `api.js` is its interface). Each frame it rebuilds the road around the camera from the track's curves and hills and places the models. Tracks themselves are data: see **Tracks, cities and styles**.
 
 ## Gameplay
 
@@ -129,13 +131,13 @@ The app is only ad-hoc signed, not notarized. On another Mac, the first launch n
 
 ## Releasing a new version
 
-1. Bump `CFBundleShortVersionString` in `macos/Info.plist` and `GAME_VERSION` in `web/game.js`, then run `./make-dmg.sh`.
+1. Bump `CFBundleShortVersionString` in `macos/Info.plist` and `GAME_VERSION` in `web/game/analytics.js`, then run `./make-dmg.sh`.
 2. Create the release: `gh release create vX.Y.Z build/RoadRash.dmg`.
 3. In `Casks/roadrash.rb`, update `version` and `sha256` (from `shasum -a 256 build/RoadRash.dmg`), then push.
 
 ## Deploying the web version
 
-`./deploy-web.sh` publishes the committed `web/` folder to the `gh-pages` branch, which GitHub Pages serves.
+`./deploy-web.sh` builds the committed `web/` folder and publishes `dist/web` to the `gh-pages` branch, which GitHub Pages serves.
 
 ## Analytics
 

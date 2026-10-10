@@ -8,3 +8,5 @@ Screen Recording*
 tools/voices/.venv/
 __pycache__/
 tools/voices/samples/
+node_modules/
+dist/

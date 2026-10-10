@@ -116,10 +116,10 @@ RRR.manifest = null;
 RRR.packFiles = m => [...m.styles.map(id => `styles/${id}.js`), ...m.cities.flatMap(id => [`cities/${id}/city.js`, `cities/${id}/skyline.js`]),
   ...m.tracks.map(id => `tracks/${id}/track.js`)];
 // called by packs.js: remembers the manifest and, in a browser, loads every pack file (in order, before the
-// scripts that follow packs.js)
+// scripts that follow packs.js). RRR.bundled: tools/build-web.mjs already put the pack files right after packs.js.
 RRR.load = manifest => {
   RRR.manifest = manifest;
-  if (typeof document === 'undefined' || document.readyState !== 'loading') return; // document.write after parsing would wipe the page
+  if (RRR.bundled || typeof document === 'undefined' || document.readyState !== 'loading') return; // document.write after parsing would wipe the page
   for (const file of RRR.packFiles(manifest)) document.write(`<script src="${file}"><\/script>`);
 };
 RRR.order = () => RRR.manifest.tracks.slice();

@@ -10,7 +10,7 @@ if ! swiftc --version >/dev/null 2>&1 && [ -d /Library/Developer/CommandLineTool
 fi
 
 rm -rf "$APP"
-mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources/web/lib"
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources/web"
 
 echo "▸ compiling (universal: arm64 + x86_64)"
 OBJ="$(mktemp -d)"
@@ -23,11 +23,9 @@ rm -rf "$OBJ"
 
 echo "▸ bundling resources"
 cp macos/Info.plist "$APP/Contents/Info.plist"
-cp web/index.html web/sounds.js web/voices.js web/drivers.js web/animals.js web/horns.js web/packs.js web/game.js web/icon.png "$APP/Contents/Resources/web/"
-cp -R web/engine web/styles web/cities web/tracks "$APP/Contents/Resources/web/"
-cp web/world3d.js "$APP/Contents/Resources/web/"
-mkdir -p "$APP/Contents/Resources/web/models" && cp web/models/*.js "$APP/Contents/Resources/web/models/"
-cp web/lib/three.min.js "$APP/Contents/Resources/web/lib/"
+[ -d node_modules ] || npm ci
+npm run build
+cp -R dist/web/. "$APP/Contents/Resources/web/"
 
 echo "▸ icon"
 TMP="$(mktemp -d)"

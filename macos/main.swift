@@ -51,7 +51,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKUIDelegate {
     @objc private func restartRace(_ sender: Any?) { send("restart") }
     @objc private func quitToMenu(_ sender: Any?) { send("menu") }
 
-    // Forwards a command to the game's window.rrrCommand (see web/game.js).
+    // Forwards a command to the game's window.rrrCommand (see web/game/input.js).
     private func send(_ command: String) {
         webView.evaluateJavaScript("window.rrrCommand && window.rrrCommand('\(command)')", completionHandler: nil)
     }

@@ -3,7 +3,7 @@
 #   blender --background --python tools/blender/<name>.py -- [--render out.png] [--view x,y,z]
 # Shapes are lofted from cross-sections and smoothed with subdivision surfaces; units are game units / 100
 # (Blender +Y forward, +Z up). Writes web/models/<name>.js: per material slot, flat vertex + normal arrays at
-# two levels of detail, which world3d.js turns into meshes and paints with each vehicle's own colours.
+# two levels of detail, which web/world3d/blender-models.js turns into meshes and paints with each vehicle's own colours.
 # Objects without a slot (boolean cutters for wheel arches) are not exported.
 import bpy, bmesh, math, sys, os, json, base64, struct
 from mathutils import Vector
