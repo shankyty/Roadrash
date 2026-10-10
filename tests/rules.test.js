@@ -56,3 +56,9 @@ test('race order: finishers first in the order they finished, then the rest by d
   assert.deepStrictEqual(standings.order([d, a], [a, b, c, d]), [d, a, c, b]);
   assert.deepStrictEqual([1, 3, 8, 9].map(standings.prize), [1500, 700, 0, 0]);
 });
+
+test('traffic in the inside lane goes round a parked cart on the outside', () => {
+  const c = car({ lane: 0, x: laneX(1, 0), cruise: 3000, pref: 0, stuck: 0, signal: 0, signalT: 0, checkT: 2 }), cart = { z: 5000, x: laneX(1, 0), vz: 0, nw: 0.4, len: 800, who: {} };
+  run(c, world(), 6, [{ z: c.z, x: c.x, vz: 0, nw: c.nw, len: c.len, who: c }, cart]); // (well before a jam squeezes it out, at 10 s)
+  assert.ok(c.z > 6000 && c.lane === 1, `at ${Math.round(c.z)} in lane ${c.lane}`);
+});

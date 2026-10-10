@@ -5,22 +5,27 @@ function checkCollisions() {
   // in 3D every vehicle is a solid body centred on its position, so contact happens when the bodies' ends
   // meet (half of each length apart); the flat 2D sprites only touch just ahead of the auto
   const pw = playerW(), half = use3D ? playerL() / 2 : 0, seg = findSegment(player.dist + half * 0.8);
-  if (Math.abs(player.x) > seg.half) {
-    for (const s of seg.solids) {
-      if (Math.sign(s.offset) !== Math.sign(player.x)) continue;
-      // a cart ramp, met at its near end, lined up and fast enough: up and away (anything else about a cart is a wreck)
-      if (s.kind === 'cart' && seg.index - s.seg0 <= 1 && FP.takesOff(s.offset + Math.sign(s.offset) * s.nw / 2, player.x, player.speed / MAX_SPEED)) { takeOff(); return; }
-      // buildings and temples: their front wall is at the offset; other things are centred half their width out
-      const wall = s.kind === 'building' || s.kind === 'temple';
-      const hit = wall ? Math.abs(player.x) + pw * 0.45 > Math.abs(s.offset)
-        : s.onPath ? overlap(player.x, pw, s.offset + Math.sign(s.offset) * s.nw / 2, s.nw) // a stall or a cart blocks the footpath at its full width
-        : overlap(player.x, pw * 0.7, s.offset + Math.sign(s.offset) * s.nw / 2, s.nw * 0.55);
-      if (hit) {
-        crashPlayer('WRECKED!', 25, -Math.sign(s.offset)); player.speed = 0;
-        player.x = s.offset - Math.sign(s.offset) * pw * 0.6; return;
-      }
+  for (const s of seg.solids) {
+    if (!s.inLane && Math.abs(player.x) <= seg.half) continue; // (on the road, only a cart parked in a lane is in the way)
+    if (Math.sign(s.offset) !== Math.sign(player.x)) continue;
+    // a cart ramp, met at its near end, lined up and fast enough: up and away (anything else about a cart is a wreck)
+    if (s.kind === 'cart' && seg.index - s.seg0 <= 1 && FP.takesOff(s.offset + Math.sign(s.offset) * s.nw / 2, player.x, player.speed / MAX_SPEED)) { takeOff(); return; }
+    // buildings and temples: their front wall is at the offset; other things are centred half their width out
+    const wall = s.kind === 'building' || s.kind === 'temple';
+    const hit = wall ? Math.abs(player.x) + pw * 0.45 > Math.abs(s.offset)
+      : s.onPath || s.inLane ? overlap(player.x, pw, s.offset + Math.sign(s.offset) * s.nw / 2, s.nw) // a stall or a cart blocks at its full width
+      : overlap(player.x, pw * 0.7, s.offset + Math.sign(s.offset) * s.nw / 2, s.nw * 0.55);
+    if (hit) {
+      crashPlayer('WRECKED!', 25, -Math.sign(s.offset)); player.speed = 0;
+      if (s.inLane) player.dist = s.seg0 * SEG_LEN - half - 60; // a cart in a lane: put back on the road behind it, not inside it
+      else player.x = s.offset - Math.sign(s.offset) * pw * 0.6;
+      return;
     }
   }
+  // a pothole under the auto: a jolt and a share of your speed, once per hole
+  const hole = findSegment(player.dist).sprites.find(s => s.kind === 'pothole' && overlap(player.x, pw * 0.6, s.offset - s.nw / 2, s.nw));
+  if (hole && hole !== player.pothole) { player.speed *= 1 - FP.POTHOLE.loss; shake = Math.max(shake, 0.25); Sfx.bump(); popup('POTHOLE!', W / 2, H - 260, '#ffab40', 24); }
+  player.pothole = hole || null;
   for (const c of traffic) {
     const dz = wrapDelta(c.z - player.dist);
     const reach = use3D ? (c.len || 0) / 2 + half : 230;

@@ -75,6 +75,7 @@ function driveTraffic(c, obs, dt, w) {
     if (c.lane >= lanesAhead && c.lane > 0) { c.signal = -1; c.signalT = 0.6; }                                   // my lane ends: merge in
     else if (c.yieldT > 0 && c.lane + 1 < lanesAhead && laneFree(laneX(dir, c.lane + 1), 700, 600)) { c.signal = 1; c.signalT = 0.35; c.yieldT = 0; } // let the honker through
     else if (c.stuck > 0.8 && c.lane > 0 && laneFree(laneX(dir, c.lane - 1), 900, 700)) { c.signal = -1; c.signalT = 0.8; c.stuck = 0; } // overtake on the inside
+    else if (c.stuck > 0.8 && aheadV < 1 && c.lane + 1 < lanesAhead && laneFree(laneX(dir, c.lane + 1), 900, 700)) { c.signal = 1; c.signalT = 0.8; c.stuck = 0; } // round a parked cart on the outside
     else if (c.checkT <= 0) { c.checkT = rand(1.5, 3); if (c.lane < home && laneFree(laneX(dir, c.lane + 1), 1400, 900)) { c.signal = 1; c.signalT = 0.8; } } // back out to the left
   }
   // jam watch: time spent (nearly) stopped other than at the lights. After a while a jammed vehicle squeezes

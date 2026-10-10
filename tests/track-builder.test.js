@@ -115,7 +115,7 @@ test('nothing but stalls and carts stands on the footpath', () => {
   const road = buildRoad(testDef({ road: { footpath: FP } }));
   road.segments.forEach((s, n) => {
     for (const q of s.sprites) {
-      if (q.center || q.onPath || !q.solid) continue;
+      if (q.center || q.onPath || q.inLane || !q.solid) continue;
       // buildings and temples have their front wall at the offset; everything else has its inner edge there
       assert.ok(Math.abs(q.offset) >= F.backEdge(s.half, FP), `${q.kind} at ${n} stands on the footpath`);
     }
@@ -126,7 +126,7 @@ test('the footpath has its own seed: the same tour builds the same one, a later 
   const def = testDef({ road: { footpath: FP } });
   assert.strictEqual(spots(buildRoad(def)), spots(buildRoad(def)));
   assert.notStrictEqual(spots(buildRoad(def)), spots(buildRoad(def, { round: 1 })));
-  const shape = road => road.segments.map(s => `${s.curve}/${s.lanes}/${s.sprites.filter(q => !q.onPath).map(q => q.kind).join('+')}`).join();
+  const shape = road => road.segments.map(s => `${s.curve}/${s.lanes}/${s.sprites.filter(q => !q.onPath && !q.inLane).map(q => q.kind).join('+')}`).join();
   assert.strictEqual(shape(buildRoad(def)), shape(buildRoad(testDef())));
 });
 test('without a footpath there are no stalls or carts and furniture stands where it always did', () => {
@@ -173,4 +173,31 @@ test('no signal carts without junctions, or without a footpath', () => {
 test('closer stall spacing puts more stalls on the road', () => {
   const count = every => onPath(buildRoad(testDef({ road: { footpath: { ...FP, stallEvery: every } } })), 'chai').length;
   assert.ok(count([100, 200]) > count([250, 450]));
+});
+
+const inLane = (road, kind) => road.segments.flatMap((s, n) => s.sprites.filter(q => q.inLane && q.kind === kind).map(q => ({ n, s, q })));
+test('carts parked in our lanes: centred in a lane on our side, on a plain stretch with room to land, solid for their length', () => {
+  const road = buildRoad(testDef({ road: { footpath: FP } })), carts = inLane(road, 'cart'), lanes = new Set();
+  assert.ok(carts.length >= 2, `${carts.length} lane carts`);
+  for (const { n, s, q } of carts) {
+    const centre = q.offset - q.nw / 2, lane = -centre / RRR.road.LANE_W - 0.5;
+    assert.ok(Math.abs(lane - Math.round(lane)) < 1e-9 && lane >= 0 && lane < s.lanes, `cart at ${n} is not in a lane`);
+    lanes.add(Math.round(lane));
+    assert.strictEqual(q.seg0, n); assert.ok(q.solid);
+    for (let k = 0; k < F.CART.length; k++) assert.ok(road.segments[n + k].solids.includes(q));
+    for (let k = n; k <= n + F.CART.runout; k++) assert.ok(!road.segments[k].junction && road.segments[k].hw1 === road.segments[k].hw2, `no room to land after ${n}`);
+    for (let k = n - 15; k <= n + 70; k++) assert.ok(Math.abs(road.segments[k].curve) <= F.CART.laneBend, `a hard bend at ${k}, by the cart at ${n}`);
+  }
+  assert.ok(lanes.size > 1, 'every lane cart is in the same lane');
+});
+test('potholes: in a lane on our side, never in a junction or under a lane cart, and they slow you without stopping you', () => {
+  const road = buildRoad(testDef({ road: { footpath: FP } })), holes = inLane(road, 'pothole');
+  assert.ok(holes.length > 10, `${holes.length} potholes`);
+  const carts = inLane(road, 'cart');
+  for (const { n, s, q } of holes) {
+    assert.ok(q.offset < 0 && !q.solid && !s.junction, `pothole at ${n}`);
+    assert.ok(!carts.some(c => n >= c.n - 2 && n < c.n + F.CART.length + 2), `pothole under the cart near ${n}`);
+  }
+  assert.ok(F.POTHOLE.loss > 0 && F.POTHOLE.loss < 0.5);
+  assert.strictEqual(inLane(buildRoad(testDef()), 'pothole').length, 0); // (the classic roads without a footpath stay as they were)
 });

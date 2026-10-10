@@ -52,7 +52,7 @@ function buildSharedSprites() {
   SP.palm = makePalm(); SP.palmF = flipped(SP.palm);
   const r = mulberry32(7); SP.trees = [makeTree(r), makeTree(r), makeTree(r)];
   SP.temple = makeTemple(); SP.lampL = makeLamp(-1); SP.lampR = makeLamp(1);
-  SP.chai = makeChai(); SP.cart = makeCart(); SP.milestone = makeMilestone(); SP.arch = makeArch();
+  SP.chai = makeChai(); SP.cart = makeCart(); SP.pothole = makePothole(); SP.milestone = makeMilestone(); SP.arch = makeArch();
   SP.signs = Object.fromEntries(['signal', 'junction', 'narrow', 'nohorn', 'keepleft', 'limit40', 'limit50', 'limit60'].map(k => [k, makeSign(k)]));
   SP.signal = makeSignal(); SP.cop = makeCop();
 }

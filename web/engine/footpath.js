@@ -10,7 +10,11 @@ const KERB_W = 1 / 6;   // the painted kerb stones between the lane edge and the
 // a cart ramp: segments before its stall, segments long, road units wide, how near its centre you must be to take
 // off, and the segments past it that must be plain road (no junction, no lanes tapering) so that a straight jump
 // at any speed comes down on the footpath
-const CART = { lead: 8, length: 4, width: 0.4, takeoff: 0.2, runout: 100 };
+// (laneEvery: segments between the carts parked in our lanes, ramps off the road itself; laneBend: the hardest bend
+// allowed from a lane cart's run-up to its landing)
+const CART = { lead: 8, length: 4, width: 0.4, takeoff: 0.2, runout: 100, laneEvery: [300, 600], laneBend: 4 };
+// potholes in our lanes: segments between them, road units wide, and the share of speed one costs
+const POTHOLE = { every: [40, 120], width: 0.3, loss: 0.2 };
 const STALL_W = 0.6;    // a stall blocks a footpath one lane wide
 // a jump: the least speed that takes off (a share of 80 km/h), seconds in the air = airBase + airPerSpeed × speed
 // share, peak height = peak × seconds² (track units), and the share of speed a landing costs
@@ -48,5 +52,5 @@ const heightAt = (j, t) => (t <= 0 || t >= j.airTime ? 0 : 4 * j.peak * (t / j.a
 // how far roadside furniture stands out from where it stood without a footpath, so the footpath is clear
 const furnitureShift = fp => (fp ? KERB_W + fp.width - 0.07 : 0); // 0.07 less: the nearest furniture stood 0.1 out from the road's edge, and now stands just behind the footpath
 
-RRR.footpath = { KERB_W, CART, STALL_W, JUMP, kerbLine, backEdge, centre, zoneAt, kerbCrossing, takesOff, jump, heightAt, furnitureShift };
+RRR.footpath = { KERB_W, CART, POTHOLE, STALL_W, JUMP, kerbLine, backEdge, centre, zoneAt, kerbCrossing, takesOff, jump, heightAt, furnitureShift };
 })();

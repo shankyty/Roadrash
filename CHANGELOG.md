@@ -1,5 +1,10 @@
 # Changelog
 
+## v3.14.0: Carts in the lanes, and potholes
+
+- **Hand carts parked in the road:** some carts now stand right in a lane on our side, on stretches with only gentle bends. Take one lined up at 30 km/h or more and you jump off the road itself, landing further down the lane; too slow or off-centre and you're wrecked, and put back behind it. Traffic pulls round them (big vehicles wait for a gap in the next lane), and the rivals steer round them too.
+- **Potholes:** dark, broken patches in the lanes, one every second or two at top speed, each in a lane of its own choosing. Drive over one and you lose a fifth of your speed with a jolt. Steer round them, or jump them.
+
 ## v3.13.1: Faster loading, tidier code
 
 - **The web game and the Mac app load two minified script bundles** instead of 60-odd separate files (`npm run build`).

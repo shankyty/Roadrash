@@ -96,6 +96,12 @@ function lampModel(side) {
 }
 // A hand cart parked on its pull handles: the plank bed slopes up the way the traffic goes (the ramp). The
 // model's origin is the cart's near end, on the ground.
+// A pothole: a dark patch with a broken rim, a hair above the road so it never flickers into it. Origin: its near end.
+function potholeModel(s) {
+  const g = new T.Group(), Wd = s.nw * ROAD_W_3D, L = 260;
+  for (const [k, color, y] of [[1, '#5f5953', 2], [0.82, '#1e1a17', 4]]) { const m = cyl(0.5, 1, color, 0, y, -L / 2); m.scale.set(Wd * k, 1, L * k); g.add(m); }
+  g.userData.size = { w: Wd, h: 6, l: L }; return g;
+}
 function cartModel(s) {
   const g = new T.Group(), Wd = s.nw * ROAD_W_3D * 0.9, L = s.len || 800, rise = 260, tilt = Math.atan2(rise, L);
   const bed = new T.Group(); bed.position.set(0, rise / 2 + 26, -L / 2); bed.rotation.x = tilt; g.add(bed);
@@ -188,6 +194,7 @@ function sceneryModel(s) {
     case 'lamp': return lampModel(side);
     case 'milestone': return milestoneModel();
     case 'cart': return cartModel(s);
+    case 'pothole': return potholeModel(s);
     case 'arch': return archModel(s.img, s);
     case 'sign': return signModel(s);
     case 'signal': return signalModel(s);

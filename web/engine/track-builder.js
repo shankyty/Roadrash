@@ -205,6 +205,27 @@ class TrackBuilder {
         cart(k0, side);
       }
     }
+    // carts parked in our own lanes too (a plain stretch each, with room to land), and potholes; from their own
+    // seeded generator, so the stalls and signal carts stay where they were
+    const H = mulberry32(this.def.seed * 11 + this.round), every = ([a, b]) => a + Math.floor(H() * (b - a + 1));
+    const inLane = (k, w) => laneX(1, Math.floor(H() * segments[k].lanes)) + w / 2; // the inner edge of something w wide in a lane
+    const cartAt = new Set();
+    // (gentle bends only, from the run-up to the farthest landing: you can't steer in the air, and on a hard bend
+    // you can't hold a lane at speed; a spot that won't do slides on to the next one that will)
+    const laneSpot = k0 => { for (let k = k0 - 4; k <= k0 + F.CART.runout; k++) if (!plain(k)) return false;
+      for (let k = k0 - 15; k <= k0 + 70; k++) if (Math.abs(segments[k].curve) > F.CART.laneBend) return false; return true; };
+    for (let k0 = fs + 150 + every(F.CART.laneEvery); k0 + F.CART.runout < N - 60; k0 += every(F.CART.laneEvery)) {
+      while (k0 + F.CART.runout < N - 60 && !laneSpot(k0)) k0 += 10;
+      if (k0 + F.CART.runout >= N - 60) break;
+      segments[k0].sprites.push({ img: SP.cart, offset: inLane(k0, F.CART.width), nw: F.CART.width, solid: true, kind: 'cart', inLane: true, edgeDone: true,
+        len: F.CART.length * SEG_LEN, seg0: k0 });
+      for (let k = k0 - 2; k < k0 + F.CART.length + 2; k++) cartAt.add(k);
+    }
+    for (let n = fs + 40 + every(F.POTHOLE.every); n < N - 20; n += every(F.POTHOLE.every)) {
+      const q = segments[n];
+      if (q.clear || q.junction || q.finish || cartAt.has(n)) continue;
+      q.sprites.push({ img: SP.pothole, offset: inLane(n, F.POTHOLE.width), nw: F.POTHOLE.width, solid: false, kind: 'pothole', inLane: true, edgeDone: true });
+    }
   }
   settleRoadside() {
     const { segments } = this, { SEG_LEN } = this.constants, shift = RRR.footpath.furnitureShift(this.def.road.footpath);

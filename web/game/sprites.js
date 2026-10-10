@@ -396,6 +396,15 @@ function makeChai() {
   return c;
 }
 
+// A pothole, flat on the road: a ragged dark hole with broken tarmac round its rim and a puddle in it.
+function makePothole() {
+  const c = mk(200, 44), g = c.getContext('2d');
+  const blob = (rx, ry, jag) => { g.beginPath(); for (let i = 0; i <= 24; i++) { const a = i / 24 * Math.PI * 2, k = 1 + jag * Math.sin(i * 2.7) * Math.cos(i * 1.3); g.lineTo(100 + Math.cos(a) * rx * k, 24 + Math.sin(a) * ry * k); } g.closePath(); };
+  g.fillStyle = '#6b6560'; blob(96, 19, 0.08); g.fill();   // broken tarmac
+  g.fillStyle = '#1e1a17'; blob(84, 15, 0.12); g.fill();   // the hole
+  g.fillStyle = 'rgba(120,140,160,.45)'; blob(44, 6, 0.1); g.fill(); // a puddle
+  return c;
+}
 function makeMilestone() {
   const c = mk(80, 110), g = c.getContext('2d');
   g.fillStyle = '#f5f5f5'; rr(g, 10, 30, 60, 76, 4); g.fill();

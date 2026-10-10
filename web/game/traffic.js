@@ -70,6 +70,7 @@ function trafficObstacles() {
   const obs = [{ z: player.dist, x: player.x, vz: player.speed * Math.cos(player.heading), nw: playerW(), len: playerL(), who: player }];
   for (const r of rivals) obs.push({ z: r.dist, x: r.x, vz: r.ko > 0 ? 0 : r.speed, nw: TUK_NW, len: TUK_LEN, who: r });
   for (const c of traffic) if (c.type !== 'dog') obs.push({ z: c.z, x: c.x, vz: (c.dir || 0) * c.speed, nw: c.nw, len: c.type === 'cow' ? 900 : c.len, who: c });
+  for (const c of laneCarts) obs.push({ z: c.z, x: c.x, vz: 0, nw: c.nw, len: c.len, who: c });
   return obs;
 }
 // Jams clear themselves out of sight: traffic stuck for a while (not at a red light) behind the camera or

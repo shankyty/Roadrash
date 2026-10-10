@@ -73,7 +73,9 @@ The world is rendered in real 3D with [Three.js](https://threejs.org) (r149, bun
 - Every track has a raised footpath on both sides, and you can drive on it at full speed. Climbing the kerb costs a quarter of your speed and dropping off it about an eighth.
 - Chai stalls block the footpath. A hand cart is parked before each one, resting on its handles: drive onto it at 30 km/h or more and you jump. The jump carries on the way the auto was going. Holding the footpath, you clear the stall and land on the footpath; steering at the road, you fly over the traffic and land in a lane. There is no steering in the air.
 - A cart also stands on both footpaths before every traffic signal. Take it at 40 km/h or more and you jump the whole junction; pass over the cross traffic and it counts as a flyover.
-- Land on a vehicle or a cow and you crash. Hit a cart too slowly or off-centre, or a stall without jumping, and you are wrecked.
+- Some carts are parked right in a lane on our side of the road, on stretches with only gentle bends. Line up and take one at 30 km/h or more and you jump off the road itself, landing further down the lane. Traffic pulls round them, and so do the rivals.
+- Potholes in the lanes cost a fifth of your speed and give you a jolt. Steer round them, or jump them.
+- Land on a vehicle, a cow or a cart and you crash. Hit a cart too slowly or off-centre, or a stall without jumping, and you are wrecked.
 - Jumps pay cash on the results screen. A flyover (off the footpath, over a vehicle, into the road) pays more.
 - The daring drivers use the footpath and the carts too when traffic holds them up.
 - There are 13 drivers, one per city (see **The drivers**). You race as any one of them: pick with **↑** / **↓** on the title screen (remembered); until you pick, you are the driver of the city you're in. A driver who takes a hit shouts back in their own language and their own voice, **spoken aloud** from where they are on the road: panned to their side, louder when close, with Doppler as you pass.

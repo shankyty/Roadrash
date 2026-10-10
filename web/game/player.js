@@ -183,7 +183,7 @@ function takeOff() {
 function landPlayer() {
   const a = player.air, seg = findSegment(player.dist);
   player.air = null; player.y = 0; player.speed *= 1 - FP.JUMP.landLoss; shake = Math.max(shake, 0.2); Sfx.bump();
-  for (const c of traffic) {
+  for (const c of [...traffic, ...laneCarts]) {
     if (c.type === 'dog' || Math.abs(wrapDelta(c.z - player.dist)) >= ((c.len || 0) + TUK_LEN) / 2 || !overlap(player.x, playerW(), c.x, c.nw)) continue;
     crashPlayer(`LANDED ON A ${c.label}!`, 25); player.speed = 0; return;
   }

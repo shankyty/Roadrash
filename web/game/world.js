@@ -2,6 +2,7 @@
 // Race state, loading a track and setting up a race.
 // ------------------------------------------------------------------ world state
 let segments = [], trackLength = 0, themeSprites = {}, bgLayers = {};
+let laneCarts = []; // the carts parked in our lanes, as obstacles shaped like traffic (centre z and x)
 // def: the loaded track's resolved definition (engine/registry.js) · theme: its look (sky, fog, road colours, scenery)
 let def = null, theme = null;
 // level: the selected race's place in ORDER (saved as a track id)
@@ -57,6 +58,8 @@ function loadTrack(idx) {
   bgLayers = { far: def.skyline.far(PAINT, theme, def.seed), near: def.skyline.near(PAINT, theme, def.seed + 5) };
   ({ segments, trackLength, startZ, junctions } = RRR.buildTrack({ def, round, sprites: SP, themeSprites,
     constants: { SEG_LEN, RUMBLE_LEN, PLAYER_Z, GRID_GAP: gridGap() } }));
+  laneCarts = segments.flatMap(seg => seg.sprites.filter(s => s.inLane && s.kind === 'cart'))
+    .map(s => ({ type: 'cart', label: 'CART', z: s.seg0 * SEG_LEN + s.len / 2, x: s.offset - s.nw / 2, nw: s.nw, len: s.len, speed: 0, dir: 1 }));
   if (use3D) World3D.setTrack({ segments, trackLength, theme, city: def.city.id, SP, themeSprites, CAR_COLORS, CAR_LOOKS, TRACTOR_LOOKS, BUS_LOOKS, BIKE_LOOKS, DOG_COATS, DRIVERS, attackPose, attackPoseAt, moveOf, hitRock, MAX_SPEED, LANE_W, footpath: def.road.footpath });
 }
 

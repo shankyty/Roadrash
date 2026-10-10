@@ -40,7 +40,7 @@ function updateRivals(dt) {
     let rMin = -seg.half + 0.2, rMax = -0.15; // rivals keep to our side of the centre line (the daring: see below)
     if (engaged) tx = player.x + (r.x >= player.x ? 1 : -1) * 0.4;
     let nearest = null, nd = 1800, meet = 1e9, roomBack = true, roomOuter = true;
-    for (const c of traffic) {
+    for (const c of [...traffic, ...laneCarts]) {
       const reach = use3D ? (c.len || 0) / 2 + TUK_LEN / 2 : 0, gapZ = wrapDelta(c.z - r.dist) - reach; // bumper-to-bumper gap
       if (c.dir === -1) { // oncoming: seconds until the nearest one in the lane by the centre line reaches us
         if (gapZ > -2 * reach - 200 && Math.abs(c.x - WRONG_SIDE_X) < (r.nw + c.nw) / 2 + 0.12) meet = Math.min(meet, Math.max(0, gapZ) / (r.speed + c.speed + 1));
@@ -96,7 +96,7 @@ function updateRivals(dt) {
     // straight along the footpath; anything else it runs into wrecks it
     for (const q of seg.solids) {
       const qx = q.offset - q.nw / 2;
-      if (!q.onPath || q.offset > 0 || !overlap(r.x, r.nw, qx, q.nw)) continue;
+      if (!(q.onPath || q.inLane) || q.offset > 0 || !overlap(r.x, r.nw, qx, q.nw)) continue;
       if (q.kind === 'cart' && seg.index - q.seg0 <= 1 && FP.takesOff(qx, r.x, r.speed / MAX_SPEED)) { r.x = qx; r.air = { ...FP.jump(r.speed / MAX_SPEED), t: 0 }; }
       else { r.ko = 3; r.koBy = 'traffic'; r.koDir = 1; r.speed *= 0.1; r.outCd = rand(4, 8); }
       break;
