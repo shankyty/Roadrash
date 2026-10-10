@@ -48,7 +48,9 @@ class TrackBuilder {
     // start / finish
     const startZ = PLAYER_Z + 3 * GRID_GAP + 400, fs = Math.floor(startZ / SEG_LEN);
     segments[fs].finish = true; segments[fs + 1].finish = 2;
-    segments[fs].sprites.push({ img: this.SP.arch, offset: 0, nw: segments[fs].half * 2 + 0.6, center: true, kind: 'arch' });
+    // the start arch spans the road and, where there is one, the footpath on each side, so its posts stand clear of both
+    const fp = this.def.road.footpath, archW = segments[fs].half * 2 + 0.6 + (fp ? 2 * (RRR.footpath.KERB_W + fp.width) : 0);
+    segments[fs].sprites.push({ img: this.SP.arch, offset: 0, nw: archW, center: true, kind: 'arch' });
     if (this.def.road.junctions) this.layoutJunctions(fs);
     this.placeScenery();
     this.placeSigns(fs);

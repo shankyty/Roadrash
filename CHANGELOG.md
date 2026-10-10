@@ -1,5 +1,10 @@
 # Changelog
 
+## v3.11.1: No more walls across the screen
+
+- **Fixed:** on a long bend the view could fill with a flat grey wall. The road is laid out by adding up its bends, so past a turn of about 100 degrees the far stretch curls back towards the camera; buildings standing there (moved out behind the new footpath) landed on the camera, and the road's underside, drawn double-sided since v3.9.0, showed as a blank wedge. Scenery and vehicles are no longer placed around the bend, and the road is one-sided again with the kerb faces turned outward.
+- The start arch now spans the footpaths, so its posts stand clear of them.
+
 ## v3.11.0: Autos react to where they're hit
 
 - **A blow to the roof** (lathi, gamchha, jooti, dandiya, slap, Murugan's high kick): the auto rocks on its springs and the driver ducks.
