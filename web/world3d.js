@@ -1625,6 +1625,26 @@ vec3 nightLight(vec3 p) {
     for (const x of [-1, 1]) g.add(wheel(150, 70, x * (Wd / 2 + 45), 150, -L * 0.55, '#6f6f6f'));        // two big tyres under the bed
     g.userData.size = { w: Wd + 160, h: rise + 110, l: L + 420 }; return g;
   }
+  // A chai stall: a plank counter under a striped awning on two posts, with the kettle on its stove, a row of
+  // glasses, the CHAI board, and the chaiwala behind it. Its front (-z here) is turned to face the road.
+  function stallModel(s) {
+    const g = new T.Group(), W = s.nw * ROAD_W, D = W * 0.5, post = '#5d4037', plank = '#8d6e63';
+    for (const x of [-1, 1]) g.add(box(36, 900, 36, post, x * (W / 2 - 40), 450, -D / 2 + 30));                 // the two front posts
+    for (const x of [-1, 1]) g.add(box(30, 760, 30, post, x * (W / 2 - 40), 380, D / 2 - 30));                  // the two back posts
+    const awning = new T.Group(); awning.position.set(0, 900, 0); awning.rotation.x = 0.18; g.add(awning);         // sloping down to the front
+    const n = 11, sw = (W + 60) / n; for (let i = 0; i < n; i++) awning.add(box(sw + 2, 20, D + 140, i % 2 ? '#ffffff' : '#e53935', -(W + 60) / 2 + sw * (i + 0.5), 0, 0));
+    g.add(box(W * 0.48, 150, 24, '#ffeb3b', 0, 1000, -D / 2 - 40));                                               // the board over the front
+    const sign = document.createElement('canvas'); sign.width = 256; sign.height = 64; const sc = sign.getContext('2d');
+    sc.fillStyle = '#ffeb3b'; sc.fillRect(0, 0, 256, 64); sc.fillStyle = '#b71c1c'; sc.font = 'bold 44px Impact, Arial Black'; sc.textAlign = 'center'; sc.textBaseline = 'middle'; sc.fillText('CHAI', 128, 34);
+    const face = new T.Mesh(unitPlane, spriteMat(sign)); face.scale.set(W * 0.48, 150, 1); face.position.set(0, 1000, -D / 2 - 54); g.add(face);
+    g.add(box(W * 0.78, 330, D * 0.7, plank, 0, 165, 0));                                                          // the counter
+    for (let x = -W * 0.39 + 100; x < W * 0.39; x += 130) g.add(box(10, 330, D * 0.7 + 4, '#6d4c41', x, 165, 0));    // its plank lines
+    g.add(box(W * 0.84, 40, D * 0.8, '#a1887f', 0, 350, 0));                                                       // the counter top
+    g.add(cyl(70, 24, '#ff7043', -W * 0.2, 382, -40)); g.add(sph(lambert('#bdbdbd'), 70, 60, 70, -W * 0.2, 440, -40)); g.add(cylX(10, 90, '#bdbdbd', -W * 0.2 + 90, 455, -40)); // stove, kettle, spout
+    for (let i = 0; i < 5; i++) { g.add(box(36, 56, 36, '#e0c080', 20 + i * 60, 398, -60)); g.add(box(38, 30, 38, '#8d5524', 20 + i * 60, 385, -60)); }   // glasses of tea
+    g.add(box(170, 300, 110, '#3949ab', 0, 500, D * 0.38)); g.add(sph(lambert('#8d5524'), 48, 54, 48, 0, 700, D * 0.38));            // the chaiwala
+    g.userData.size = { w: W, h: 1080, l: D + 140 }; return g;
+  }
   function milestoneModel() {
     const g = new T.Group();
     g.add(box(140, 180, 60, '#f5f5f5', 0, 90, 0)); g.add(box(140, 90, 62, '#ffcc00', 0, 225, 0));
@@ -1681,7 +1701,8 @@ vec3 nightLight(vec3 p) {
     switch (s.kind) {
       case 'building': return buildingModel(s);
       case 'palm': case 'tree': case 'temple': return crossedModel(s.img, s.nw * ROAD_W);
-      case 'billboard': case 'chai': return boardModel(s.img, s.nw * ROAD_W, side);
+      case 'billboard': return boardModel(s.img, s.nw * ROAD_W, side);
+      case 'chai': return stallModel(s);
       case 'lamp': return lampModel(side);
       case 'milestone': return milestoneModel();
       case 'cart': return cartModel(s);
@@ -2224,7 +2245,7 @@ vec3 nightLight(vec3 p) {
         else if (s.kind === 'sign' || s.kind === 'signal' || s.kind === 'cop') p = placeAt(d, s.offset);
         else p = placeAt(d, s.offset + side * s.nw / 2);
         m.position.set(p.x, p.y + (s.onPath ? FP_H : 0), p.z); // (a stall or a cart stands on the footpath)
-        m.rotation.y = -p.th + (s.kind === 'billboard' || s.kind === 'chai' ? -side * 0.45 : 0) + (s.facing === -1 ? Math.PI : 0);
+        m.rotation.y = -p.th + (s.kind === 'billboard' ? -side * 0.45 : s.kind === 'chai' ? -side * Math.PI / 2 : 0) + (s.facing === -1 ? Math.PI : 0); // (a stall faces the road)
         if (s.kind === 'signal' && lightOf) { const L = lightOf(s.junction); for (const k of ['R', 'A', 'G']) for (const lm of m.userData.lamps[k]) lm.material = sigMat[k][k === L ? 1 : 0]; }
         if (s.kind === 'cop') m.userData.wave.rotation.z = -1.2 - Math.sin(t * 5) * 0.5;
         m.visible = true; visible.add(m);

@@ -1,10 +1,13 @@
 # Changelog
 
-## v3.12.0: Tail lamps and thirteen neons
+## v3.13.0: Tail lamps and thirteen neons
 
 - **Every auto's tail lamps glow,** like the cars', buses' and trucks' always have, and brighter at night. They were painted on before.
 - **Every driver has neon now, each in their own colour:** Ganpat magenta, Bunty blue, Saleem amber, Murugan green, Bablu-da yellow, Jassi orange, Jintu cyan, Banwari violet, Manju teal, Nawab white, Bhola lime, Lallan red and Kokila-ben pink. Before, five autos had it and three of those were pink.
 - **Brighter neon:** thicker strips with a halo round each, a strip along the front of the hood too, and a bigger, brighter pool of light on the road. Still only on night tracks.
+## v3.12.0: A real chai stall
+
+- **The chai stall is a 3D model** in the 3D view: a plank counter under a red-and-white awning on posts, the kettle on its stove, a row of glasses, the CHAI board, and the chaiwala behind it, facing the road. It was a flat picture before.
 
 ## v3.11.1: No more walls across the screen
 
