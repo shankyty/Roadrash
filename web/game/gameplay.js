@@ -61,7 +61,7 @@ function screenBoxOf(who) {
 // smoke off the tyre. `side` is the way the blow was travelling.
 function takeHit(who, kind, side) {
   who.hitFx = { kind, side, t: 0.55, dur: 0.55 };
-  if (kind === 'body') who.kx = side * 1.1;
+  if (kind === 'body') who.kx = side * 2.4; // (about half a lane, with the blow's own shove)
   if (kind === 'low') { who.wheelJerk = side * 0.9; who.kx = side * 0.4; }
 }
 function hitReact(who, dt) {
@@ -118,7 +118,7 @@ function drawScreenMud() {
 function resolveAttack(att, side) {
   if (att.air) return; // (or hit from it)
   const attIsPlayer = !!att.isPlayer, w = att.weapon || LATHI;
-  const targets = attIsPlayer ? rivals.filter(r => !r.ko) : [player];
+  const targets = [player, ...rivals].filter(r => r !== att && !r.ko);
   let best = null, bestDz = 1e9;
   for (const t of targets) {
     if (t === att || t.air) continue; // (no one can be hit in the air)
@@ -127,14 +127,17 @@ function resolveAttack(att, side) {
     if (Math.abs(dz) < 440 && dx * side > 0.02 && Math.abs(dx) < 0.8 * w.reach && Math.abs(dz) < bestDz) { best = t; bestDz = Math.abs(dz); }
   }
   if (!best) { if (attIsPlayer) Sfx.whoosh(); return; }
-  Sfx.hit(w.sound);
+  const seen = attIsPlayer || best.isPlayer || Math.abs(wrapDelta(att.dist - player.dist)) < 5000; // (a fight far off: not seen or heard)
+  if (seen) Sfx.hit(w.sound);
   const dmg = attIsPlayer ? rand(14, 22) * w.power : rand(7, 12) * w.power * (1 + round * 0.1) * (0.8 + def.rivals.skill * 0.3);
   const c = CONTACTS[w.contact] || CONTACTS.body; // a blow to the head, the body or down by the wheels
   best.health -= dmg; best.hurt = 0.3; best.x += side * c.shove; best.speed *= c.keep;
+  best.shovedBy = att; best.shovedT = 2.5; // (knocked into oncoming traffic in the next moments: it's this blow's knockout)
   if (attIsPlayer) best.grudgeT = 10; // some of them don't forget it
   const word = pick(w.hitWords);
-  if (best.health <= 0 || Math.random() < 0.75) curse(best);
+  if (seen && (best.health <= 0 || Math.random() < 0.75)) curse(best);
   takeHit(best, w.contact || 'body', side);
+  if (!seen) { if (best.health <= 0) { best.ko = 4.5; best.koBy = att; best.koDir = side; } return; }
   // the spot on screen where it landed: on the side facing the attacker, at the height the weapon strikes
   const s = screenBoxOf(best);
   const hitX = s ? s.x - side * s.w * 0.42 : W / 2 + side * 200, hitY = s ? lerp(s.bottom, s.top, c.up) : H - 300;
@@ -144,8 +147,9 @@ function resolveAttack(att, side) {
   else {
     popup(word, hitX, hitY - 26, '#ffeb3b', 40);
     if (best.health <= 0) {
-      best.ko = 4.5; best.koBy = 'player'; best.koDir = side; player.kos++;
-      Sfx.ko(); msg(`${best.name} KNOCKED OUT!  +${fmtCash(100)}`, '#ffeb3b');
+      best.ko = 4.5; best.koBy = attIsPlayer ? 'player' : att; best.koDir = side; Sfx.ko();
+      if (attIsPlayer) { player.kos++; msg(`${best.name} KNOCKED OUT!  +${fmtCash(100)}`, '#ffeb3b'); }
+      else msg(`${att.name} KNOCKED OUT ${best.name}!`, '#ffcc80');
     }
   }
 }

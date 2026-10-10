@@ -18,6 +18,7 @@ function updateRivals(dt) {
       r.dist += r.speed * dt; continue;
     }
     hitReact(r, dt);
+    if (r.shovedT > 0) r.shovedT -= dt;
     r.rot = lerp(r.rot, hitLean(r), Math.min(1, dt * 8));
     if (r.air) { // off a cart: straight along the footpath until it comes down
       r.air.t += dt; r.y = FP.heightAt(r.air, r.air.t); r.dist += r.speed * dt;
@@ -87,7 +88,7 @@ function updateRivals(dt) {
     }
     tx = clamp(tx, rMin, rMax);
     const xWas = r.x;
-    r.x = Math.min(r.x + clamp(tx - r.x, -1.3 * dt, 1.3 * dt), rMax); // (a shove or a bump never puts them over the line unless they mean it)
+    if (!r.kx) r.x += clamp(tx - r.x, -1.3 * dt, 1.3 * dt); // (reeling from a blow they don't steer: a shove can put them over the centre line)
     r.dist += r.speed * dt;
     const kerb = FP.kerbCrossing(seg.half, footpath(), xWas, r.x, !!seg.junction);
     if (kerb) r.speed *= 1 - (kerb === 'climb' ? footpath().climbLoss : footpath().dropLoss);
@@ -101,9 +102,13 @@ function updateRivals(dt) {
       else { r.ko = 3; r.koBy = 'traffic'; r.koDir = 1; r.speed *= 0.1; r.outCd = rand(4, 8); }
       break;
     }
-    // a wet pothole splashes whoever is alongside (rivals know these roads too well to slow for the holes themselves)
-    const hole = seg.sprites.find(q => q.kind === 'pothole' && q.wet && overlap(r.x, r.nw * 0.6, q.offset - q.nw / 2, q.nw));
-    if (hole && hole !== r.pothole && r.speed / MAX_SPEED >= FP.POTHOLE.splash.minSpeed) splash(r);
+    // a pothole costs a rival speed as it costs you, once per hole; a wet one splashes whoever is alongside
+    const hole = seg.sprites.find(q => q.kind === 'pothole' && overlap(r.x, r.nw * 0.6, q.offset - q.nw / 2, q.nw));
+    if (hole && hole !== r.pothole) {
+      const fast = r.speed / MAX_SPEED >= FP.POTHOLE.splash.minSpeed; // (the splash goes by the speed going in)
+      r.speed *= 1 - FP.POTHOLE.loss;
+      if (hole.wet && fast) splash(r);
+    }
     r.pothole = hole || null;
     if (r.x > -0.1) { // on or over the centre line, oncoming traffic is solid: a head-on knocks them out
       for (const c of traffic) {
@@ -111,17 +116,25 @@ function updateRivals(dt) {
         const reach = use3D ? ((c.len || 0) + TUK_LEN) / 2 : 230;
         if (Math.abs(wrapDelta(c.z - r.dist)) >= reach || Math.abs(c.x - r.x) >= (r.nw + c.nw) / 2 * 0.9) continue;
         r.ko = 3; r.koBy = 'traffic'; r.koDir = r.x >= c.x ? 1 : -1; r.speed *= 0.1; r.out = false; r.outCd = rand(4, 8); c.speed = 0; r.headOns = (r.headOns || 0) + 1;
+        if (r.shovedT > 0) { // knocked over the line by a blow just now: the knockout is whoever landed it
+          r.koBy = r.shovedBy === player ? 'player' : r.shovedBy;
+          if (r.shovedBy === player) { player.kos++; msg(`${r.name} SHOVED INTO A ${c.label}!  +${fmtCash(100)}`, '#ffeb3b'); }
+        }
         if (Math.abs(dz) < 3500) { Sfx.crash(); curse(r); }
         break;
       }
     }
 
-    if (engaged && !r.atk) {
+    // who to swing at: you, when they're after you; otherwise a rival alongside (they fight each other too, a
+    // little less keenly). A swing lands on whoever is nearest on that side, which needn't be the one aimed at.
+    const inReach = o => o !== r && !o.air && Math.abs(o.dist - r.dist) < 380 && Math.abs(o.x - r.x) < 0.72 * wp.reach && Math.abs(o.x - r.x) > 0.05;
+    const foe = engaged ? player : !r.finished && rivals.find(o => !o.ko && !o.finished && inReach(o));
+    if (foe && !r.atk) {
       r.cd -= dt;
-      const dx = player.x - r.x;
+      const dx = foe.x - r.x;
       // how keen they are to hit you: their nature, or (for 10 s after you hit them) their grudge
-      const aggr = r.grudgeT > 0 ? Math.max(st.aggression, 0.8) * st.grudge : st.aggression;
-      if (aggr > 0 && r.cd <= 0 && Math.abs(dz) < 380 && Math.abs(dx) < 0.72 * wp.reach && Math.abs(dx) > 0.05) {
+      const aggr = (r.grudgeT > 0 ? Math.max(st.aggression, 0.8) * st.grudge : st.aggression) * (foe === player ? 1 : 0.6);
+      if (aggr > 0 && r.cd <= 0 && inReach(foe)) {
         startAttack(r, Math.sign(dx)); r.cd = rand(0.9, 2.0) * wp.cooldown / aggr / (1 + round * 0.1);
       }
     }

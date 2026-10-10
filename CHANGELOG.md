@@ -1,5 +1,11 @@
 # Changelog
 
+## v3.17.0: Rivals brawl, potholes bite them too, and the shove
+
+- **Rivals fight each other:** a rival that isn't busy with you swings at another rival alongside (a little less keenly), and they can knock each other out. A swing lands on whoever is nearest on that side, so a rival aiming at someone else can catch you.
+- **Knock them into the oncoming lane:** a blow to the body now knocks an auto about half a lane sideways, and a rival reeling from one doesn't steer. Knock a rival over the centre line into oncoming traffic and the head-on counts as your knockout (+₹100). It works on you too. (Reverts the v3.16.0 clamp that kept shoved rivals on their side.)
+- **Rivals slow down for potholes**, losing a fifth of their speed like you do.
+
 ## v3.16.0: Rivals splash you back
 
 - **Rivals splash too:** a rival driving through a wet pothole at 20 km/h or more soaks every auto alongside, you and the other rivals included. A soaked auto loses a tenth of its speed. A soaked rival curses whoever did it; when it's you, muddy water splatters across your screen and runs down as it fades (SPLASHED BY BUNTY!).

@@ -74,7 +74,7 @@ The world is rendered in real 3D with [Three.js](https://threejs.org) (r149, bun
 - Chai stalls block the footpath. A hand cart is parked before each one, resting on its handles: drive onto it at 30 km/h or more and you jump. The jump carries on the way the auto was going. Holding the footpath, you clear the stall and land on the footpath; steering at the road, you fly over the traffic and land in a lane. There is no steering in the air.
 - A cart also stands on both footpaths before every traffic signal. Take it at 40 km/h or more and you jump the whole junction; pass over the cross traffic and it counts as a flyover.
 - Some carts are parked right in a lane on our side of the road, on stretches with only gentle bends. Line up and take one at 30 km/h or more and you jump off the road itself, landing further down the lane. Traffic pulls round them, and so do the rivals.
-- Potholes in the lanes cost a fifth of your speed and give you a jolt. Steer round them, or jump them.
+- Potholes in the lanes cost a fifth of your speed and give you a jolt, and the same to the rivals. Steer round them, or jump them.
 - Some potholes are full of muddy water. Anyone who hits one at 20 km/h or more splashes every auto alongside, which loses a tenth of its speed: a rival you soak curses you, and when a rival soaks you the mud runs down your screen.
 - Western Express Highway races through a monsoon thunderstorm: rain, a lid of dark cloud, lightning behind the skyline and thunder after it, and every pothole full of water. A track's `look: { rain: true }` turns this on.
 - Land on a vehicle, a cow or a cart and you crash. Hit a cart too slowly or off-centre, or a stall without jumping, and you are wrecked.
@@ -87,6 +87,8 @@ The world is rendered in real 3D with [Three.js](https://threejs.org) (r149, bun
 - The engine is a real Bajaj auto-rickshaw recording: a kick-start at race start, then idle and rev loops that pitch up with your speed.
 - Finish in the top 3 to qualify, and **Enter** on the results screen takes you straight to the next race. Prize money and a ₹100 bonus for each rival you knock out go into your wallet, which is saved between sessions.
 - Rival autos catch up, ride alongside you and hit you with their own weapons (or kick). If your health runs out, you're knocked out for a few seconds.
+- Rivals fight each other too when they're alongside one another, a little less keenly than they go for you, and can knock each other out. A swing lands on whoever is nearest on that side.
+- A blow to the body knocks an auto about half a lane sideways, and a rival reeling from one doesn't steer. Knock one over the centre line into oncoming traffic and the head-on is your knockout (₹100). They can do it to you too.
 - Watch out for cows, buses, trucks and cars. Crashing into roadside objects wrecks you.
 - Traffic is audible: buses, trucks, cars and rival autos have their own engine sounds (positional, with Doppler) and honk like real Indian traffic, especially when you overtake them closely. Cows moo and dogs bark from where they are.
 - Stray dogs sleep in the middle of the road, trot across it, and chase your auto barking *"BHOW BHOW!"*. Roadside dogs often sprint alongside your auto for a while, sometimes in pairs. They always leap clear and never get hurt, but swerving around one costs you speed. Honk to wake them and send them off the road.
