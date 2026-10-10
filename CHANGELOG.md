@@ -1,5 +1,11 @@
 # Changelog
 
+## v3.15.0: Monsoon on the Western Express, and muddy splashes
+
+- **Western Express Highway is a monsoon thunderstorm now:** rain over everything, a heavy lid of dark cloud with no sun, lightning forking down behind the skyline with a flash over the whole picture, and thunder rolling in a moment later. The road is wet and dark, and every pothole is full of water.
+- **Wet potholes:** about two in five potholes everywhere hold muddy water. Hit one at 20 km/h or more and it splashes: brown water flies up round you and over any auto close alongside, which loses a tenth of its speed while its driver curses you. CHHAPAAK!
+- Sounds: rain hiss (on the City Noise slider), thunder and the splash.
+
 ## v3.14.0: Carts in the lanes, and potholes
 
 - **Hand carts parked in the road:** some carts now stand right in a lane on our side, on stretches with only gentle bends. Take one lined up at 30 km/h or more and you jump off the road itself, landing further down the lane; too slow or off-centre and you're wrecked, and put back behind it. Traffic pulls round them (big vehicles wait for a gap in the next lane), and the rivals steer round them too.

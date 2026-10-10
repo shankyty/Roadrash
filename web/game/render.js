@@ -47,15 +47,15 @@ const hexA = (hex, a) => { const n = parseInt(hex.slice(1), 16); return `rgba(${
 function cloudLayer() {
   if (cloudTheme === theme) return cloudCanvas;
   cloudTheme = theme;
-  const c = mk(W * 2, Math.round(H * 0.42)), g = c.getContext('2d'), r = mulberry32(17), night = !!theme.night;
-  const lit = night ? '#5a6890' : theme.sun, base = night ? '#252d4a' : theme.sky[1], alpha = night ? 0.3 : 0.75;
-  for (let i = 0; i < (night ? 6 : 12); i++) {
+  const c = mk(W * 2, Math.round(H * 0.42)), g = c.getContext('2d'), r = mulberry32(17), night = !!theme.night, storm = !!theme.rain;
+  const lit = night ? '#5a6890' : storm ? '#8b929c' : theme.sun, base = night ? '#252d4a' : theme.sky[1], alpha = night ? 0.3 : storm ? 0.95 : 0.75;
+  for (let i = 0; i < (night ? 6 : storm ? 30 : 12); i++) { // (storm: a heavy lid of dark cloud)
     const cx = r() * c.width, cy = c.height * (0.2 + r() * 0.55), w = 130 + r() * 240, h = w * (0.2 + r() * 0.12);
     for (let k = 0; k < 10; k++) {
       const px = cx + (r() - 0.5) * w, py = cy + (r() - 0.65) * h, pr = h * (0.45 + r() * 0.7);
       for (const dx of [0, c.width, -c.width]) {
         const gr = g.createRadialGradient(px + dx, py - pr * 0.35, pr * 0.1, px + dx, py, pr);
-        gr.addColorStop(0, hexA(night ? lit : '#ffffff', alpha)); gr.addColorStop(0.45, hexA(lit, alpha * 0.65));
+        gr.addColorStop(0, hexA(night || storm ? lit : '#ffffff', alpha)); gr.addColorStop(0.45, hexA(lit, alpha * 0.65));
         gr.addColorStop(0.8, hexA(base, alpha * 0.35)); gr.addColorStop(1, hexA(base, 0));
         g.fillStyle = gr; g.fillRect(px + dx - pr, py - pr, pr * 2, pr * 2);
       }
@@ -74,16 +74,22 @@ function drawBackground(ctx, hz) {
     ctx.globalAlpha = 1;
   }
   const glow = theme.night ? 60 : 120, disc = theme.night ? 20 : 34;
-  const sg = ctx.createRadialGradient(sx, sy, 10, sx, sy, glow);
-  sg.addColorStop(0, theme.sun); sg.addColorStop(0.25, theme.sun + (theme.night ? '55' : 'aa')); sg.addColorStop(1, 'rgba(255,255,255,0)');
-  ctx.fillStyle = sg; ctx.fillRect(sx - glow, sy - glow, glow * 2, glow * 2);
-  ctx.fillStyle = theme.sun; ctx.beginPath(); ctx.arc(sx, sy, disc, 0, Math.PI * 2); ctx.fill();
-  if (theme.night) { // crescent: shade part of the disc only
-    ctx.save(); ctx.beginPath(); ctx.arc(sx, sy, disc, 0, Math.PI * 2); ctx.clip();
-    ctx.fillStyle = theme.sky[1]; ctx.beginPath(); ctx.arc(sx + 9, sy - 6, disc * 0.9, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+  if (!theme.rain) {
+    const sg = ctx.createRadialGradient(sx, sy, 10, sx, sy, glow);
+    sg.addColorStop(0, theme.sun); sg.addColorStop(0.25, theme.sun + (theme.night ? '55' : 'aa')); sg.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = sg; ctx.fillRect(sx - glow, sy - glow, glow * 2, glow * 2);
+    ctx.fillStyle = theme.sun; ctx.beginPath(); ctx.arc(sx, sy, disc, 0, Math.PI * 2); ctx.fill();
+    if (theme.night) { // crescent: shade part of the disc only
+      ctx.save(); ctx.beginPath(); ctx.arc(sx, sy, disc, 0, Math.PI * 2); ctx.clip();
+      ctx.fillStyle = theme.sky[1]; ctx.beginPath(); ctx.arc(sx + 9, sy - 6, disc * 0.9, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+    }
   }
   const cl = cloudLayer(), co = ((skyOffset * 0.35 + performance.now() / 600000) % 1 + 1) % 1;
   ctx.drawImage(cl, -co * cl.width, hz * 0.04); ctx.drawImage(cl, (1 - co) * cl.width, hz * 0.04);
+  if (theme.rain) { // (no sun through the storm) lightning: the bolt below the clouds, and its flash lighting the sky
+    if (weather.flash > 0) { ctx.fillStyle = `rgba(220,228,255,${(weather.flash * 0.45).toFixed(3)})`; ctx.fillRect(0, 0, W, hz + 50); }
+    drawBolt(ctx, hz);
+  }
   const layer = (img, off, bottom) => {
     const lw = img.width, x0 = -Math.floor(off * lw);
     for (let x = x0; x < W; x += lw) ctx.drawImage(img, x, bottom - img.height);
@@ -225,6 +231,7 @@ function render() {
   }
   ctx.globalAlpha = 1;
   ctx.restore();
+  guardDraw('weather', drawRain);
 
   guardDraw('ui', drawPopups);
   guardDraw('ui', drawBubbles);

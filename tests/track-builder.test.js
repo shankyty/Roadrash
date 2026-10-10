@@ -199,5 +199,15 @@ test('potholes: in a lane on our side, never in a junction or under a lane cart,
     assert.ok(!carts.some(c => n >= c.n - 2 && n < c.n + F.CART.length + 2), `pothole under the cart near ${n}`);
   }
   assert.ok(F.POTHOLE.loss > 0 && F.POTHOLE.loss < 0.5);
+  const wet = holes.filter(h => h.q.wet).length; // some full of dirty water, drawn as such
+  assert.ok(wet > holes.length * 0.2 && wet < holes.length * 0.6, `${wet} of ${holes.length} wet`);
+  for (const { q } of holes) assert.strictEqual(q.img, q.wet ? 'potholeWet' : 'pothole');
   assert.strictEqual(inLane(buildRoad(testDef()), 'pothole').length, 0); // (the classic roads without a footpath stay as they were)
+});
+test('in the rain every pothole is full of water, and the rest of the road is laid out the same', () => {
+  const dry = testDef({ road: { footpath: FP } }), wet = { ...dry, look: { ...dry.look, rain: true } };
+  const holes = inLane(buildRoad(wet), 'pothole');
+  assert.ok(holes.length > 10 && holes.every(h => h.q.wet));
+  const at = road => inLane(road, 'pothole').map(h => `${h.n}:${h.q.offset}`).join();
+  assert.strictEqual(at(buildRoad(wet)), at(buildRoad(dry)));
 });

@@ -1,5 +1,5 @@
 'use strict';
-// Mumbai · Western Express Highway: hazy afternoon traffic
+// Mumbai · Western Express Highway: monsoon traffic in a thunderstorm
 RRR.tracks.register({
   id: 'western-express',
   name: 'MUMBAI · WESTERN EXPRESS HIGHWAY',
@@ -9,11 +9,12 @@ RRR.tracks.register({
   rivals: { count: 7, skill: 0.94 },
   traffic: { count: 52, cows: 14, dogs: 12 },
   look: {
-    sky: ['#8e9aa3', '#d9c9a3', '#f3e0b0'], sun: '#fff6d0', fog: '#cfc3a3', sea: '#9aa7a8',
-    far: '#b3ab96', near: '#8a8070', lights: 0, density: 0.45,
-    light: { road: '#5e5e5e', grass: '#7d7a45', rumble: '#f5c400', lane: '#f2f2f2', shoulder: '#a39a7c' },
-    dark: { road: '#595959', grass: '#76733f', rumble: '#141414', shoulder: '#9c9376' },
-    buildings: ['#e9c46a', '#f4a261', '#e76f51', '#dcd3c0', '#a8dadc', '#f1faee'],
+    rain: true,                           // rain, storm clouds, lightning and thunder; every pothole full of water
+    sky: ['#23282f', '#3d444d', '#5f6670'], sun: '#b9c0c8', fog: '#59616a', sea: '#4d5a60',
+    far: '#48505a', near: '#353b43', lights: 0.25, density: 0.45,
+    light: { road: '#3e4144', grass: '#4d5a33', rumble: '#d4ad12', lane: '#d9dcdf', shoulder: '#6b6a5f' },
+    dark: { road: '#3a3d40', grass: '#48552f', rumble: '#141414', shoulder: '#66655a' },
+    buildings: ['#b89a52', '#c0834d', '#a95a45', '#a8a194', '#7fa3a5', '#bfc4bb'],
     scenery: { tree: 3, building: 6, billboard: 3, temple: 1, chai: 1 },
   },
 });

@@ -96,10 +96,11 @@ function lampModel(side) {
 }
 // A hand cart parked on its pull handles: the plank bed slopes up the way the traffic goes (the ramp). The
 // model's origin is the cart's near end, on the ground.
-// A pothole: a dark patch with a broken rim, a hair above the road so it never flickers into it. Origin: its near end.
+// A pothole: a dark patch with a broken rim (and muddy water in a wet one), a hair above the road so it never flickers into it. Origin: its near end.
 function potholeModel(s) {
   const g = new T.Group(), Wd = s.nw * ROAD_W_3D, L = 260;
-  for (const [k, color, y] of [[1, '#5f5953', 2], [0.82, '#1e1a17', 4]]) { const m = cyl(0.5, 1, color, 0, y, -L / 2); m.scale.set(Wd * k, 1, L * k); g.add(m); }
+  const layers = [[1, '#5f5953', 2], [0.82, '#1e1a17', 4], ...(s.wet ? [[0.74, '#6b5233', 6]] : [])]; // (wet: muddy water)
+  for (const [k, color, y] of layers) { const m = cyl(0.5, 1, color, 0, y, -L / 2); m.scale.set(Wd * k, 1, L * k); g.add(m); }
   g.userData.size = { w: Wd, h: 6, l: L }; return g;
 }
 function cartModel(s) {

@@ -14,6 +14,7 @@ test('every race has seven rivals', () => {
 test('race order is unchanged', () => {
   assert.deepStrictEqual(RRR.order(), legacy.TRACKS.map(t => legacy.IDS[t.theme]));
 });
+const RESTYLED = { 'western-express': 'v3.15.0: a monsoon thunderstorm' }; // tracks whose look was changed on purpose since
 for (const old of legacy.TRACKS) {
   const id = legacy.IDS[old.theme];
   test(`${id} carries its old numbers and look`, () => {
@@ -23,7 +24,7 @@ for (const old of legacy.TRACKS) {
     // (rivals.count is not compared: since v3.6.0 every race has seven rivals, see below)
     assert.deepStrictEqual([t.seed, t.length, t.laps, t.rivals.skill, t.traffic.count, t.traffic.cows, t.traffic.dogs],
       [old.seed, old.length, old.laps, old.skill, old.traffic, old.cows, old.dogs]);
-    assert.deepStrictEqual(t.look, look);
+    if (!RESTYLED[id]) assert.deepStrictEqual(t.look, look);
     assert.strictEqual(t.ambience, ambience);
     assert.deepStrictEqual(RRR.cities.get(city).ads, ads);
   });

@@ -4,6 +4,7 @@
 let lastBeep = 4;
 function update(dt) {
   worldT += dt;
+  updateWeather(dt);
   for (const m of messages) m.t -= dt; messages = messages.filter(m => m.t > 0);
   for (const p of popups) { p.t -= dt; p.y -= 30 * dt; } popups = popups.filter(p => p.t > 0);
   for (const b of bubbles) b.t -= dt; bubbles = bubbles.filter(b => b.t > 0);

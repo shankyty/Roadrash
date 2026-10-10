@@ -24,7 +24,11 @@ function checkCollisions() {
   }
   // a pothole under the auto: a jolt and a share of your speed, once per hole
   const hole = findSegment(player.dist).sprites.find(s => s.kind === 'pothole' && overlap(player.x, pw * 0.6, s.offset - s.nw / 2, s.nw));
-  if (hole && hole !== player.pothole) { player.speed *= 1 - FP.POTHOLE.loss; shake = Math.max(shake, 0.25); Sfx.bump(); popup('POTHOLE!', W / 2, H - 260, '#ffab40', 24); }
+  if (hole && hole !== player.pothole) {
+    const fast = player.speed / MAX_SPEED >= FP.POTHOLE.splash.minSpeed; // (the splash goes by the speed going in)
+    player.speed *= 1 - FP.POTHOLE.loss; shake = Math.max(shake, 0.25); Sfx.bump();
+    if (hole.wet && fast) splash(player); else popup('POTHOLE!', W / 2, H - 260, '#ffab40', 24);
+  }
   player.pothole = hole || null;
   for (const c of traffic) {
     const dz = wrapDelta(c.z - player.dist);

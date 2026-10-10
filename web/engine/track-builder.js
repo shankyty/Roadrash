@@ -224,7 +224,8 @@ class TrackBuilder {
     for (let n = fs + 40 + every(F.POTHOLE.every); n < N - 20; n += every(F.POTHOLE.every)) {
       const q = segments[n];
       if (q.clear || q.junction || q.finish || cartAt.has(n)) continue;
-      q.sprites.push({ img: SP.pothole, offset: inLane(n, F.POTHOLE.width), nw: F.POTHOLE.width, solid: false, kind: 'pothole', inLane: true, edgeDone: true });
+      const offset = inLane(n, F.POTHOLE.width), wet = H() < F.POTHOLE.wet || !!this.def.look.rain; // (in the rain, all of them)
+      q.sprites.push({ img: wet ? SP.potholeWet : SP.pothole, offset, nw: F.POTHOLE.width, solid: false, kind: 'pothole', wet, inLane: true, edgeDone: true });
     }
   }
   settleRoadside() {

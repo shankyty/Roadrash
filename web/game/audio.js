@@ -193,6 +193,16 @@ const Sfx = {
   },
   whoosh() { this.noise(0.14, 0.12, 3500); },
   crash() { this.noise(0.8, 0.6, 700); this.tone(90, 0.6, 'sine', 0.5, 30); this.noise(0.3, 0.3, 4000, 0.1); },
+  // a steady hiss of rain on monsoon tracks (on the city bus, with the street noise)
+  rain(on) {
+    if (!this.ctx || !this.cityBus || !!this.rainSrc === on) return;
+    if (!on) { this.rainSrc.stop(); this.rainSrc = null; return; }
+    const a = this.ctx, n = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain();
+    n.buffer = this.noiseBuf; n.loop = true; f.type = 'bandpass'; f.frequency.value = 2400; f.Q.value = 0.5; g.gain.value = 0.4;
+    n.connect(f); f.connect(g); g.connect(this.cityBus); n.start(); this.rainSrc = n;
+  },
+  thunder() { this.noise(2.8, 0.55, 220); this.noise(1.2, 0.3, 700, 0.06); this.tone(45, 2.2, 'sine', 0.35, 30); },
+  splash() { this.noise(0.45, 0.35, 1600); this.noise(0.3, 0.18, 5000, 0.04); },
   bump() { this.tone(90, 0.12, 'sine', 0.4, 60); this.noise(0.08, 0.2, 900); },
   whistle() { for (const [t, d] of [[0, 0.12], [0.18, 0.5]]) { this.tone(2900, d, 'sine', 0.16, 3100, t); this.tone(3350, d, 'sine', 0.08, 3500, t); } }, // traffic cop's whistle
   grunt() { this.tone(rand(170, 230), 0.22, 'sawtooth', 0.12, 110, 0, 900); },

@@ -28,7 +28,7 @@ function deviceSummary() {
 //   error/<kind>/<problem>/<OS-browser>
 // with the details needed to reproduce them in the title (version, game state, OS/browser versions,
 // screen, audio state, stack). Nothing personal is sent. Also logged to the console.
-const GAME_VERSION = '3.14.0';
+const GAME_VERSION = '3.15.0';
 // 3D quality tier: mobile browsers < laptop/desktop browsers < the Mac app. 'smooth' (phones and tablets,
 // when 3D is forced there with ?3d) keeps the frame rate up with fewer polygons and a lower resolution; 'high' for computer browsers; 'ultra'
 // in the Mac app (loaded from file://): finest models, detail kept farther away, full Retina resolution.
@@ -59,11 +59,11 @@ function envDetails() {
   ].join(' · ');
 }
 // Which part of the game an error came from: the first stack frame whose function belongs to a component.
-const AUDIO_METHODS = 'loadHorns|hornClip|loadAnimals|playAt|spot|outAt|mooAt|barkAt|mooFrom|barkFrom|updateAnimals|ensureVoices|updateVehicles|honkAt|hornTone|kindOf|init|fallbackEngine|loadSamples|startEngine|setEngine|applyVol|setVol|toggleMute|tone|noise|horn|hit|whoosh|crash|bump|moo|bark|yelp|grunt|beep|ko|cash|ensure|setCity|toggle|tick|env|osc|drum|note|decode|stopAll|shopsNearby|unlockAudio';
+const AUDIO_METHODS = 'loadHorns|hornClip|loadAnimals|playAt|spot|outAt|mooAt|barkAt|mooFrom|barkFrom|updateAnimals|ensureVoices|updateVehicles|honkAt|hornTone|kindOf|init|fallbackEngine|loadSamples|startEngine|setEngine|applyVol|setVol|toggleMute|tone|noise|horn|hit|whoosh|crash|splash|rain|thunder|bump|moo|bark|yelp|grunt|beep|ko|cash|ensure|setCity|toggle|tick|env|osc|drum|note|decode|stopAll|shopsNearby|unlockAudio';
 const COMPONENTS = [
   ['audio', new RegExp(`^(?:Sfx|Music|Ambience|Object)?\\.?(?:${AUDIO_METHODS})$|^(?:Sfx|Music|Ambience|TwoStroke)`)],
   ['traffic', /^(updateDog|startChase|updateTraffic|driveTraffic|honk)$/],
-  ['rivals-combat', /^(updateRivals|resolveAttack|startAttack|curse)$/],
+  ['rivals-combat', /^(updateRivals|resolveAttack|startAttack|curse|splash)$/],
   ['player-physics', /^(updatePlayer|crashPlayer|checkCollisions|endDrift|updateClosePasses|hitKerb|takeOff|landPlayer|settleLanding)$/],
   ['hawkers', /^(updateHawkers)$/],
   ['race-rules', /^(?:RaceStats\.|Records\.)?(checkFinish|buildResults|advanceAfterResults|setupRace|currentRank|resetPlayer|updateAttract|closePass|breakChain|advance|bonuses|summary|submit)$/],
@@ -76,6 +76,7 @@ const COMPONENTS = [
   ['input', /^(onPress|keyDown|keyUp|runCommand|toggleLayout|openPause|openMixer)$/],
   ['voices', /^(?:Object\.|Voice\.|VoiceClips\.)?(sayLine|stopVoices|loadClips|playClip|place|updateClips|stopClips)$/],
   ['analytics', /^(trackEvent|deviceSummary|envDetails)$/],
+  ['weather', /^(updateWeather|boltPath|drawBolt|drawRain)$/],
   ['game-loop', /^(update|step|frame)$/],
 ];
 function componentOf(err) {

@@ -13,8 +13,9 @@ const KERB_W = 1 / 6;   // the painted kerb stones between the lane edge and the
 // (laneEvery: segments between the carts parked in our lanes, ramps off the road itself; laneBend: the hardest bend
 // allowed from a lane cart's run-up to its landing)
 const CART = { lead: 8, length: 4, width: 0.4, takeoff: 0.2, runout: 100, laneEvery: [300, 600], laneBend: 4 };
-// potholes in our lanes: segments between them, road units wide, and the share of speed one costs
-const POTHOLE = { every: [40, 120], width: 0.3, loss: 0.2 };
+// potholes in our lanes: segments between them, road units wide, and the share of speed one costs; wet: the share
+// full of dirty water, whose splash (above a share of top speed) reaches autos this far across and along, and slows them
+const POTHOLE = { every: [40, 120], width: 0.3, loss: 0.2, wet: 0.4, splash: { minSpeed: 0.25, x: 0.9, z: 1800, loss: 0.1 } };
 const STALL_W = 0.6;    // a stall blocks a footpath one lane wide
 // a jump: the least speed that takes off (a share of 80 km/h), seconds in the air = airBase + airPerSpeed × speed
 // share, peak height = peak × seconds² (track units), and the share of speed a landing costs
