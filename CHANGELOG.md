@@ -1,5 +1,11 @@
 # Changelog
 
+## v3.16.0: Rivals splash you back
+
+- **Rivals splash too:** a rival driving through a wet pothole at 20 km/h or more soaks every auto alongside, you and the other rivals included. A soaked auto loses a tenth of its speed. A soaked rival curses whoever did it; when it's you, muddy water splatters across your screen and runs down as it fades (SPLASHED BY BUNTY!).
+- Rivals still don't slow down for potholes themselves: they know these roads too well.
+- A shove or a bump no longer pushes a rival over the centre line. Only the daring drivers cross it, on purpose, to overtake.
+
 ## v3.15.1: You can hear the storm
 
 - **Fixed: the rain and thunder on Western Express Highway were too quiet to hear.** The rain was buried under the street recording, and the thunder sat mostly below what laptop and phone speakers can play. The rain is now a proper downpour (a bright hiss over a low roar, fading in), and the thunder cracks, rolls and rumbles away, loud enough to hear over the engine. Both are on the City Noise slider.

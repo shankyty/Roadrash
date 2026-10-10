@@ -87,7 +87,7 @@ function updateRivals(dt) {
     }
     tx = clamp(tx, rMin, rMax);
     const xWas = r.x;
-    r.x += clamp(tx - r.x, -1.3 * dt, 1.3 * dt);
+    r.x = Math.min(r.x + clamp(tx - r.x, -1.3 * dt, 1.3 * dt), rMax); // (a shove or a bump never puts them over the line unless they mean it)
     r.dist += r.speed * dt;
     const kerb = FP.kerbCrossing(seg.half, footpath(), xWas, r.x, !!seg.junction);
     if (kerb) r.speed *= 1 - (kerb === 'climb' ? footpath().climbLoss : footpath().dropLoss);
@@ -101,6 +101,10 @@ function updateRivals(dt) {
       else { r.ko = 3; r.koBy = 'traffic'; r.koDir = 1; r.speed *= 0.1; r.outCd = rand(4, 8); }
       break;
     }
+    // a wet pothole splashes whoever is alongside (rivals know these roads too well to slow for the holes themselves)
+    const hole = seg.sprites.find(q => q.kind === 'pothole' && q.wet && overlap(r.x, r.nw * 0.6, q.offset - q.nw / 2, q.nw));
+    if (hole && hole !== r.pothole && r.speed / MAX_SPEED >= FP.POTHOLE.splash.minSpeed) splash(r);
+    r.pothole = hole || null;
     if (r.x > -0.1) { // on or over the centre line, oncoming traffic is solid: a head-on knocks them out
       for (const c of traffic) {
         if (c.dir !== -1) continue;

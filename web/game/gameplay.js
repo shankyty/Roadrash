@@ -82,22 +82,38 @@ function impact(x, y, w, side) {
   for (let i = 0; i < 7; i++) particles.push({ x, y, vx: rand(-160, 160) + side * 90, vy: rand(-190, 40), g: 420, t: rand(0.2, 0.4), size: rand(2, 4), color: pick(['#fff3b0', '#ffd54f', '#ffffff']) });
   if (w.wet) for (let i = 0; i < 30; i++) particles.push({ x: x + rand(-14, 14), y: y + rand(-12, 12), vx: rand(-260, 260) + side * 170, vy: rand(-380, -20), g: 760, t: rand(0.5, 1), size: rand(2.4, 5.4), color: pick(['#bfe6ff', '#8fd0ff', '#e3f4ff']) });
 }
-// Through a wet pothole: muddy water flies up round the auto and over any auto close alongside, which loses a
-// little speed and curses whoever did it.
+// Through a wet pothole (you or a rival): muddy water flies up round the auto and over any auto close alongside,
+// which loses a little speed; a rival curses whoever did it, and you get it all over the screen.
 const mud = (x, y, n, spread) => { for (let i = 0; i < n; i++) particles.push({ x: x + rand(-spread, spread), y: y + rand(-10, 10), vx: rand(-220, 220), vy: rand(-420, -60), g: 900, t: rand(0.5, 1), size: rand(2.5, 6), color: pick(['#6d4c2f', '#8d6e46', '#5b4128', '#a1887f']) }); };
 function splash(who) {
-  const S = FP.POTHOLE.splash, box = screenBoxOf(who);
+  const S = FP.POTHOLE.splash, mine = who === player, near = mine || Math.abs(wrapDelta(who.dist - player.dist)) < 6000; // (far off: not seen or heard)
+  const box = near && screenBoxOf(who);
   if (box) mud(box.x, box.bottom - 10, 36, box.w / 2);
-  Sfx.splash();
+  if (near) Sfx.splash();
   let soaked = 0;
-  for (const r of rivals) {
-    if (r === who || r.air || r.ko > 0 || Math.abs(r.dist - who.dist) > S.z || Math.abs(r.x - who.x) > S.x) continue;
+  for (const r of [player, ...rivals]) {
+    if (r === who || r.air || (r === player ? player.crash > 0 : r.ko > 0) || Math.abs(wrapDelta(r.dist - who.dist)) > S.z || Math.abs(r.x - who.x) > S.x) continue;
     r.speed *= 1 - S.loss; soaked++;
-    const b = screenBoxOf(r); if (b) mud(b.x, (b.top + b.bottom) / 2, 30, b.w / 2);
-    if (!bubbles.some(q => q.who === r)) curse(r);
+    const b = near && screenBoxOf(r); if (b) mud(b.x, (b.top + b.bottom) / 2, 30, b.w / 2);
+    if (r === player) { mudScreen(); popup(`SPLASHED BY ${who.name}!`, W / 2, H - 300, '#bcaaa4', 26); }
+    else if (!bubbles.some(q => q.who === r)) curse(r);
   }
-  popup(soaked ? 'CHHAPAAK!' : 'SPLASH!', W / 2, H - 260, '#bcaaa4', soaked ? 32 : 24);
+  if (mine) popup(soaked ? 'CHHAPAAK!' : 'SPLASH!', W / 2, H - 260, '#bcaaa4', soaked ? 32 : 24);
   return soaked;
+}
+// splashed: muddy water across the screen, running down as it fades
+let screenMud = null;
+function mudScreen() {
+  screenMud = { at: performance.now(), blobs: Array.from({ length: 18 }, () => ({ x: rand(0.04, 0.96) * W, y: rand(0.25, 0.95) * H, r: rand(10, 40), run: rand(30, 90) })) };
+}
+function drawScreenMud() {
+  if (!screenMud) return;
+  const k = (performance.now() - screenMud.at) / 1800; if (k >= 1) { screenMud = null; return; }
+  ctx.fillStyle = `rgba(96,68,40,${(0.8 * (1 - k)).toFixed(3)})`;
+  for (const b of screenMud.blobs) {
+    ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2); ctx.fill();
+    ctx.fillRect(b.x - b.r * 0.18, b.y, b.r * 0.36, b.run * k * 2); // the drip running down
+  }
 }
 function resolveAttack(att, side) {
   if (att.air) return; // (or hit from it)

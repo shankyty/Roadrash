@@ -232,6 +232,7 @@ function render() {
   ctx.globalAlpha = 1;
   ctx.restore();
   guardDraw('weather', drawRain);
+  guardDraw('ui', drawScreenMud);
 
   guardDraw('ui', drawPopups);
   guardDraw('ui', drawBubbles);

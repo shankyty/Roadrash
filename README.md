@@ -75,7 +75,7 @@ The world is rendered in real 3D with [Three.js](https://threejs.org) (r149, bun
 - A cart also stands on both footpaths before every traffic signal. Take it at 40 km/h or more and you jump the whole junction; pass over the cross traffic and it counts as a flyover.
 - Some carts are parked right in a lane on our side of the road, on stretches with only gentle bends. Line up and take one at 30 km/h or more and you jump off the road itself, landing further down the lane. Traffic pulls round them, and so do the rivals.
 - Potholes in the lanes cost a fifth of your speed and give you a jolt. Steer round them, or jump them.
-- Some potholes are full of muddy water. Hit one at 20 km/h or more and the splash soaks any auto alongside you: it loses a tenth of its speed and its driver curses you.
+- Some potholes are full of muddy water. Anyone who hits one at 20 km/h or more splashes every auto alongside, which loses a tenth of its speed: a rival you soak curses you, and when a rival soaks you the mud runs down your screen.
 - Western Express Highway races through a monsoon thunderstorm: rain, a lid of dark cloud, lightning behind the skyline and thunder after it, and every pothole full of water. A track's `look: { rain: true }` turns this on.
 - Land on a vehicle, a cow or a cart and you crash. Hit a cart too slowly or off-centre, or a stall without jumping, and you are wrecked.
 - Jumps pay cash on the results screen. A flyover (off the footpath, over a vehicle, into the road) pays more.
