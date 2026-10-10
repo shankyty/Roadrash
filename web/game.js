@@ -2865,15 +2865,15 @@ function drawAttack(x, y, w, h, atk, weapon) {
 // of the tub and the edge of the hood.
 function drawNeon(x, y, w, h, color) {
   const cx = x + w / 2, gy = y + h * 0.93, g = ctx.createRadialGradient(cx, gy, 0, cx, gy, w * 0.75);
-  g.addColorStop(0, hexA(color, 0.55)); g.addColorStop(1, hexA(color, 0));
+  g.addColorStop(0, hexA(color, 0.8)); g.addColorStop(0.5, hexA(color, 0.3)); g.addColorStop(1, hexA(color, 0));
   ctx.save(); ctx.globalCompositeOperation = 'lighter';
-  ctx.translate(cx, gy); ctx.scale(1, 0.22); ctx.translate(-cx, -gy);
-  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, gy, w * 0.75, 0, Math.PI * 2); ctx.fill();
+  ctx.translate(cx, gy); ctx.scale(1, 0.26); ctx.translate(-cx, -gy);
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, gy, w * 0.95, 0, Math.PI * 2); ctx.fill();
   ctx.restore();
 }
 function drawNeonStrips(x, y, w, h, color) {
-  ctx.save(); ctx.lineCap = 'round'; ctx.shadowColor = color; ctx.shadowBlur = Math.max(4, w * 0.12);
-  ctx.strokeStyle = color; ctx.lineWidth = Math.max(1.5, w * 0.018);
+  ctx.save(); ctx.lineCap = 'round'; ctx.shadowColor = color; ctx.shadowBlur = Math.max(6, w * 0.18);
+  ctx.strokeStyle = color; ctx.lineWidth = Math.max(2, w * 0.026);
   for (const [fy, x0, x1] of [[0.815, 0.1, 0.9], [0.487, 0.1, 0.9]]) { ctx.beginPath(); ctx.moveTo(x + w * x0, y + h * fy); ctx.lineTo(x + w * x1, y + h * fy); ctx.stroke(); }
   ctx.restore();
 }

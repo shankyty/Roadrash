@@ -334,7 +334,7 @@ vec3 nightLight(vec3 p) {
   function neonGlowMat(color) {
     if (!neonTex) {
       const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'), gr = x.createRadialGradient(64, 64, 0, 64, 64, 64);
-      gr.addColorStop(0, 'rgba(255,255,255,0.75)'); gr.addColorStop(0.5, 'rgba(255,255,255,0.28)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+      gr.addColorStop(0, 'rgba(255,255,255,0.95)'); gr.addColorStop(0.45, 'rgba(255,255,255,0.4)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
       x.fillStyle = gr; x.fillRect(0, 0, 128, 128); neonTex = new T.CanvasTexture(c);
     }
     return new T.MeshBasicMaterial({ map: neonTex, color, transparent: true, blending: T.AdditiveBlending, depthWrite: false });
@@ -434,6 +434,8 @@ vec3 nightLight(vec3 p) {
     const fw = wheel(118, 70, 0, 118, -R + 70); g.add(fw); g.userData.frontWheel = fw;
     // painted rear of the tub (plate, HORN OK PLEASE, tail lights) and the rear window in the hood
     if (rearCanvas) g.add(facePanel(crop(rearCanvas, 10, 108, 230, 206), Wd - 40, 250, 0, 265, R + 1));
+    // tail lamps that glow, standing proud of the painted ones (every other vehicle's lamps are lit this way)
+    for (const sx of [-1, 1]) g.add(rbox(50, 62, 22, tailGlow, sx * 206, 270, R + 8, 9));
     g.add(facePanel(rearWindowCanvas(), 330, 165, 0, M ? 590 : 700, R + (M ? 9 : 1)));
     // the attack, shown while it happens: an arm swinging the driver's weapon (a lathi if nothing else), or, for
     // a kicker, a leg out of the side of the auto
@@ -453,14 +455,18 @@ vec3 nightLight(vec3 p) {
     // hood, and their glow on the road
     if (look && look.neon && theme && theme.night) {
       const nm = new T.MeshBasicMaterial({ color: look.neon }), hoodY = 808 - lowY;
+      const halo = new T.MeshBasicMaterial({ color: look.neon, transparent: true, opacity: 0.28, blending: T.AdditiveBlending, depthWrite: false });
+      const fat = d => (d < 40 ? d * 2.6 : d) + 10; // the halo swells the strip's thin sides, not its length
+      const strip = (w, h, l, x, y, z) => { g.add(box(w, h, l, nm, x, y, z)); const b = box(fat(w), fat(h), fat(l), halo, x, y, z); b.renderOrder = 3; g.add(b); };
       for (const sx of [-1, 1]) {
-        g.add(box(14, 14, L * 0.5, nm, sx * (Wd / 2 + 4), 150, R - L * 0.27));
-        g.add(box(12, 12, L * 0.78, nm, sx * (Wd * 0.525 + 4), hoodY, R - L * 0.42));
+        strip(18, 18, L * 0.52, sx * (Wd / 2 + 6), 150, R - L * 0.27);                   // the foot of the tub
+        strip(16, 16, L * 0.8, sx * (Wd * 0.525 + 6), hoodY, R - L * 0.42);               // the hood's side edges
       }
-      g.add(box(Wd * 0.94, 14, 14, nm, 0, 150, R + 6));
-      g.add(box(Wd * 1.04, 12, 12, nm, 0, hoodY, R + 6));
+      strip(Wd * 0.96, 18, 18, 0, 150, R + 8);                                            // across the back of the tub
+      strip(Wd * 1.06, 16, 16, 0, hoodY, R + 8);                                          // the hood's back edge
+      strip(Wd * 1.06, 16, 16, 0, hoodY, R - L * 0.82);                                   // and its front edge
       const glow = new T.Mesh(unitPlane, neonGlowMat(look.neon)); glow.rotation.x = -Math.PI / 2;
-      glow.scale.set(Wd * 2.7, L * 1.9, 1); glow.position.y = 7; glow.renderOrder = 2; g.add(glow);
+      glow.scale.set(Wd * 3.4, L * 2.3, 1); glow.position.y = 7; glow.renderOrder = 2; g.add(glow);
     }
     g.userData.size = { w: Wd, h: 890, l: L };
     return g;
@@ -1756,7 +1762,7 @@ vec3 nightLight(vec3 p) {
     const night = !!theme.night;
     hemi.color.set(night ? '#5a6aa0' : theme.sky[2]); hemi.groundColor.set(night ? '#101020' : theme.light.grass);
     hemi.intensity = night ? 0.3 : 0.95; sun.intensity = night ? 0.05 : 0.55;
-    nightU.uNight.value = night ? 1 : 0; headGlow.emissiveIntensity = night ? 1.6 : 0.25;
+    nightU.uNight.value = night ? 1 : 0; headGlow.emissiveIntensity = night ? 1.6 : 0.25; tailGlow.emissiveIntensity = night ? 1.4 : 0.6;
     lampGlow.emissiveIntensity = night ? 1.4 : 0.3;
     buildEnv(night);
   }
