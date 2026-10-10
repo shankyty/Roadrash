@@ -1,5 +1,9 @@
 # Changelog
 
+## v3.15.1: You can hear the storm
+
+- **Fixed: the rain and thunder on Western Express Highway were too quiet to hear.** The rain was buried under the street recording, and the thunder sat mostly below what laptop and phone speakers can play. The rain is now a proper downpour (a bright hiss over a low roar, fading in), and the thunder cracks, rolls and rumbles away, loud enough to hear over the engine. Both are on the City Noise slider.
+
 ## v3.15.0: Monsoon on the Western Express, and muddy splashes
 
 - **Western Express Highway is a monsoon thunderstorm now:** rain over everything, a heavy lid of dark cloud with no sun, lightning forking down behind the skyline with a flash over the whole picture, and thunder rolling in a moment later. The road is wet and dark, and every pothole is full of water.

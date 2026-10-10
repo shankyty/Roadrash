@@ -193,15 +193,32 @@ const Sfx = {
   },
   whoosh() { this.noise(0.14, 0.12, 3500); },
   crash() { this.noise(0.8, 0.6, 700); this.tone(90, 0.6, 'sine', 0.5, 30); this.noise(0.3, 0.3, 4000, 0.1); },
-  // a steady hiss of rain on monsoon tracks (on the city bus, with the street noise)
+  // filtered noise from the shared buffer (rate: decorrelates layers playing at once); the source and its gain
+  filtered(type, freq, q, rate) {
+    const a = this.ctx, n = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain();
+    n.buffer = this.noiseBuf; n.loop = true; n.playbackRate.value = rate; f.type = type; f.frequency.value = freq; f.Q.value = q;
+    n.connect(f); f.connect(g); g.connect(this.cityBus); return { n, g };
+  },
+  // a downpour on monsoon tracks, on the city bus with the street noise: a bright hiss over a lower roar, faded in
   rain(on) {
     if (!this.ctx || !this.cityBus || !!this.rainSrc === on) return;
-    if (!on) { this.rainSrc.stop(); this.rainSrc = null; return; }
-    const a = this.ctx, n = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain();
-    n.buffer = this.noiseBuf; n.loop = true; f.type = 'bandpass'; f.frequency.value = 2400; f.Q.value = 0.5; g.gain.value = 0.4;
-    n.connect(f); f.connect(g); g.connect(this.cityBus); n.start(); this.rainSrc = n;
+    const t = this.ctx.currentTime;
+    if (!on) { for (const l of this.rainSrc) { l.g.gain.setTargetAtTime(0, t, 0.3); l.n.stop(t + 1.5); } this.rainSrc = null; return; }
+    this.rainSrc = [[this.filtered('highpass', 1500, 0.5, 1.07), 0.55], [this.filtered('bandpass', 600, 0.6, 0.93), 0.65]].map(([l, vol]) => {
+      l.g.gain.setValueAtTime(0, t); l.g.gain.setTargetAtTime(vol, t, 0.6); l.n.start(t); return l;
+    });
   },
-  thunder() { this.noise(2.8, 0.55, 220); this.noise(1.2, 0.3, 700, 0.06); this.tone(45, 2.2, 'sine', 0.35, 30); },
+  // thunder: a sharp crack, then a long roll and a rumble dying away (kept above 300 Hz or so: laptop and phone
+  // speakers play little below that)
+  thunder() {
+    if (!this.ctx || !this.cityBus) return;
+    const t = this.ctx.currentTime;
+    for (const [type, freq, q, vol, attack, dur, delay] of [['bandpass', 2400, 0.8, 7, 0.01, 0.4, 0], ['lowpass', 1100, 0.7, 11, 0.2, 3.2, 0.06], ['lowpass', 650, 0.7, 9, 0.6, 4.8, 0.5]]) {
+      const l = this.filtered(type, freq, q, rand(0.55, 0.9)), s = t + delay;
+      l.g.gain.setValueAtTime(0.0001, s); l.g.gain.exponentialRampToValueAtTime(vol, s + attack); l.g.gain.exponentialRampToValueAtTime(0.0001, s + dur);
+      l.n.start(s); l.n.stop(s + dur + 0.1);
+    }
+  },
   splash() { this.noise(0.45, 0.35, 1600); this.noise(0.3, 0.18, 5000, 0.04); },
   bump() { this.tone(90, 0.12, 'sine', 0.4, 60); this.noise(0.08, 0.2, 900); },
   whistle() { for (const [t, d] of [[0, 0.12], [0.18, 0.5]]) { this.tone(2900, d, 'sine', 0.16, 3100, t); this.tone(3350, d, 'sine', 0.08, 3500, t); } }, // traffic cop's whistle
