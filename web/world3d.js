@@ -27,6 +27,9 @@ window.World3D = (() => {
   const FP_H = 70;              // how high the footpath stands above the road
   const QUADS = 30; // per segment: footpath, kerb and road (7), kerb faces (4), centre line (2), lane lines (4), or finish cells (12) / zebra + stop line
   const P = [], TH = [], Y = [];     // per-frame centreline points, headings, heights (camera space)
+  // the road is laid out by adding up its bends, so past a turn of this much it curls back towards the camera and
+  // anything standing there would land on the camera; scenery and vehicles beyond that segment are not placed
+  const AROUND = 1.75; let aroundIdx = 300;
   let camAbs = 0, camFrac = 0, baseIdx = 0;
 
   // ---------------------------------------------------------------- shared resources
@@ -1774,13 +1777,14 @@ vec3 nightLight(vec3 p) {
     const camY = ps.p1.world.y + (ps.p2.world.y - ps.p1.world.y) * pf + cam.height;
     // road centre at the camera: the camera follows the player sideways (slightly lagging)
     const camX = player.x * ROAD_W * 0.8;
-    let th = -base.curve * CURVE_TO_RAD * camFrac;
+    let th = -base.curve * CURVE_TO_RAD * camFrac; aroundIdx = DRAW;
     let x = -camX - Math.sin(th) * camFrac * SEG_LEN, z = camFrac * SEG_LEN;
     for (let n = 0; n <= DRAW; n++) {
       const seg = segments[(baseIdx + n) % L];
       P[n] = P[n] || { x: 0, z: 0 }; P[n].x = x; P[n].z = z; TH[n] = th; Y[n] = seg.p1.world.y - camY;
       x += Math.sin(th) * SEG_LEN; z -= Math.cos(th) * SEG_LEN;
       th += seg.curve * CURVE_TO_RAD;
+      if (n < aroundIdx && Math.abs(th) > AROUND) aroundIdx = n; // from here on the road is around the bend
     }
   }
   // camera-space position for something `d` units ahead of the camera, `xn` road half-widths from the centre
@@ -1826,9 +1830,12 @@ vec3 nightLight(vec3 p) {
   const strip = (n, o1, o2, yOff, col) => stripT(n, 0, 1, o1, o2, o1, o2, yOff, col);
   // an upright face along segment n, at lateral a at its near end and b at its far end: from y0 up to y1 at the
   // near end, y2 up to y3 at the far end (a kerb)
-  function wallT(n, a, b, y0, y1, y2, y3, col) {
+  // a vertical face along the road at offset a (near end) to b (far end), from height y0 up to y1 (near) and y2 up to
+  // y3 (far); it faces the way `out` points (+1: towards the road's right, -1: its left), as the road is one-sided
+  function wallT(n, a, b, y0, y1, y2, y3, col, out = 1) {
     const A = P[n], B = P[n + 1], ax = A.x + Math.cos(TH[n]) * a, az = A.z + Math.sin(TH[n]) * a, bx = B.x + Math.cos(TH[n + 1]) * b, bz = B.z + Math.sin(TH[n + 1]) * b;
-    quad(ax, Y[n] + y0, az, ax, Y[n] + y1, az, bx, Y[n + 1] + y3, bz, bx, Y[n + 1] + y2, bz, col, [0, 0, 0, 0, 0, 0, 0, 0]);
+    if (out > 0) quad(ax, Y[n] + y0, az, ax, Y[n] + y1, az, bx, Y[n + 1] + y3, bz, bx, Y[n + 1] + y2, bz, col, [0, 0, 0, 0, 0, 0, 0, 0]);
+    else quad(ax, Y[n] + y1, az, ax, Y[n] + y0, az, bx, Y[n + 1] + y2, bz, bx, Y[n + 1] + y3, bz, col, [0, 0, 0, 0, 0, 0, 0, 0]);
   }
   function buildRoad() {
     vi = 0;
@@ -1849,7 +1856,7 @@ vec3 nightLight(vec3 p) {
         const ya = !fp ? -3 : segments[(baseIdx + n - 1 + L) % L].junction ? 0 : FP_H, yb = !fp ? -3 : segments[(baseIdx + n + 1) % L].junction ? 0 : FP_H;
         det = 0; strip(n, -26000, -h1 - rw - fw, -6, col.grass); stripT(n, 0, 1, h1 + rw + fw, 26000, h2 + rw + fw, 26000, -6, col.grass);
         det = 0.3; stripT(n, 0, 1, -h1 - rw - fw, -h1 - rw, -h2 - rw - fw, -h2 - rw, ya, col.shoulder, yb); stripT(n, 0, 1, h1 + rw, h1 + rw + fw, h2 + rw, h2 + rw + fw, ya, col.shoulder, yb);
-        if (fp) { det = 0; for (const sd of [-1, 1]) { wallT(n, sd * (h1 + rw), sd * (h2 + rw), 0, ya, 0, yb, colors.kerb); wallT(n, sd * (h1 + rw + fw), sd * (h2 + rw + fw), -6, ya, -6, yb, colors.kerb); } }
+        if (fp) { det = 0; for (const sd of [-1, 1]) { wallT(n, sd * (h1 + rw), sd * (h2 + rw), 0, ya, 0, yb, colors.kerb, -sd); wallT(n, sd * (h1 + rw + fw), sd * (h2 + rw + fw), -6, ya, -6, yb, colors.kerb, sd); } }
         det = 0.45; stripT(n, 0, 1, -h1 - rw, -h1, -h2 - rw, -h2, 0, col.rumble); stripT(n, 0, 1, h1, h1 + rw, h2, h2 + rw, 0, col.rumble);
         det = 1; stripT(n, 0, 1, -h1, h1, -h2, h2, 0, col.road); det = 0.7;                       // (paint on top: worn)
         if (seg.finish) {
@@ -1903,7 +1910,7 @@ vec3 nightLight(vec3 p) {
     return t;
   }
   function roadMaterial() {
-    const m = nightify(new T.MeshBasicMaterial({ vertexColors: true, map: asphaltTexture(), side: T.DoubleSide }), true), night = m.onBeforeCompile;
+    const m = nightify(new T.MeshBasicMaterial({ vertexColors: true, map: asphaltTexture() }), true), night = m.onBeforeCompile;
     m.onBeforeCompile = sh => {
       night(sh);
       sh.vertexShader = 'attribute float detail; varying float vDetail;\n' + sh.vertexShader.replace('#include <uv_vertex>', '#include <uv_vertex>\nvDetail = detail;');
@@ -2197,7 +2204,7 @@ vec3 nightLight(vec3 p) {
 
     const visible = new Set();
     // scenery on the visible segments
-    const L = segments.length, maxSeg = Math.min(DRAW - 1, Math.floor(OBJ_FAR / SEG_LEN));
+    const L = segments.length, maxSeg = Math.min(DRAW - 1, Math.floor(OBJ_FAR / SEG_LEN), aroundIdx);
     for (let n = 0; n < maxSeg; n++) {
       const seg = segments[(baseIdx + n) % L];
       for (const s of seg.sprites) {
@@ -2225,7 +2232,7 @@ vec3 nightLight(vec3 p) {
     }
     // vehicles and animals
     const place = (obj, d, x) => {
-      if (d < -800 || d > OBJ_FAR) { release(obj); return null; }
+      if (d < -800 || d > OBJ_FAR || d > aroundIdx * SEG_LEN) { release(obj); return null; }
       const m = modelFor(obj); if (!m) return null;
       setLod(m, d > TIER.lod[1] ? 2 : d > TIER.lod[0] ? 1 : 0);
       m.visible = true; visible.add(m); return m;
