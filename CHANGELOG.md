@@ -1,5 +1,9 @@
 # Changelog
 
+## v3.12.0: A real chai stall
+
+- **The chai stall is a 3D model** in the 3D view: a plank counter under a red-and-white awning on posts, the kettle on its stove, a row of glasses, the CHAI board, and the chaiwala behind it, facing the road. It was a flat picture before.
+
 ## v3.11.1: No more walls across the screen
 
 - **Fixed:** on a long bend the view could fill with a flat grey wall. The road is laid out by adding up its bends, so past a turn of about 100 degrees the far stretch curls back towards the camera; buildings standing there (moved out behind the new footpath) landed on the camera, and the road's underside, drawn double-sided since v3.9.0, showed as a blank wedge. Scenery and vehicles are no longer placed around the bend, and the road is one-sided again with the kerb faces turned outward.
