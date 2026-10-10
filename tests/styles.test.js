@@ -4,7 +4,7 @@ const test = require('node:test'), assert = require('node:assert');
 const RRR = require('./load-game.js');
 const { buildWorld } = require('./build-world.js');
 
-const STYLE_OF = { 'marine-drive': 'drift', 'charminar-road': 'classic', 'sea-link': 'speed', 'ring-road': 'traffic',
+const STYLE_OF = { 'marine-drive': 'drift', 'charminar-road': 'classic', 'sea-link': 'speed', 'ring-road': 'traffic', 'india-gate': 'speed',
   'western-express': 'traffic', 'marina-beach': 'speed', 'juhu-beach': 'drift' };
 const sharpest = road => Math.max(...road.segments.map(s => Math.abs(s.curve)));
 const vehicles = (traffic, dir) => traffic.filter(c => c.type !== 'cow' && c.type !== 'dog' && c.dir === dir);

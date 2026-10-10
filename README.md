@@ -59,7 +59,7 @@ The world is rendered in real 3D with [Three.js](https://threejs.org) (r149, bun
 - 7 races across 4 cities, each with its own skyline:
   - **Mumbai**: Marine Drive, Bandra-Worli Sea Link (night), Western Express Highway (a monsoon thunderstorm) and Juhu Beach Road, with the Gateway of India, Taj, Rajabai Tower and Sea Link behind.
   - **Hyderabad**: Charminar Road, with Charminar, Golconda Fort, HITEC City and the Hussain Sagar Buddha behind.
-  - **Delhi**: Ring Road, with India Gate, Qutub Minar, Red Fort, the Lotus Temple and Jama Masjid behind.
+  - **Delhi**: Ring Road and India Gate (a foggy winter morning, with a hailstorm over part of it), with India Gate, Qutub Minar, Red Fort, the Lotus Temple and Jama Masjid behind.
   - **Chennai**: Marina Beach Road, with the Kapaleeshwarar gopuram, the lighthouse and Chennai Central behind.
 - All 7 races are open from the start: pick any of them on the title screen with ← →.
 - Every race has a style, shown under its name on the title screen:
@@ -77,6 +77,7 @@ The world is rendered in real 3D with [Three.js](https://threejs.org) (r149, bun
 - Potholes in the lanes cost a fifth of your speed and give you a jolt, and the same to the rivals. Steer round them, or jump them.
 - Some potholes are full of muddy water. Anyone who hits one at 20 km/h or more splashes every auto alongside, which loses a tenth of its speed: a rival you soak curses you, and when a rival soaks you the mud runs down your screen.
 - Western Express Highway races through a monsoon thunderstorm: rain, a lid of dark cloud, lightning behind the skyline and thunder after it, and every pothole full of water. A track's `look: { rain: true }` turns this on.
+- India Gate is a foggy winter morning (`look.haze`, 0 to 1, brings the fog in). Over a stretch of the lap (`look.hail: { from, to }`, shares of it) hail comes on, falls hard with its own downpour and the clatter of stones on the roof, and eases off again; every pothole in that stretch is full of water.
 - Land on a vehicle, a cow or a cart and you crash. Hit a cart too slowly or off-centre, or a stall without jumping, and you are wrecked.
 - Jumps pay cash on the results screen. A flyover (off the footpath, over a vehicle, into the road) pays more.
 - The daring drivers use the footpath and the carts too when traffic holds them up.

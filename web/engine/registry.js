@@ -34,7 +34,7 @@ const SHAPES = {
     traffic: { count: 'number', cows: 'number', dogs: 'number', ...optional(TRAFFIC) },
     'ambience?': 'boolean',
     look: {
-      'night?': 'boolean', 'rain?': 'boolean', sky: 'array', sun: 'string', fog: 'string', sea: 'string', far: 'string', near: 'string', lights: 'number', density: 'number',
+      'night?': 'boolean', 'rain?': 'boolean', 'hail?': { from: 'number', to: 'number' }, 'haze?': 'number', sky: 'array', sun: 'string', fog: 'string', sea: 'string', far: 'string', near: 'string', lights: 'number', density: 'number',
       light: { road: 'string', grass: 'string', rumble: 'string', lane: 'string', shoulder: 'string' },
       dark: { road: 'string', grass: 'string', rumble: 'string', shoulder: 'string' },
       buildings: 'array', scenery: 'object',

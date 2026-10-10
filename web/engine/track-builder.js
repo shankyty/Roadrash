@@ -224,7 +224,7 @@ class TrackBuilder {
     for (let n = fs + 40 + every(F.POTHOLE.every); n < N - 20; n += every(F.POTHOLE.every)) {
       const q = segments[n];
       if (q.clear || q.junction || q.finish || cartAt.has(n)) continue;
-      const offset = inLane(n, F.POTHOLE.width), wet = H() < F.POTHOLE.wet || !!this.def.look.rain; // (in the rain, all of them)
+      const offset = inLane(n, F.POTHOLE.width), hail = this.def.look.hail, wet = H() < F.POTHOLE.wet || !!this.def.look.rain || !!hail && n / N > hail.from && n / N < hail.to; // (in the rain or the hail, all of them)
       q.sprites.push({ img: wet ? SP.potholeWet : SP.pothole, offset, nw: F.POTHOLE.width, solid: false, kind: 'pothole', wet, inLane: true, edgeDone: true });
     }
   }

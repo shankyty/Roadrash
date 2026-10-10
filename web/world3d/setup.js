@@ -68,7 +68,8 @@ function setTrack(opts) {
     dark: { road: c(theme3D.dark.road), grass: c(theme3D.dark.grass), rumble: c(theme3D.dark.rumble), shoulder: c(theme3D.dark.shoulder) },
     white: c('#f5f5f5'), yellow: c('#f2c200'), kerb: c('#6f6a63'),
   };
-  scene.fog = new T.Fog(theme3D.fog, 20000, DRAW * SEG_LEN_3D * 0.97);
+  const haze = theme3D.haze || 0; // (0 to 1: a winter fog closes in)
+  scene.fog = new T.Fog(theme3D.fog, 20000 * (1 - haze * 0.9), DRAW * SEG_LEN_3D * 0.97 * (1 - haze * 0.6));
   const night = !!theme3D.night;
   hemi.color.set(night ? '#5a6aa0' : theme3D.sky[2]); hemi.groundColor.set(night ? '#101020' : theme3D.light.grass);
   hemi.intensity = night ? 0.3 : 0.95; sun.intensity = night ? 0.05 : 0.55;

@@ -211,3 +211,10 @@ test('in the rain every pothole is full of water, and the rest of the road is la
   const at = road => inLane(road, 'pothole').map(h => `${h.n}:${h.q.offset}`).join();
   assert.strictEqual(at(buildRoad(wet)), at(buildRoad(dry)));
 });
+test('where the hail falls every pothole is full of water; elsewhere only some are', () => {
+  const dry = testDef({ road: { footpath: FP } }), hail = { ...dry, look: { ...dry.look, hail: { from: 0.4, to: 0.6 } } };
+  const road = buildRoad(hail), N = road.segments.length, holes = inLane(road, 'pothole');
+  const inside = holes.filter(h => h.n / N > 0.4 && h.n / N < 0.6), outside = holes.filter(h => !inside.includes(h));
+  assert.ok(inside.length > 3 && inside.every(h => h.q.wet), `${inside.length} in the hail`);
+  assert.ok(outside.some(h => !h.q.wet));
+});

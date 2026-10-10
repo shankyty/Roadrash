@@ -11,8 +11,9 @@ test('every shipped pack validates', () => {
 test('every race has seven rivals', () => {
   for (const id of RRR.order()) assert.strictEqual(RRR.tracks.get(id).rivals.count, 7, id);
 });
-test('race order is unchanged', () => {
-  assert.deepStrictEqual(RRR.order(), legacy.TRACKS.map(t => legacy.IDS[t.theme]));
+test('race order is the old one, with India Gate (v3.18.0) after Ring Road', () => {
+  const old = legacy.TRACKS.map(t => legacy.IDS[t.theme]);
+  assert.deepStrictEqual(RRR.order(), [...old.slice(0, old.indexOf('ring-road') + 1), 'india-gate', ...old.slice(old.indexOf('ring-road') + 1)]);
 });
 const RESTYLED = { 'western-express': 'v3.15.0: a monsoon thunderstorm' }; // tracks whose look was changed on purpose since
 for (const old of legacy.TRACKS) {

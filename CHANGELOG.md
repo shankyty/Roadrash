@@ -1,5 +1,11 @@
 # Changelog
 
+## v3.18.0: India Gate, in fog and hail
+
+- **A new Delhi track, India Gate:** race number 5, after Ring Road. A foggy winter morning on a wide, fast road (the speed style), with India Gate in the skyline. The fog closes in much nearer than on other tracks.
+- **A hailstorm over part of it:** around the middle of the lap the light darkens and hail comes on, white stones bouncing off the road, with its own downpour and the clatter of hailstones on the roof. It eases off again a little further on. Every pothole in that stretch is full of water.
+- Track makers: `look.haze` (0 to 1) thickens the fog, and `look.hail: { from, to }` sets where on the lap the hail falls.
+
 ## v3.17.0: Rivals brawl, potholes bite them too, and the shove
 
 - **Rivals fight each other:** a rival that isn't busy with you swings at another rival alongside (a little less keenly), and they can knock each other out. A swing lands on whoever is nearest on that side, so a rival aiming at someone else can catch you.

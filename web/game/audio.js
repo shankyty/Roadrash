@@ -199,14 +199,23 @@ const Sfx = {
     n.buffer = this.noiseBuf; n.loop = true; n.playbackRate.value = rate; f.type = type; f.frequency.value = freq; f.Q.value = q;
     n.connect(f); f.connect(g); g.connect(this.cityBus); return { n, g };
   },
-  // a downpour on monsoon tracks, on the city bus with the street noise: a bright hiss over a lower roar, faded in
-  rain(on) {
-    if (!this.ctx || !this.cityBus || !!this.rainSrc === on) return;
+  // a downpour, on the city bus with the street noise: a bright hiss over a lower roar, at a level from 0 (stopped)
+  // to 1 (a monsoon); it fades to each new level
+  rain(level) {
+    if (!this.ctx || !this.cityBus) return;
     const t = this.ctx.currentTime;
-    if (!on) { for (const l of this.rainSrc) { l.g.gain.setTargetAtTime(0, t, 0.3); l.n.stop(t + 1.5); } this.rainSrc = null; return; }
-    this.rainSrc = [[this.filtered('highpass', 1500, 0.5, 1.07), 0.55], [this.filtered('bandpass', 600, 0.6, 0.93), 0.65]].map(([l, vol]) => {
-      l.g.gain.setValueAtTime(0, t); l.g.gain.setTargetAtTime(vol, t, 0.6); l.n.start(t); return l;
+    if (!level) { if (this.rainSrc) { for (const l of this.rainSrc) { l.g.gain.setTargetAtTime(0, t, 0.3); l.n.stop(t + 1.5); } this.rainSrc = null; this.rainLevel = 0; } return; }
+    if (!this.rainSrc) this.rainSrc = [[this.filtered('highpass', 1500, 0.5, 1.07), 0.55], [this.filtered('bandpass', 600, 0.6, 0.93), 0.65]].map(([l, vol]) => {
+      l.g.gain.setValueAtTime(0, t); l.n.start(t); l.vol = vol; return l;
     });
+    if (level !== this.rainLevel) for (const l of this.rainSrc) l.g.gain.setTargetAtTime(l.vol * level, t, 0.6);
+    this.rainLevel = level;
+  },
+  // one hailstone on the roof: a short bright tick, louder or softer
+  hailTick() {
+    if (!this.ctx || !this.cityBus) return;
+    const t = this.ctx.currentTime, l = this.filtered('highpass', 2600 + rand(0, 2000), 1.2, rand(0.8, 1.3)), v = rand(0.3, 1.1);
+    l.g.gain.setValueAtTime(v, t); l.g.gain.exponentialRampToValueAtTime(0.0001, t + 0.035); l.n.start(t); l.n.stop(t + 0.05);
   },
   // thunder: a sharp crack, then a long roll and a rumble dying away (kept above 300 Hz or so: laptop and phone
   // speakers play little below that)

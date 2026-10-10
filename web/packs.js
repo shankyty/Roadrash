@@ -4,5 +4,5 @@
 RRR.load({
   styles: ['classic', 'speed', 'drift', 'traffic'],
   cities: ['mumbai', 'hyderabad', 'delhi', 'chennai'],
-  tracks: ['marine-drive', 'charminar-road', 'sea-link', 'ring-road', 'western-express', 'marina-beach', 'juhu-beach'],
+  tracks: ['marine-drive', 'charminar-road', 'sea-link', 'ring-road', 'india-gate', 'western-express', 'marina-beach', 'juhu-beach'],
 });

@@ -8,7 +8,8 @@ const { fingerprint } = require('./fingerprint.js');
 const golden = require('./golden/classic-roads.json');
 
 // tour 0 and tour 1: the road is seeded with seed + round * 1000, the traffic with seed + 99 + round
-for (const id of RRR.order()) for (const mode of ['3d', '2d']) for (const round of [0, 1]) {
+// (only the tracks that existed then: ones added since have no old road to match)
+for (const id of RRR.order().filter(id => golden[`${id}/3d`])) for (const mode of ['3d', '2d']) for (const round of [0, 1]) {
   test(`${id} (${mode}, tour ${round}) is unchanged under the classic style`, () => {
     // forced to classic with no overrides, so this keeps guarding the classic recipe after tracks change style
     const { road, handling, scoring, ...base } = RRR.tracks.get(id), { count, cows, dogs } = base.traffic;
