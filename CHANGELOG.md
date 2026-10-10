@@ -1,5 +1,11 @@
 # Changelog
 
+## v3.12.0: Tail lamps and thirteen neons
+
+- **Every auto's tail lamps glow,** like the cars', buses' and trucks' always have, and brighter at night. They were painted on before.
+- **Every driver has neon now, each in their own colour:** Ganpat magenta, Bunty blue, Saleem amber, Murugan green, Bablu-da yellow, Jassi orange, Jintu cyan, Banwari violet, Manju teal, Nawab white, Bhola lime, Lallan red and Kokila-ben pink. Before, five autos had it and three of those were pink.
+- **Brighter neon:** thicker strips with a halo round each, a strip along the front of the hood too, and a bigger, brighter pool of light on the road. Still only on night tracks.
+
 ## v3.11.1: No more walls across the screen
 
 - **Fixed:** on a long bend the view could fill with a flat grey wall. The road is laid out by adding up its bends, so past a turn of about 100 degrees the far stretch curls back towards the camera; buildings standing there (moved out behind the new footpath) landed on the camera, and the road's underside, drawn double-sided since v3.9.0, showed as a blank wedge. Scenery and vehicles are no longer placed around the bend, and the road is one-sided again with the kerb faces turned outward.
