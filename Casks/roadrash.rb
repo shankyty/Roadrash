@@ -22,6 +22,7 @@ cask "roadrash" do
       brew uninstall --cask roadrash
       brew untap shankyty/roadrash
       brew tap shankyty/rickshaw-rider https://github.com/shankyty/rickshaw-rider
+      brew trust shankyty/rickshaw-rider
       brew install --cask rickshaw-rider
   EOS
 
